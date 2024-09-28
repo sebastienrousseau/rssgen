@@ -1,0 +1,113 @@
+name: 🧪 Release
+
+on:
+  push:
+    branches: [main, feat/rssgen]
+  pull_request:
+    branches: [feat/rssgen]
+  release:
+    types: [created]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_API_TOKEN }}
+
+jobs:
+  build:
+    name: Build 🛠
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+          - os: windows-latest
+            target: aarch64-pc-windows-msvc
+          - os: macos-latest
+            target: x86_64-apple-darwin
+          - os: macos-latest
+            target: aarch64-apple-darwin
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+          override: true
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Build
+        run: cargo build --verbose --release --target ${{ matrix.target }}
+      - name: Package
+        run: |
+          mkdir -p target/package
+          cd target/${{ matrix.target }}/release
+          tar czf ../../package/${{ matrix.target }}.tar.gz *
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}
+          path: target/package/${{ matrix.target }}.tar.gz
+
+  release:
+    name: Release 🚀
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set version
+        run: echo "VERSION=$(grep version Cargo.toml | sed -n 2p | cut -d '"' -f 2)" >> $GITHUB_ENV
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Generate Changelog
+        run: |
+          echo "## Release v${VERSION} - $(date +'%Y-%m-%d')" > CHANGELOG.md
+          cat TEMPLATE.md >> CHANGELOG.md
+          git log --pretty=format:'%s' --reverse HEAD >> CHANGELOG.md
+          echo "" >> CHANGELOG.md
+      - uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ env.VERSION }}
+          release_name: RSS Gen 🦀 v${{ env.VERSION }}
+          body_path: CHANGELOG.md
+          draft: true
+          prerelease: false
+      - name: Upload Release Assets
+        run: |
+          for asset in artifacts/*/*; do
+            gh release upload v${{ env.VERSION }} "$asset" --clobber
+          done
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  crate:
+    name: Publish to Crates.io 🦀
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+      - name: Publish
+        run: cargo publish --token ${CARGO_REGISTRY_TOKEN}
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_API_TOKEN }}

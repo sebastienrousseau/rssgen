@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["RssError"],"struct":["DateSortError","ValidationError"],"type":["Result"]};

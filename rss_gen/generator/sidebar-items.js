@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["generate_rss"]};
+window.SIDEBAR_ITEMS = {"fn":["generate_rss","sanitize_content","write_element"]};

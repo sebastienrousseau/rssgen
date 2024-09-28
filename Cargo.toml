@@ -1,0 +1,75 @@
+# -----------------------------------------------------------------------------
+# RSS Gen - A Rust library for generating, serializing, and deserializing RSS feeds across various RSS versions.
+# -----------------------------------------------------------------------------
+
+[package]
+# General project metadata
+name = "rss-gen"                            # The name of the library
+version = "0.0.1"                           # Initial version of the crate
+authors = ["RSS Generator Contributors"]    # Library contributors
+edition = "2021"                            # Rust edition being used
+rust-version = "1.56.0"                     # Minimum supported Rust version
+license = "MIT OR Apache-2.0"               # Dual licensing strategy
+description = """
+A Rust library for generating, serializing, and deserializing RSS feeds for various RSS versions.
+"""                                         # Short library description
+homepage = "https://rssgen.co/"             # Project's homepage URL
+documentation = "https://rssgen.co/documentation/index.html" # Doc URL
+repository = "https://github.com/sebastienrousseau/rssgen"    # Repository URL
+readme = "README.md"                        # Path to the readme file
+build = "build.rs"                          # Path to the build script
+
+# -----------------------------------------------------------------------------
+# Crate Configuration
+# -----------------------------------------------------------------------------
+
+# Crates.io categories
+categories = [
+    "data-formats",                         # For handling RSS and XML formats
+    "parsing",                              # Parsing RSS feeds
+    "xml",                                  # XML-based feed structure
+    "web-programming",                      # For web-related functionality
+    "content-management"                    # Content syndication
+]
+
+# Keywords for easier discoverability on Crates.io
+keywords = ["cli", "generator", "site", "ssg", "static"]
+
+# Excluding unnecessary files from the package
+exclude = [
+    "/.git/*",                              # Exclude version control files
+    "/.github/*",                           # Exclude GitHub workflows
+    "/.gitignore",                          # Ignore Git ignore file
+    "/.vscode/*"                            # Ignore VSCode settings
+]
+
+# -----------------------------------------------------------------------------
+# Dependencies
+# -----------------------------------------------------------------------------
+
+[dependencies]
+# List of external crates used in this project
+dtt = "0.0.8"
+log = "0.4"
+quick-xml = "0.36"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "1.0"
+url = "2.5"
+
+[build-dependencies]
+# Dependencies for build scripts
+version_check = "0.9"
+
+[dev-dependencies]
+# Dependencies for development and testing
+pretty_assertions = "1.4"
+
+# -----------------------------------------------------------------------------
+# Library Information
+# -----------------------------------------------------------------------------
+
+[lib]
+# Library-specific settings
+name = "rss_gen"                        # Internal name of the library
+path = "src/lib.rs"                     # Path to the library entry point

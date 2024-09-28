@@ -60,7 +60,7 @@ exclude = [
 
 [dependencies]
 # List of external crates used in this project
-dtt = "0.0.8"
+dtt = "0.0"
 log = "0.4"
 quick-xml = "0.36"
 serde = { version = "1.0", features = ["derive"] }
@@ -77,8 +77,6 @@ version_check = "0.9"
 # Dependencies for development and testing
 criterion = "0.5"
 lazy_static = "1.5"
-pretty_assertions = "1.4"
-tokio-test = "0.4"
 
 # -----------------------------------------------------------------------------
 # Library Information

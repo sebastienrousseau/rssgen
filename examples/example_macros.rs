@@ -10,18 +10,19 @@
 
 #![allow(missing_docs)]
 
+use quick_xml::events::{BytesEnd, BytesStart, BytesText, Event};
+use quick_xml::Error as XmlError;
+use quick_xml::Writer;
 use rss_gen::{
     macro_generate_rss, macro_write_element, RssData, RssVersion,
 };
-use quick_xml::events::{BytesStart, BytesText, BytesEnd, Event};
-use quick_xml::Writer;
 use std::io::Cursor;
-use quick_xml::Error as XmlError;
 
 /// Entry point for the RSS Gen macros examples.
 ///
 /// This function demonstrates generating an RSS feed and writing XML elements using macros.
-pub(crate) fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+pub(crate) fn main(
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     println!("\n🧪 RSS Gen Macros Usage Examples\n");
 
     // Running the examples
@@ -33,7 +34,8 @@ pub(crate) fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 }
 
 /// Demonstrates generating an RSS feed using the `macro_generate_rss!` macro.
-fn generate_rss_macro_example() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+fn generate_rss_macro_example(
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     println!("🦀  Generate Rss Feed Macro Example");
     println!("---------------------------------------------");
 
@@ -52,7 +54,8 @@ fn generate_rss_macro_example() -> Result<(), Box<dyn std::error::Error + Send +
         }
         Err(e) => {
             let error: XmlError = e; // Explicitly casting the error to quick_xml::Error
-            return Err(Box::new(error) as Box<dyn std::error::Error + Send + Sync>);
+            return Err(Box::new(error)
+                as Box<dyn std::error::Error + Send + Sync>);
         }
     }
 
@@ -60,7 +63,8 @@ fn generate_rss_macro_example() -> Result<(), Box<dyn std::error::Error + Send +
 }
 
 /// Demonstrates writing an XML element using the `macro_write_element!` macro.
-fn write_element_macro_example() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+fn write_element_macro_example(
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     println!("\n🦀 Write Xml Element Macro Example");
     println!("---------------------------------------------");
 
@@ -75,7 +79,8 @@ fn write_element_macro_example() -> Result<(), Box<dyn std::error::Error + Send 
         }
         Err(e) => {
             let error: XmlError = e; // Explicitly casting the error to quick_xml::Error
-            return Err(Box::new(error) as Box<dyn std::error::Error + Send + Sync>);
+            return Err(Box::new(error)
+                as Box<dyn std::error::Error + Send + Sync>);
         }
     }
 

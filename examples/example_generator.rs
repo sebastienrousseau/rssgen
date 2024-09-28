@@ -10,8 +10,8 @@
 
 #![allow(missing_docs)]
 
-use rss_gen::generator::{sanitize_content, write_element};
 use quick_xml::Writer;
+use rss_gen::generator::{sanitize_content, write_element};
 use std::io::Cursor;
 
 /// Entry point for the RSS Generator library examples.

@@ -121,7 +121,10 @@ impl RssError {
     /// # Returns
     ///
     /// Returns a new `DateSortError` instance.
-    pub fn date_sort_error<S: Into<String>>(index: usize, message: S) -> DateSortError {
+    pub fn date_sort_error<S: Into<String>>(
+        index: usize,
+        message: S,
+    ) -> DateSortError {
         DateSortError {
             index,
             message: message.into(),
@@ -343,5 +346,63 @@ mod tests {
             message: "Invalid date".to_string(),
         };
         assert_eq!(error.to_string(), "Date sort error: Invalid date");
+    }
+
+    #[test]
+    fn test_missing_field_error() {
+        let rss_error = RssError::MissingField("title".to_string());
+
+        assert_eq!(
+            format!("{}", rss_error),
+            "A required field is missing: title"
+        );
+    }
+
+    #[test]
+    fn test_date_parse_error() {
+        let rss_error =
+            RssError::DateParseError("Invalid date format".to_string());
+
+        assert_eq!(
+            format!("{}", rss_error),
+            "Date parse error: Invalid date format"
+        );
+    }
+
+    #[test]
+    fn test_invalid_url_error() {
+        let rss_error =
+            RssError::InvalidUrl("https://invalid-url".to_string());
+
+        assert_eq!(
+            format!("{}", rss_error),
+            "Invalid URL provided: https://invalid-url"
+        );
+    }
+
+    #[test]
+    fn test_unknown_element_error() {
+        let rss_error =
+            RssError::UnknownElement("unknown-element".to_string());
+
+        assert_eq!(
+            format!("{}", rss_error),
+            "Unknown XML element found: unknown-element"
+        );
+    }
+
+    #[test]
+    fn test_validation_errors() {
+        let validation_errors = vec![
+            "Title is missing".to_string(),
+            "Invalid pub date".to_string(),
+        ];
+        let rss_error =
+            RssError::ValidationErrors(validation_errors.clone());
+
+        assert_eq!(
+            format!("{}", rss_error),
+            format!("Validation errors: {:?}", validation_errors)
+        );
     }
 }

@@ -1,7 +1,6 @@
 // Copyright © 2024 RSS Gen. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-
 //! # RSS Gen (rss-gen)
 //!
 //! This file serves as an entry point for running all the RSS Gen (rss-gen) examples, demonstrating logging levels, formats, macros, and library functionality.

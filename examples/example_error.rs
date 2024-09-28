@@ -9,8 +9,8 @@
 
 #![allow(missing_docs)]
 
-use rss_gen::error::{RssError, Result};
 use quick_xml::Error as XmlError;
+use rss_gen::error::{Result, RssError};
 use std::io;
 use std::sync::Arc;
 
@@ -28,7 +28,9 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     custom_error_example()?;
     http_status_example()?;
 
-    println!("\n🎉  All error handling examples completed successfully!");
+    println!(
+        "\n🎉  All error handling examples completed successfully!"
+    );
 
     Ok(())
 }
@@ -65,7 +67,10 @@ fn xml_error_example() -> Result<()> {
     println!("\n🦀 Xml Error Example");
     println!("---------------------------------------------");
 
-    let xml_error = XmlError::Io(Arc::new(io::Error::new(io::ErrorKind::Other, "XML parsing failed")));
+    let xml_error = XmlError::Io(Arc::new(io::Error::new(
+        io::ErrorKind::Other,
+        "XML parsing failed",
+    )));
     let error = RssError::XmlWriteError(xml_error);
     println!("    ❌  XML Error: {}", error);
 
@@ -96,7 +101,8 @@ fn io_error_example() -> Result<()> {
     println!("\n🦀  I/O Error Example");
     println!("---------------------------------------------");
 
-    let io_error = io::Error::new(io::ErrorKind::NotFound, "File not found");
+    let io_error =
+        io::Error::new(io::ErrorKind::NotFound, "File not found");
     let error: RssError = io_error.into();
     println!("    ❌  I/O Error: {}", error);
 
@@ -150,10 +156,18 @@ fn http_status_example() -> Result<()> {
     println!("---------------------------------------------");
 
     let missing_field_error = RssError::missing_field("author");
-    let xml_error = RssError::XmlWriteError(XmlError::Io(Arc::new(io::Error::new(io::ErrorKind::Other, "XML error"))));
+    let xml_error = RssError::XmlWriteError(XmlError::Io(Arc::new(
+        io::Error::new(io::ErrorKind::Other, "XML error"),
+    )));
 
-    println!("    ❌  Missing Field Error HTTP Status: {}", missing_field_error.to_http_status());
-    println!("    ❌  XML Error HTTP Status: {}", xml_error.to_http_status());
+    println!(
+        "    ❌  Missing Field Error HTTP Status: {}",
+        missing_field_error.to_http_status()
+    );
+    println!(
+        "    ❌  XML Error HTTP Status: {}",
+        xml_error.to_http_status()
+    );
 
     Ok(())
 }

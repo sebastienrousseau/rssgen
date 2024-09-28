@@ -124,11 +124,7 @@ macro_rules! macro_generate_rss {
         )?;
         macro_write_element!(writer, "author", &$options.author)?;
         macro_write_element!(writer, "guid", &$options.guid)?;
-        macro_write_element!(
-            writer,
-            "pubDate",
-            &$options.pub_date
-        )?;
+        macro_write_element!(writer, "pubDate", &$options.pub_date)?;
         writer.write_event(Event::End(BytesEnd::new("item")))?;
 
         writer.write_event(Event::End(BytesEnd::new("channel")))?;

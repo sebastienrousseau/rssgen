@@ -38,7 +38,9 @@ fn generate_rss_example() {
 
     // Generate the RSS feed
     match generate_rss(&rss_data) {
-        Ok(rss_feed) => println!("    ✅  Generated RSS feed:\n    {}", rss_feed),
+        Ok(rss_feed) => {
+            println!("    ✅  Generated RSS feed:\n    {}", rss_feed)
+        }
         Err(e) => println!("    ❌  Error generating RSS feed: {}", e),
     }
 }

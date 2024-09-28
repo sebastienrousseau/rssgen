@@ -87,19 +87,43 @@ fn parse_rss_example() {
     match parse_rss(xml_content) {
         Ok(parsed_data) => {
             // Pretty-print the entire parsed data using the Debug trait
-            println!("    ✅  Parsed RSS feed data: {:#?}", parsed_data);
+            println!(
+                "    ✅  Parsed RSS feed data: {:#?}",
+                parsed_data
+            );
 
             // Directly access individual fields of parsed_data
-            println!("    ✅  Parsed RSS feed title: {:?}", parsed_data.title);
-            println!("    ✅  Parsed RSS feed link: {:?}", parsed_data.link);
-            println!("    ✅  Parsed RSS feed description: {:?}", parsed_data.description);
-            println!("    ✅  Number of items: {}", parsed_data.items.len());
+            println!(
+                "    ✅  Parsed RSS feed title: {:?}",
+                parsed_data.title
+            );
+            println!(
+                "    ✅  Parsed RSS feed link: {:?}",
+                parsed_data.link
+            );
+            println!(
+                "    ✅  Parsed RSS feed description: {:?}",
+                parsed_data.description
+            );
+            println!(
+                "    ✅  Number of items: {}",
+                parsed_data.items.len()
+            );
 
             // Print details of the first item, if available
             if let Some(first_item) = parsed_data.items.first() {
-                println!("    ✅  First item title: {:?}", first_item.title);
-                println!("    ✅  First item link: {:?}", first_item.link);
-                println!("    ✅  First item description: {:?}", first_item.description);
+                println!(
+                    "    ✅  First item title: {:?}",
+                    first_item.title
+                );
+                println!(
+                    "    ✅  First item link: {:?}",
+                    first_item.link
+                );
+                println!(
+                    "    ✅  First item description: {:?}",
+                    first_item.description
+                );
             }
         }
         Err(e) => println!("    ❌  Error parsing RSS feed: {}", e),

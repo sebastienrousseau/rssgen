@@ -1,7 +1,9 @@
 #![allow(missing_docs)]
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use rss_gen::{generate_rss, parse_rss, RssData, RssItem, RssVersion};
+use criterion::{
+    black_box, criterion_group, criterion_main, Criterion,
+};
 use lazy_static::lazy_static;
+use rss_gen::{generate_rss, parse_rss, RssData, RssItem, RssVersion};
 use std::time::Duration;
 
 fn generate_large_rss_data(item_count: usize) -> RssData {
@@ -20,7 +22,10 @@ fn generate_large_rss_data(item_count: usize) -> RssData {
             RssItem::new()
                 .title(format!("Item {}", i))
                 .link(format!("https://example.com/item{}", i))
-                .description(format!("This is the description for item {}", i))
+                .description(format!(
+                    "This is the description for item {}",
+                    i
+                ))
                 .guid(format!("unique-id-{}", i))
                 .pub_date("Mon, 01 Jan 2024 00:00:00 GMT"),
         );
@@ -33,7 +38,6 @@ lazy_static! {
     static ref SMALL_DATA: RssData = generate_large_rss_data(10);
     static ref MEDIUM_DATA: RssData = generate_large_rss_data(100);
     static ref LARGE_DATA: RssData = generate_large_rss_data(1000);
-
     static ref SMALL_XML: String = generate_rss(&SMALL_DATA).unwrap();
     static ref MEDIUM_XML: String = generate_rss(&MEDIUM_DATA).unwrap();
     static ref LARGE_XML: String = generate_rss(&LARGE_DATA).unwrap();
@@ -41,9 +45,10 @@ lazy_static! {
 
 fn benchmark_generate_rss(c: &mut Criterion) {
     let mut group = c.benchmark_group("Generate RSS");
-    group.sample_size(100)
-         .warm_up_time(Duration::from_secs(3))
-         .measurement_time(Duration::from_secs(8));
+    group
+        .sample_size(100)
+        .warm_up_time(Duration::from_secs(3))
+        .measurement_time(Duration::from_secs(8));
     group.bench_function("Small", |b| {
         b.iter(|| generate_rss(black_box(&*SMALL_DATA)))
     });
@@ -58,9 +63,10 @@ fn benchmark_generate_rss(c: &mut Criterion) {
 
 fn benchmark_parse_rss(c: &mut Criterion) {
     let mut group = c.benchmark_group("Parse RSS");
-    group.sample_size(100)
-         .warm_up_time(Duration::from_secs(3))
-         .measurement_time(Duration::from_secs(8));
+    group
+        .sample_size(100)
+        .warm_up_time(Duration::from_secs(3))
+        .measurement_time(Duration::from_secs(8));
     group.bench_function("Small", |b| {
         b.iter(|| parse_rss(black_box(&*SMALL_XML)))
     });

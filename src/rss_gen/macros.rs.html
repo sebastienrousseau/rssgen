@@ -428,11 +428,7 @@
 <a href="#427" id="427">427</a>
 <a href="#428" id="428">428</a>
 <a href="#429" id="429">429</a>
-<a href="#430" id="430">430</a>
-<a href="#431" id="431">431</a>
-<a href="#432" id="432">432</a>
-<a href="#433" id="433">433</a>
-<a href="#434" id="434">434</a></pre></div><pre class="rust"><code><span class="comment">// Copyright © 2024 RSS Gen. All rights reserved.
+<a href="#430" id="430">430</a></pre></div><pre class="rust"><code><span class="comment">// Copyright © 2024 RSS Gen. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 </span><span class="doccomment">//! This module provides macros for generating RSS feeds and setting fields for RSS data.
@@ -558,11 +554,7 @@
         )<span class="question-mark">?</span>;
         <span class="macro">macro_write_element!</span>(writer, <span class="string">"author"</span>, <span class="kw-2">&amp;</span><span class="macro-nonterminal">$options</span>.author)<span class="question-mark">?</span>;
         <span class="macro">macro_write_element!</span>(writer, <span class="string">"guid"</span>, <span class="kw-2">&amp;</span><span class="macro-nonterminal">$options</span>.guid)<span class="question-mark">?</span>;
-        <span class="macro">macro_write_element!</span>(
-            writer,
-            <span class="string">"pubDate"</span>,
-            <span class="kw-2">&amp;</span><span class="macro-nonterminal">$options</span>.pub_date
-        )<span class="question-mark">?</span>;
+        <span class="macro">macro_write_element!</span>(writer, <span class="string">"pubDate"</span>, <span class="kw-2">&amp;</span><span class="macro-nonterminal">$options</span>.pub_date)<span class="question-mark">?</span>;
         writer.write_event(Event::End(BytesEnd::new(<span class="string">"item"</span>)))<span class="question-mark">?</span>;
 
         writer.write_event(Event::End(BytesEnd::new(<span class="string">"channel"</span>)))<span class="question-mark">?</span>;

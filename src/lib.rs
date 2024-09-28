@@ -1,6 +1,8 @@
 // Copyright © 2024 RSS Gen. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+// src/lib.rs
+
 //! # RSS Gen
 //!
 //! `rss-gen` is a comprehensive Rust library for generating, parsing, serializing, and deserializing RSS feeds.
@@ -55,14 +57,6 @@
 //!     Err(e) => eprintln!("Error parsing RSS feed: {}", e),
 //! }
 //! ```
-//!
-//! For more examples and detailed usage instructions, please refer to the documentation of individual modules.
-
-#![doc(
-    html_favicon_url = "https://kura.pro/rssgen/images/favicon.ico",
-    html_logo_url = "https://kura.pro/rssgen/images/logos/rssgen.svg",
-    html_root_url = "https://docs.rs/rssgen"
-)]
 
 /// Contains the main types and data structures used to represent RSS feeds.
 pub mod data;
@@ -74,15 +68,13 @@ pub mod generator;
 pub mod macros;
 /// Implements RSS feed parsing functionality.
 pub mod parser;
-/// Defines supported RSS versions.
-pub mod version;
+/// Provides utilities for validating RSS feeds.
+pub mod validator;
 
-// Re-export main types and functions for ease of use
-pub use data::{RssData, RssItem};
+pub use data::{RssData, RssItem, RssVersion};
 pub use error::{Result, RssError};
 pub use generator::generate_rss;
 pub use parser::parse_rss;
-pub use version::RssVersion;
 
 /// The current version of the rss-gen crate.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -162,8 +154,6 @@ mod tests {
         assert!(feed.contains("<title>Example Item</title>"));
         assert!(feed
             .contains("<link>https://example.com/example-item</link>"));
-        assert!(feed.contains(
-            "<description>This is an example item in the RSS feed</description>"
-        ));
+        assert!(feed.contains("<description>This is an example item in the RSS feed</description>"));
     }
 }

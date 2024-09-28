@@ -23,6 +23,17 @@ build = "build.rs"                          # Path to the build script
 # Crate Configuration
 # -----------------------------------------------------------------------------
 
+[[bench]]
+# [[bench]] sections define benchmarks.
+name = "benchmark"
+harness = false
+path = "benches/criterion.rs"
+
+[profile.bench]
+# Profile for benchmarks.
+debug = true
+
+
 # Crates.io categories
 categories = [
     "data-formats",                         # For handling RSS and XML formats
@@ -55,6 +66,7 @@ quick-xml = "0.36"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "1.0"
+time = "0.3"
 url = "2.5"
 
 [build-dependencies]
@@ -63,6 +75,8 @@ version_check = "0.9"
 
 [dev-dependencies]
 # Dependencies for development and testing
+criterion = "0.5"
+lazy_static = "1.5"
 pretty_assertions = "1.4"
 
 # -----------------------------------------------------------------------------

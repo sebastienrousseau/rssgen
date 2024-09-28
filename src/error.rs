@@ -1,6 +1,8 @@
 // Copyright © 2024 RSS Gen. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+// src/error.rs
+
 use log;
 use quick_xml;
 use std::string::FromUtf8Error;
@@ -8,6 +10,7 @@ use thiserror::Error;
 
 /// Errors that can occur when generating or parsing RSS feeds.
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum RssError {
     /// Error occurred while writing XML.
     #[error("XML error occurred: {0}")]
@@ -47,7 +50,7 @@ pub enum RssError {
 
     /// Error for validation errors.
     #[error("Validation errors: {0:?}")]
-    ValidationErrors(Vec<ValidationError>),
+    ValidationErrors(Vec<String>),
 
     /// Error for date sort errors.
     #[error("Date sort error: {0:?}")]
@@ -68,6 +71,7 @@ pub enum RssError {
 
 /// Represents a specific validation error.
 #[derive(Debug, Error)]
+#[non_exhaustive]
 #[error("Validation error: {message}")]
 pub struct ValidationError {
     /// The field that failed validation.
@@ -78,6 +82,7 @@ pub struct ValidationError {
 
 /// Represents a specific date sorting error.
 #[derive(Debug, Error)]
+#[non_exhaustive]
 #[error("Date sort error: {message}")]
 pub struct DateSortError {
     /// The index of the item with the date sort error.

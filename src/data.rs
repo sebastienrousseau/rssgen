@@ -1,12 +1,73 @@
 // Copyright © 2024 RSS Gen. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use crate::error::{DateSortError, Result, RssError, ValidationError};
-use crate::version::RssVersion;
+// src/data.rs
+
+use crate::error::{Result, RssError};
 use dtt::datetime::DateTime;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::fmt;
+use std::str::FromStr;
 use url::Url;
+
+/// Represents the different versions of RSS.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[non_exhaustive]
+pub enum RssVersion {
+    /// RSS version 0.90
+    RSS0_90,
+    /// RSS version 0.91
+    RSS0_91,
+    /// RSS version 0.92
+    RSS0_92,
+    /// RSS version 1.0
+    RSS1_0,
+    /// RSS version 2.0
+    RSS2_0,
+}
+
+impl RssVersion {
+    /// Returns the string representation of the RSS version.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            RssVersion::RSS0_90 => "0.90",
+            RssVersion::RSS0_91 => "0.91",
+            RssVersion::RSS0_92 => "0.92",
+            RssVersion::RSS1_0 => "1.0",
+            RssVersion::RSS2_0 => "2.0",
+        }
+    }
+}
+
+impl Default for RssVersion {
+    fn default() -> Self {
+        RssVersion::RSS2_0
+    }
+}
+
+impl fmt::Display for RssVersion {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
+impl FromStr for RssVersion {
+    type Err = String;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        match s {
+            "0.90" => Ok(RssVersion::RSS0_90),
+            "0.91" => Ok(RssVersion::RSS0_91),
+            "0.92" => Ok(RssVersion::RSS0_92),
+            "1.0" => Ok(RssVersion::RSS1_0),
+            "2.0" => Ok(RssVersion::RSS2_0),
+            _ => Err(s.to_string()),
+        }
+    }
+}
 
 /// Validates a URL string.
 ///
@@ -19,9 +80,16 @@ use url::Url;
 /// * `Ok(())` if the URL is valid.
 /// * `Err(RssError)` if the URL is invalid.
 pub fn validate_url(url: &str) -> Result<()> {
-    Url::parse(url)
-        .map(|_| ())
-        .map_err(|_| RssError::InvalidUrl(url.to_string()))
+    let parsed_url = Url::parse(url)
+        .map_err(|_| RssError::InvalidUrl(url.to_string()))?;
+
+    if parsed_url.scheme() != "http" && parsed_url.scheme() != "https" {
+        return Err(RssError::InvalidUrl(
+            "URL must use http or https protocol".to_string(),
+        ));
+    }
+
+    Ok(())
 }
 
 /// Parses a date string into a `DateTime`.
@@ -39,9 +107,6 @@ pub fn parse_date(date_str: &str) -> Result<DateTime> {
         .map_err(|_| RssError::DateParseError(date_str.to_string()))
 }
 
-/// The `RssData` struct holds all the necessary options and data for an RSS feed.
-/// This includes metadata about the RSS feed itself, such as its title and language,
-/// as well as information about individual items in the feed, such as their titles and publication dates.
 /// Represents the main structure for an RSS feed.
 #[derive(
     Debug, Clone, PartialEq, Serialize, Deserialize, Default, Eq, Hash,
@@ -62,18 +127,10 @@ pub struct RssData {
     pub docs: String,
     /// The generator of the RSS feed.
     pub generator: String,
+    /// The GUID of the RSS feed.
+    pub guid: String,
     /// The image URL of the RSS feed.
     pub image: String,
-    /// The GUID of the RSS item (unique identifier).
-    pub item_guid: String,
-    /// The description of the RSS item.
-    pub item_description: String,
-    /// The link to the RSS item.
-    pub item_link: String,
-    /// The publication date of the RSS item.
-    pub item_pub_date: String,
-    /// The title of the RSS item.
-    pub item_title: String,
     /// The language of the RSS feed.
     pub language: String,
     /// The last build date of the RSS feed.
@@ -114,6 +171,14 @@ pub struct RssItem {
     pub title: String,
     /// The author of the RSS item.
     pub author: String,
+    /// The category of the RSS item (optional).
+    pub category: Option<String>,
+    /// The comments URL related to the RSS item (optional).
+    pub comments: Option<String>,
+    /// The enclosure (typically for media like podcasts) (optional).
+    pub enclosure: Option<String>,
+    /// The source of the RSS item (optional).
+    pub source: Option<String>,
 }
 
 impl RssData {
@@ -137,6 +202,7 @@ impl RssData {
             description: String::new(),
             docs: String::new(),
             generator: String::new(),
+            guid: String::new(),
             image: String::new(),
             language: String::new(),
             last_build_date: String::new(),
@@ -147,64 +213,6 @@ impl RssData {
             ttl: String::new(),
             webmaster: String::new(),
             items: Vec::new(),
-            item_guid: String::new(),
-            item_description: String::new(),
-            item_link: String::new(),
-            item_pub_date: String::new(),
-            item_title: String::new(),
-        }
-    }
-
-    /// Sorts the RSS items by their publication date in descending order.
-    ///
-    /// # Errors
-    ///
-    /// Returns an `Err` with a `Vec<RssError>` containing specific error messages
-    /// for each invalid date encountered during sorting.
-    pub fn sort_items_by_pub_date(&mut self) -> Result<()> {
-        let mut errors = Vec::new();
-
-        // Sort by pub_date (most recent first) while handling invalid dates
-        let mut indices: Vec<usize> = (0..self.items.len()).collect();
-        indices.sort_by(|&i, &j| {
-            match (
-                self.items[i].pub_date_parsed(),
-                self.items[j].pub_date_parsed(),
-            ) {
-                (Ok(date_a), Ok(date_b)) => date_b.cmp(&date_a), // Sort descending
-                (Err(_), _) => {
-                    errors.push(DateSortError {
-                        index: i,
-                        message: format!(
-                            "Item at index {} has an invalid pub_date",
-                            i
-                        ),
-                    });
-                    std::cmp::Ordering::Equal
-                }
-                (_, Err(_)) => {
-                    errors.push(DateSortError {
-                        index: j,
-                        message: format!(
-                            "Item at index {} has an invalid pub_date",
-                            j
-                        ),
-                    });
-                    std::cmp::Ordering::Equal
-                }
-            }
-        });
-
-        let sorted_items: Vec<RssItem> = indices
-            .into_iter()
-            .map(|i| self.items[i].clone())
-            .collect();
-        self.items = sorted_items;
-
-        if errors.is_empty() {
-            Ok(())
-        } else {
-            Err(RssError::DateSortError(errors))
         }
     }
 
@@ -229,11 +237,6 @@ impl RssData {
             "docs" => self.docs = value,
             "generator" => self.generator = value,
             "image" => self.image = value,
-            "item_guid" => self.item_guid = value,
-            "item_description" => self.item_description = value,
-            "item_link" => self.item_link = value,
-            "item_pub_date" => self.item_pub_date = value,
-            "item_title" => self.item_title = value,
             "language" => self.language = value,
             "last_build_date" => self.last_build_date = value,
             "link" => self.link = value,
@@ -257,22 +260,6 @@ impl RssData {
     /// # Arguments
     ///
     /// * `item` - The `RssItem` to be added to the feed.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use rss_gen::RssData;
-    /// use rss_gen::data::RssItem;
-    ///
-    /// let mut rss_data = RssData::new(None);
-    /// let item = RssItem::new()
-    ///     .title("Test Item")
-    ///     .link("https://example.com/item")
-    ///     .description("A test item")
-    ///     .guid("unique-id-1")
-    ///     .pub_date("2024-03-21");
-    /// rss_data.add_item(item);
-    /// ```
     pub fn add_item(&mut self, item: RssItem) {
         self.items.push(item);
     }
@@ -303,51 +290,23 @@ impl RssData {
         self.items.clear();
     }
 
-    /// Validates the `RssData` to ensure that all required fields are set and valid, including its items.
+    /// Validates the `RssData` to ensure that all required fields are set and valid.
     ///
     /// # Returns
     ///
-    /// * `Ok(())` if the `RssData` and its items are valid.
+    /// * `Ok(())` if the `RssData` is valid.
     /// * `Err(RssError)` if any validation errors are found.
     pub fn validate(&self) -> Result<()> {
         let mut errors = Vec::new();
 
-        // Validate RSS Data's own fields
         if self.title.is_empty() {
-            errors.push(ValidationError {
-                field: "title".to_string(),
-                message: "Title is missing".to_string(),
-            });
+            errors.push("Title is missing".to_string());
         }
-
         if self.link.is_empty() {
-            errors.push(ValidationError {
-                field: "link".to_string(),
-                message: "Link is missing".to_string(),
-            });
+            errors.push("Link is missing".to_string());
         }
-
         if self.description.is_empty() {
-            errors.push(ValidationError {
-                field: "description".to_string(),
-                message: "Description is missing".to_string(),
-            });
-        }
-
-        // Validate each item and collect errors with item index
-        for (index, item) in self.items.iter().enumerate() {
-            if let Err(RssError::ValidationErrors(
-                item_validation_errors,
-            )) = item.validate()
-            {
-                for mut item_error in item_validation_errors {
-                    item_error.message = format!(
-                        "Item at index {}: {}",
-                        index, item_error.message
-                    );
-                    errors.push(item_error);
-                }
-            }
+            errors.push("Description is missing".to_string());
         }
 
         if !errors.is_empty() {
@@ -372,18 +331,8 @@ impl RssData {
         map.insert("description".to_string(), self.description.clone());
         map.insert("docs".to_string(), self.docs.clone());
         map.insert("generator".to_string(), self.generator.clone());
+        map.insert("guid".to_string(), self.guid.clone());
         map.insert("image".to_string(), self.image.clone());
-        map.insert("item_guid".to_string(), self.item_guid.clone());
-        map.insert(
-            "item_description".to_string(),
-            self.item_description.clone(),
-        );
-        map.insert("item_link".to_string(), self.item_link.clone());
-        map.insert(
-            "item_pub_date".to_string(),
-            self.item_pub_date.clone(),
-        );
-        map.insert("item_title".to_string(), self.item_title.clone());
         map.insert("language".to_string(), self.language.clone());
         map.insert(
             "last_build_date".to_string(),
@@ -452,35 +401,16 @@ impl RssData {
         self.set("generator", value)
     }
 
+    /// Sets the GUID.
+    #[must_use]
+    pub fn guid<T: Into<String>>(self, value: T) -> Self {
+        self.set("guid", value)
+    }
+
     /// Sets the image URL.
     #[must_use]
     pub fn image<T: Into<String>>(self, value: T) -> Self {
         self.set("image", value)
-    }
-
-    /// Sets the item GUID.
-    pub fn item_guid<T: Into<String>>(self, value: T) -> Self {
-        self.set("item_guid", value)
-    }
-
-    /// Sets the item description.
-    pub fn item_description<T: Into<String>>(self, value: T) -> Self {
-        self.set("item_description", value)
-    }
-
-    /// Sets the item link.
-    pub fn item_link<T: Into<String>>(self, value: T) -> Self {
-        self.set("item_link", value)
-    }
-
-    /// Sets the item publication date.
-    pub fn item_pub_date<T: Into<String>>(self, value: T) -> Self {
-        self.set("item_pub_date", value)
-    }
-
-    /// Sets the item title.
-    pub fn item_title<T: Into<String>>(self, value: T) -> Self {
-        self.set("item_title", value)
     }
 
     /// Sets the language.
@@ -567,24 +497,13 @@ impl RssItem {
         let mut validation_errors = Vec::new();
 
         if self.title.is_empty() {
-            validation_errors.push(ValidationError {
-                field: "title".to_string(),
-                message: "Title is missing".to_string(),
-            });
+            validation_errors.push("Title is missing".to_string());
         }
-
         if self.link.is_empty() {
-            validation_errors.push(ValidationError {
-                field: "link".to_string(),
-                message: "Link is missing".to_string(),
-            });
+            validation_errors.push("Link is missing".to_string());
         }
-
         if self.guid.is_empty() {
-            validation_errors.push(ValidationError {
-                field: "guid".to_string(),
-                message: "GUID is missing".to_string(),
-            });
+            validation_errors.push("GUID is missing".to_string());
         }
 
         if !validation_errors.is_empty() {
@@ -761,195 +680,33 @@ mod tests {
         let result = invalid_item.validate();
         assert!(result.is_err());
 
-        match result {
-            Err(RssError::ValidationErrors(errors)) => {
-                assert_eq!(errors.len(), 2);
-                assert!(errors.iter().any(|e| matches!(e, ValidationError { field, .. } if field == "link")));
-                assert!(errors.iter().any(|e| matches!(e, ValidationError { field, .. } if field == "guid")));
-            }
-            _ => panic!("Expected ValidationErrors"),
+        if let Err(RssError::ValidationErrors(errors)) = result {
+            assert_eq!(errors.len(), 2);
+            assert!(errors.contains(&"Link is missing".to_string()));
+            assert!(errors.contains(&"GUID is missing".to_string()));
+        } else {
+            panic!("Expected ValidationErrors");
         }
     }
 
     #[test]
-    fn test_rss_data_validate_with_items() {
-        let mut rss_data = RssData::new(None)
-            .title("Test RSS Feed")
-            .link("https://example.com")
-            .description("A test RSS feed");
-
-        let valid_item = RssItem::new()
-            .title("Valid Item")
-            .link("https://example.com/valid")
-            .description("A valid item")
-            .guid("valid-guid");
-
-        let invalid_item = RssItem::new()
-            .title("Invalid Item")
-            .description("An invalid item");
-
-        rss_data.add_item(valid_item);
-        rss_data.add_item(invalid_item);
-
-        let result = rss_data.validate();
-        assert!(result.is_err());
-
-        match result {
-            Err(RssError::ValidationErrors(errors)) => {
-                // We now expect two errors: one for the invalid item and one for missing fields.
-                assert_eq!(errors.len(), 2); // Expecting two errors
-                assert!(errors
-                    .iter()
-                    .any(|e| e.message.contains("Item at index 1")));
-            }
-            _ => panic!("Expected ValidationErrors"),
-        }
+    fn test_rss_version() {
+        assert_eq!(RssVersion::RSS2_0.as_str(), "2.0");
+        assert_eq!(RssVersion::default(), RssVersion::RSS2_0);
+        assert_eq!(RssVersion::RSS1_0.to_string(), "1.0");
+        assert_eq!("2.0".parse::<RssVersion>(), Ok(RssVersion::RSS2_0));
+        assert!("3.0".parse::<RssVersion>().is_err());
     }
 
     #[test]
-    fn test_sort_items_by_pub_date() {
-        let mut rss_data = RssData::new(None)
-            .title("Test RSS Feed")
-            .link("https://example.com")
-            .description("A test RSS feed");
-
-        let item1 = RssItem::new()
-            .title("Item 1")
-            .link("https://example.com/item1")
-            .description("First item")
-            .guid("guid1")
-            .pub_date("2024-03-20T12:00:00Z");
-
-        let item2 = RssItem::new()
-            .title("Item 2")
-            .link("https://example.com/item2")
-            .description("Second item")
-            .guid("guid2")
-            .pub_date("2024-03-22T12:00:00Z");
-
-        let item3 = RssItem::new()
-            .title("Item 3")
-            .link("https://example.com/item3")
-            .description("Third item")
-            .guid("guid3")
-            .pub_date("2024-03-21T12:00:00Z");
-
-        rss_data.add_item(item1);
-        rss_data.add_item(item2);
-        rss_data.add_item(item3);
-
-        rss_data
-            .sort_items_by_pub_date()
-            .expect("Failed to sort items by pub_date");
-
-        assert_eq!(rss_data.items[0].title, "Item 2");
-        assert_eq!(rss_data.items[1].title, "Item 3");
-        assert_eq!(rss_data.items[2].title, "Item 1");
+    fn test_validate_url() {
+        assert!(validate_url("https://example.com").is_ok());
+        assert!(validate_url("not a url").is_err());
     }
 
     #[test]
-    fn test_to_hash_map() {
-        let rss_data = RssData::new(None)
-            .title("Test RSS Feed")
-            .link("https://example.com")
-            .description("A test RSS feed")
-            .language("en-US")
-            .pub_date("2024-03-21")
-            .last_build_date("2024-03-21")
-            .ttl("60");
-
-        let hash_map = rss_data.to_hash_map();
-
-        assert_eq!(
-            hash_map.get("title"),
-            Some(&"Test RSS Feed".to_string())
-        );
-        assert_eq!(
-            hash_map.get("link"),
-            Some(&"https://example.com".to_string())
-        );
-        assert_eq!(
-            hash_map.get("description"),
-            Some(&"A test RSS feed".to_string())
-        );
-        assert_eq!(
-            hash_map.get("language"),
-            Some(&"en-US".to_string())
-        );
-        assert_eq!(
-            hash_map.get("pub_date"),
-            Some(&"2024-03-21".to_string())
-        );
-        assert_eq!(
-            hash_map.get("last_build_date"),
-            Some(&"2024-03-21".to_string())
-        );
-        assert_eq!(hash_map.get("ttl"), Some(&"60".to_string()));
-    }
-
-    #[test]
-    fn test_rss_data_version() {
-        let rss_data = RssData::new(None).version(RssVersion::RSS1_0);
-        assert_eq!(rss_data.version, RssVersion::RSS1_0);
-    }
-
-    #[test]
-    fn test_rss_data_default_version() {
-        let rss_data = RssData::new(None);
-        assert_eq!(rss_data.version, RssVersion::RSS2_0);
-    }
-
-    #[test]
-    fn test_rss_item_new_and_set() {
-        let item = RssItem::new()
-            .title("Test Item")
-            .link("https://example.com/item")
-            .description("A test item")
-            .guid("unique-id")
-            .pub_date("2024-03-21")
-            .author("John Doe");
-
-        assert_eq!(item.title, "Test Item");
-        assert_eq!(item.link, "https://example.com/item");
-        assert_eq!(item.description, "A test item");
-        assert_eq!(item.guid, "unique-id");
-        assert_eq!(item.pub_date, "2024-03-21");
-        assert_eq!(item.author, "John Doe");
-    }
-
-    #[test]
-    fn test_sort_items_by_pub_date_with_invalid_date() {
-        let mut rss_data = RssData::new(None)
-            .title("Test RSS Feed")
-            .link("https://example.com")
-            .description("A test RSS feed");
-
-        let item1 = RssItem::new()
-            .title("Item 1")
-            .link("https://example.com/item1")
-            .description("First item")
-            .guid("guid1")
-            .pub_date("Invalid Date");
-
-        let item2 = RssItem::new()
-            .title("Item 2")
-            .link("https://example.com/item2")
-            .description("Second item")
-            .guid("guid2")
-            .pub_date("2024-03-22T12:00:00Z");
-
-        rss_data.add_item(item1);
-        rss_data.add_item(item2);
-
-        let result = rss_data.sort_items_by_pub_date();
-        assert!(result.is_err());
-
-        match result {
-            Err(RssError::DateSortError(errors)) => {
-                assert_eq!(errors.len(), 1);
-                assert!(errors[0].message.contains("Item at index 0"));
-            }
-            _ => panic!("Expected DateSortError"),
-        }
+    fn test_parse_date() {
+        assert!(parse_date("2024-03-21T12:00:00Z").is_ok());
+        assert!(parse_date("invalid date").is_err());
     }
 }

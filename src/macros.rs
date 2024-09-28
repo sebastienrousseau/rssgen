@@ -115,19 +115,19 @@ macro_rules! macro_generate_rss {
 
         // Write item
         writer.write_event(Event::Start(BytesStart::new("item")))?;
-        macro_write_element!(writer, "title", &$options.item_title)?;
-        macro_write_element!(writer, "link", &$options.item_link)?;
+        macro_write_element!(writer, "title", &$options.title)?;
+        macro_write_element!(writer, "link", &$options.link)?;
         macro_write_element!(
             writer,
             "description",
-            &$options.item_description
+            &$options.description
         )?;
         macro_write_element!(writer, "author", &$options.author)?;
-        macro_write_element!(writer, "guid", &$options.item_guid)?;
+        macro_write_element!(writer, "guid", &$options.guid)?;
         macro_write_element!(
             writer,
             "pubDate",
-            &$options.item_pub_date
+            &$options.pub_date
         )?;
         writer.write_event(Event::End(BytesEnd::new("item")))?;
 

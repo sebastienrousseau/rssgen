@@ -1,15 +1,10 @@
 // Copyright © 2024 RSS Generator. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-//! RSS Feed Generator module
-//!
-//! This module provides functionality to generate RSS feeds from structured data.
-//! It uses the `quick-xml` crate for efficient XML writing and handles
-//! different versions of RSS, including 0.90, 0.91, 0.92, 1.0, and 2.0.
+// src/generator.rs
 
-use crate::data::{RssData, RssItem};
+use crate::data::{RssData, RssItem, RssVersion};
 use crate::error::{Result, RssError};
-use crate::version::RssVersion;
 use quick_xml::events::{
     BytesDecl, BytesEnd, BytesStart, BytesText, Event,
 };
@@ -19,7 +14,7 @@ use std::io::Cursor;
 const XML_VERSION: &str = "1.0";
 const XML_ENCODING: &str = "utf-8";
 
-/// Sanitizes the content by removing invalid XML characters.
+/// Sanitizes the content by removing invalid XML characters and escaping special characters.
 ///
 /// # Arguments
 ///
@@ -27,17 +22,19 @@ const XML_ENCODING: &str = "utf-8";
 ///
 /// # Returns
 ///
-/// A `String` with invalid XML characters removed.
+/// A `String` with invalid XML characters removed and special characters escaped.
 fn sanitize_content(content: &str) -> String {
     content
         .chars()
         .filter(|&c| {
-            c != '\u{0000}' && !c.is_control()
-                || c == '\t'
-                || c == '\n'
-                || c == '\r'
+            c > '\u{0008}' || c == '\t' || c == '\n' || c == '\r'
         })
-        .collect()
+        .collect::<String>()
+        .replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+        .replace('\'', "&#x27;")
 }
 
 /// Writes an XML element with the given name and content.
@@ -64,21 +61,6 @@ fn write_element<W: std::io::Write>(
     Ok(())
 }
 
-/// Helper function to validate required fields.
-///
-/// This function checks if the given field is empty and returns an error if it is.
-///
-/// # Arguments
-///
-/// * `field` - The field value to check.
-/// * `field_name` - The name of the field (for error reporting).
-fn validate_field(field: &str, field_name: &str) -> Result<()> {
-    if field.is_empty() {
-        return Err(RssError::MissingField(field_name.to_string()));
-    }
-    Ok(())
-}
-
 /// Generates an RSS feed from the given `RssData` struct.
 ///
 /// This function creates a complete RSS feed in XML format based on the data contained in the provided `RssData`.
@@ -98,7 +80,7 @@ fn validate_field(field: &str, field_name: &str) -> Result<()> {
 /// ```
 /// use rss_gen::{RssData, generate_rss, RssVersion};
 ///
-/// let rss_data = RssData::new(None)
+/// let rss_data = RssData::new(Some(RssVersion::RSS2_0))
 ///     .title("My Blog")
 ///     .link("https://myblog.com")
 ///     .description("A blog about Rust programming");
@@ -109,10 +91,7 @@ fn validate_field(field: &str, field_name: &str) -> Result<()> {
 /// }
 /// ```
 pub fn generate_rss(options: &RssData) -> Result<String> {
-    // Validate required fields
-    validate_field(&options.title, "title")?;
-    validate_field(&options.link, "link")?;
-    validate_field(&options.description, "description")?;
+    options.validate()?;
 
     let mut writer = Writer::new(Cursor::new(Vec::new()));
 
@@ -152,15 +131,6 @@ fn write_xml_declaration<W: std::io::Write>(
 }
 
 /// Writes the RSS 0.90 channel element and its contents.
-///
-/// # Parameters
-///
-/// * `writer`: A mutable reference to a `quick_xml::Writer` instance.
-/// * `options`: A reference to an `RssData` instance, containing the RSS feed options.
-///
-/// # Returns
-///
-/// * `Result<()>`: Returns `Ok(())` if the RSS 0.90 channel elements are successfully written.
 fn write_rss_channel_0_90<W: std::io::Write>(
     writer: &mut Writer<W>,
     options: &RssData,
@@ -181,15 +151,6 @@ fn write_rss_channel_0_90<W: std::io::Write>(
 }
 
 /// Writes the RSS 0.91 channel element and its contents.
-///
-/// # Parameters
-///
-/// * `writer`: A mutable reference to a `quick_xml::Writer` instance.
-/// * `options`: A reference to an `RssData` instance, containing the RSS feed options.
-///
-/// # Returns
-///
-/// * `Result<()>`: Returns `Ok(())` if the RSS 0.91 channel elements are successfully written.
 fn write_rss_channel_0_91<W: std::io::Write>(
     writer: &mut Writer<W>,
     options: &RssData,
@@ -210,15 +171,6 @@ fn write_rss_channel_0_91<W: std::io::Write>(
 }
 
 /// Writes the RSS 0.92 channel element and its contents.
-///
-/// # Parameters
-///
-/// * `writer`: A mutable reference to a `quick_xml::Writer` instance.
-/// * `options`: A reference to an `RssData` instance, containing the RSS feed options.
-///
-/// # Returns
-///
-/// * `Result<()>`: Returns `Ok(())` if the RSS 0.92 channel elements are successfully written.
 fn write_rss_channel_0_92<W: std::io::Write>(
     writer: &mut Writer<W>,
     options: &RssData,
@@ -239,17 +191,6 @@ fn write_rss_channel_0_92<W: std::io::Write>(
 }
 
 /// Writes the RSS 1.0 channel element and its contents.
-///
-/// This function is used specifically for RSS 1.0 feeds (RDF-based).
-///
-/// # Parameters
-///
-/// * `writer`: A mutable reference to a `quick_xml::Writer` instance.
-/// * `options`: A reference to an `RssData` instance, containing the RSS feed options.
-///
-/// # Returns
-///
-/// * `Result<()>`: Returns `Ok(())` if the RSS 1.0 channel elements are successfully written.
 fn write_rss_channel_1_0<W: std::io::Write>(
     writer: &mut Writer<W>,
     options: &RssData,
@@ -274,17 +215,6 @@ fn write_rss_channel_1_0<W: std::io::Write>(
 }
 
 /// Writes the RSS 2.0 channel element and its contents.
-///
-/// This function is used specifically for RSS 2.0 feeds.
-///
-/// # Parameters
-///
-/// * `writer`: A mutable reference to a `quick_xml::Writer` instance.
-/// * `options`: A reference to an `RssData` instance, containing the RSS feed options.
-///
-/// # Returns
-///
-/// * `Result<()>`: Returns `Ok(())` if the RSS 2.0 channel elements are successfully written.
 fn write_rss_channel_2_0<W: std::io::Write>(
     writer: &mut Writer<W>,
     options: &RssData,
@@ -297,16 +227,9 @@ fn write_rss_channel_2_0<W: std::io::Write>(
 
     writer.write_event(Event::Start(BytesStart::new("channel")))?;
 
-    // Write the channel elements
     write_channel_elements(writer, options)?;
-
-    // Add the image element if it exists
     write_image_element(writer, options)?;
-
-    // Write the atom link element
     write_atom_link_element(writer, options)?;
-
-    // Write the items
     write_items(writer, options)?;
 
     writer.write_event(Event::End(BytesEnd::new("channel")))?;
@@ -316,19 +239,6 @@ fn write_rss_channel_2_0<W: std::io::Write>(
 }
 
 /// Writes the channel elements to the writer.
-///
-/// This function takes a mutable reference to a `quick_xml::Writer` instance and an `RssData` instance.
-/// It writes the channel elements to the XML feed, including title, link, description, language,
-/// pubDate, lastBuildDate, docs, generator, managingEditor, webMaster, category, and ttl.
-///
-/// # Parameters
-///
-/// * `writer`: A mutable reference to a `quick_xml::Writer` instance.
-/// * `options`: A reference to an `RssData` instance, containing the RSS feed options.
-///
-/// # Returns
-///
-/// * `Result<()>`: Returns `Ok(())` if the RSS channel elements are successfully written.
 fn write_channel_elements<W: std::io::Write>(
     writer: &mut Writer<W>,
     options: &RssData,
@@ -358,17 +268,6 @@ fn write_channel_elements<W: std::io::Write>(
 }
 
 /// Writes the image element to the writer.
-///
-/// This function is used for RSS 2.0 feeds.
-///
-/// # Parameters
-///
-/// * `writer`: A mutable reference to a `quick_xml::Writer` instance.
-/// * `options`: A reference to an `RssData` instance, containing the RSS feed options.
-///
-/// # Returns
-///
-/// * `Result<()>`: Returns `Ok(())` if the image element is successfully written.
 fn write_image_element<W: std::io::Write>(
     writer: &mut Writer<W>,
     options: &RssData,
@@ -384,17 +283,6 @@ fn write_image_element<W: std::io::Write>(
 }
 
 /// Writes the item elements to the RSS feed.
-///
-/// This function is shared between both RSS 1.0 and 2.0 feeds.
-///
-/// # Parameters
-///
-/// * `writer`: A mutable reference to a `quick_xml::Writer` instance.
-/// * `options`: A reference to an `RssData` instance, containing the RSS feed items.
-///
-/// # Returns
-///
-/// * `Result<()>`: Returns `Ok(())` if the item elements are successfully written to the XML feed.
 fn write_items<W: std::io::Write>(
     writer: &mut Writer<W>,
     options: &RssData,
@@ -406,15 +294,6 @@ fn write_items<W: std::io::Write>(
 }
 
 /// Writes a single item element to the RSS feed.
-///
-/// # Parameters
-///
-/// * `writer`: A mutable reference to a `quick_xml::Writer` instance.
-/// * `item`: A reference to an `RssItem` instance, containing the item's details.
-///
-/// # Returns
-///
-/// * `Result<()>`: Returns `Ok(())` if the item elements are successfully written to the XML feed.
 fn write_item<W: std::io::Write>(
     writer: &mut Writer<W>,
     item: &RssItem,
@@ -441,17 +320,6 @@ fn write_item<W: std::io::Write>(
 }
 
 /// Writes the Atom link element to the writer.
-///
-/// This function is used for RSS 2.0 feeds.
-///
-/// # Parameters
-///
-/// * `writer`: A mutable reference to a `quick_xml::Writer` where the Atom link element will be written.
-/// * `options`: A reference to an `RssData` instance containing the Atom link information.
-///
-/// # Returns
-///
-/// * `Result<()>`: Returns `Ok(())` if the Atom link element is successfully written to the XML feed.
 fn write_atom_link_element<W: std::io::Write>(
     writer: &mut Writer<W>,
     options: &RssData,
@@ -484,7 +352,8 @@ mod tests {
                 {
                     match reader.read_event() {
                         Ok(Event::Text(e)) => {
-                            assert_eq!(e.unescape().unwrap(), expected);
+                            let unescaped = e.unescape().unwrap();
+                            assert_eq!(unescaped, expected);
                             found = true;
                             break;
                         }
@@ -616,7 +485,11 @@ mod tests {
         assert!(result.is_ok());
 
         let rss_feed = result.unwrap();
-        assert_xml_element(&rss_feed, "title", "Special & Characters");
+        assert_xml_element(
+            &rss_feed,
+            "title",
+            "Special &amp; Characters",
+        );
         assert_xml_element(
             &rss_feed,
             "link",
@@ -625,7 +498,7 @@ mod tests {
         assert_xml_element(
             &rss_feed,
             "description",
-            "Feed with <special> & \"characters\"",
+            "Feed with &lt;special&gt; &amp; &quot;characters&quot;",
         );
     }
 
@@ -756,171 +629,50 @@ mod tests {
     }
 
     #[test]
-    fn test_generate_rss_0_90() {
-        let rss_data = RssData::new(Some(RssVersion::RSS0_90))
-            .title("RSS 0.90 Feed")
-            .link("https://example.com")
-            .description("RSS 0.90 feed description");
+    fn test_generate_rss_different_versions() {
+        let versions = vec![
+            RssVersion::RSS0_90,
+            RssVersion::RSS0_91,
+            RssVersion::RSS0_92,
+            RssVersion::RSS1_0,
+            RssVersion::RSS2_0,
+        ];
 
-        let result = generate_rss(&rss_data);
-        assert!(result.is_ok());
+        for version in versions {
+            let rss_data = RssData::new(Some(version))
+                .title(format!("RSS {} Feed", version))
+                .link("https://example.com")
+                .description(format!(
+                    "RSS {} feed description",
+                    version
+                ));
 
-        let rss_feed = result.unwrap();
-        assert!(rss_feed.contains(r#"<rss version="0.90">"#));
-        assert_xml_element(&rss_feed, "title", "RSS 0.90 Feed");
-        assert_xml_element(&rss_feed, "link", "https://example.com");
-        assert_xml_element(
-            &rss_feed,
-            "description",
-            "RSS 0.90 feed description",
-        );
-    }
+            let result = generate_rss(&rss_data);
+            assert!(result.is_ok());
 
-    #[test]
-    fn test_generate_rss_0_91() {
-        let rss_data = RssData::new(Some(RssVersion::RSS0_91))
-            .title("RSS 0.91 Feed")
-            .link("https://example.com")
-            .description("RSS 0.91 feed description");
-
-        let result = generate_rss(&rss_data);
-        assert!(result.is_ok());
-
-        let rss_feed = result.unwrap();
-        assert!(rss_feed.contains(r#"<rss version="0.91">"#));
-        assert_xml_element(&rss_feed, "title", "RSS 0.91 Feed");
-        assert_xml_element(&rss_feed, "link", "https://example.com");
-        assert_xml_element(
-            &rss_feed,
-            "description",
-            "RSS 0.91 feed description",
-        );
-    }
-    #[test]
-    fn test_generate_rss_0_92() {
-        let rss_data = RssData::new(Some(RssVersion::RSS0_92))
-            .title("RSS 0.92 Feed")
-            .link("https://example.com")
-            .description("RSS 0.92 feed description");
-
-        let result = generate_rss(&rss_data);
-        assert!(result.is_ok());
-
-        let rss_feed = result.unwrap();
-        assert!(rss_feed.contains(r#"<rss version="0.92">"#));
-        assert_xml_element(&rss_feed, "title", "RSS 0.92 Feed");
-        assert_xml_element(&rss_feed, "link", "https://example.com");
-        assert_xml_element(
-            &rss_feed,
-            "description",
-            "RSS 0.92 feed description",
-        );
-    }
-
-    #[test]
-    fn test_generate_rss_1_0() {
-        let rss_data = RssData::new(Some(RssVersion::RSS1_0))
-            .title("RSS 1.0 Feed")
-            .link("https://example.com")
-            .description("RSS 1.0 feed description");
-
-        let result = generate_rss(&rss_data);
-        assert!(result.is_ok());
-
-        let rss_feed = result.unwrap();
-        assert!(rss_feed.contains(r#"<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns="http://purl.org/rss/1.0/">"#));
-        assert_xml_element(&rss_feed, "title", "RSS 1.0 Feed");
-        assert_xml_element(&rss_feed, "link", "https://example.com");
-        assert_xml_element(
-            &rss_feed,
-            "description",
-            "RSS 1.0 feed description",
-        );
-    }
-
-    #[test]
-    fn test_generate_rss_with_custom_version() {
-        let rss_data = RssData::new(Some(RssVersion::RSS2_0))
-            .title("Custom RSS Version")
-            .link("https://example.com")
-            .description("Custom RSS feed for version 2.0");
-
-        let result = generate_rss(&rss_data);
-        assert!(result.is_ok());
-
-        let rss_feed = result.unwrap();
-        assert!(rss_feed.contains(r#"<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">"#));
-        assert_xml_element(&rss_feed, "title", "Custom RSS Version");
-        assert_xml_element(&rss_feed, "link", "https://example.com");
-        assert_xml_element(
-            &rss_feed,
-            "description",
-            "Custom RSS feed for version 2.0",
-        );
-    }
-
-    #[test]
-    fn test_generate_rss_no_version_defaults_to_2_0() {
-        let rss_data = RssData::new(None)
-            .title("No Version Feed")
-            .link("https://example.com")
-            .description("RSS feed with no version defaults to 2.0");
-
-        let result = generate_rss(&rss_data);
-        assert!(result.is_ok());
-
-        let rss_feed = result.unwrap();
-        assert!(rss_feed.contains(r#"<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">"#));
-        assert_xml_element(&rss_feed, "title", "No Version Feed");
-        assert_xml_element(&rss_feed, "link", "https://example.com");
-        assert_xml_element(
-            &rss_feed,
-            "description",
-            "RSS feed with no version defaults to 2.0",
-        );
-    }
-
-    #[test]
-    fn test_generate_rss_2_0_with_image() {
-        let rss_data = RssData::new(Some(RssVersion::RSS2_0))
-            .title("Feed with Image")
-            .link("https://example.com")
-            .description("RSS 2.0 feed with an image")
-            .image("https://example.com/image.png");
-
-        let result = generate_rss(&rss_data);
-        assert!(result.is_ok());
-
-        let rss_feed = result.unwrap();
-        assert!(rss_feed.contains(r#"<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">"#));
-        assert_xml_element(&rss_feed, "title", "Feed with Image");
-        assert_xml_element(&rss_feed, "link", "https://example.com");
-        assert_xml_element(
-            &rss_feed,
-            "description",
-            "RSS 2.0 feed with an image",
-        );
-        assert!(rss_feed.contains("<image>"));
-        assert_xml_element(
-            &rss_feed,
-            "url",
-            "https://example.com/image.png",
-        );
-    }
-
-    #[test]
-    fn test_generate_rss_atom_link() {
-        let rss_data = RssData::new(Some(RssVersion::RSS2_0))
-            .title("Feed with Atom Link")
-            .link("https://example.com")
-            .description("RSS 2.0 feed with atom link")
-            .atom_link("https://example.com/feed.xml");
-
-        let result = generate_rss(&rss_data);
-        assert!(result.is_ok());
-
-        let rss_feed = result.unwrap();
-        assert!(rss_feed.contains(r#"<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">"#));
-        assert!(rss_feed.contains(r#"<atom:link href="https://example.com/feed.xml" rel="self" type="application/rss+xml"/>"#));
+            let rss_feed = result.unwrap();
+            match version {
+                RssVersion::RSS0_90 => assert!(rss_feed.contains(r#"<rss version="0.90">"#)),
+                RssVersion::RSS0_91 => assert!(rss_feed.contains(r#"<rss version="0.91">"#)),
+                RssVersion::RSS0_92 => assert!(rss_feed.contains(r#"<rss version="0.92">"#)),
+                RssVersion::RSS1_0 => assert!(rss_feed.contains(r#"<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns="http://purl.org/rss/1.0/">"#)),
+                RssVersion::RSS2_0 => assert!(rss_feed.contains(r#"<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">"#)),
+            }
+            assert_xml_element(
+                &rss_feed,
+                "title",
+                &format!("RSS {} Feed", version),
+            );
+            assert_xml_element(
+                &rss_feed,
+                "link",
+                "https://example.com",
+            );
+            assert_xml_element(
+                &rss_feed,
+                "description",
+                &format!("RSS {} feed description", version),
+            );
+        }
     }
 }

@@ -35,7 +35,7 @@ jobs:
           RUSTDOCFLAGS="--cfg docsrs" \
             cargo doc --no-deps --all-features --workspace
             # Write index.html with redirect
-            echo '<html><head><meta http-equiv="refresh" content="0; url=/rssgen/"></head><body></body></html>' > ./target/doc/index.html
+            echo '<html><head><meta http-equiv="refresh" content="0; url=/rss_gen/"></head><body></body></html>' > ./target/doc/index.html
 
       - name: Deploy
         uses: actions/upload-artifact@v4.4.0

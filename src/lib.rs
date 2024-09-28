@@ -58,6 +58,14 @@
 //! }
 //! ```
 
+#![doc(
+    html_favicon_url = "https://kura.pro/rssgen/images/favicon.ico",
+    html_logo_url = "https://kura.pro/rssgen/images/logos/rssgen.svg",
+    html_root_url = "https://docs.rs/rssgen"
+)]
+#![crate_name = "rss_gen"]
+#![crate_type = "lib"]
+
 /// Contains the main types and data structures used to represent RSS feeds.
 pub mod data;
 /// Defines error types used throughout the library.

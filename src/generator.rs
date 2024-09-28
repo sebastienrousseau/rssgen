@@ -23,7 +23,7 @@ const XML_ENCODING: &str = "utf-8";
 /// # Returns
 ///
 /// A `String` with invalid XML characters removed and special characters escaped.
-fn sanitize_content(content: &str) -> String {
+pub fn sanitize_content(content: &str) -> String {
     content
         .chars()
         .filter(|&c| {
@@ -48,7 +48,7 @@ fn sanitize_content(content: &str) -> String {
 /// # Returns
 ///
 /// A `Result` indicating success or failure of the write operation.
-fn write_element<W: std::io::Write>(
+pub fn write_element<W: std::io::Write>(
     writer: &mut Writer<W>,
     name: &str,
     content: &str,

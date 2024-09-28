@@ -78,6 +78,7 @@ version_check = "0.9"
 criterion = "0.5"
 lazy_static = "1.5"
 pretty_assertions = "1.4"
+tokio-test = "0.4"
 
 # -----------------------------------------------------------------------------
 # Library Information

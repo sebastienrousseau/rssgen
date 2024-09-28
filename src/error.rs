@@ -111,6 +111,23 @@ impl RssError {
         RssError::MissingField(field_name.into())
     }
 
+    /// Creates a new `DateSortError`.
+    ///
+    /// # Arguments
+    ///
+    /// * `index` - The index of the item with the date sort error.
+    /// * `message` - The error message.
+    ///
+    /// # Returns
+    ///
+    /// Returns a new `DateSortError` instance.
+    pub fn date_sort_error<S: Into<String>>(index: usize, message: S) -> DateSortError {
+        DateSortError {
+            index,
+            message: message.into(),
+        }
+    }
+
     /// Creates a new `RssError::InvalidInput` error.
     ///
     /// # Arguments

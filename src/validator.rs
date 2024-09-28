@@ -31,23 +31,23 @@ impl<'a> RssFeedValidator<'a> {
         }
 
         // Validate overall structure
-        println!("Validating structure...");
+        println!("    ✅  Validating structure...");
         self.validate_structure(&mut errors);
 
         // Validate items
-        println!("Validating items...");
+        println!("    ✅  Validating items...");
         self.validate_items(&mut errors);
 
         // Validate dates
-        println!("Validating dates...");
+        println!("    ✅  Validating dates...");
         self.validate_dates(&mut errors);
 
         // Validate version-specific requirements
-        println!("Validating version-specific...");
+        println!("    ✅  Validating version-specific...");
         self.validate_version_specific(&mut errors);
 
         if errors.is_empty() {
-            println!("Validation passed!");
+            println!("    ✅  Validation passed!");
             Ok(())
         } else {
             println!("Validation failed with errors: {:?}", errors);

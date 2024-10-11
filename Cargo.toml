@@ -25,11 +25,11 @@ build = "build.rs"                          # Path to the build script
 
 # Crates.io categories
 categories = [
-    "data-formats",                         # For handling RSS and XML formats
-    "parsing",                              # Parsing RSS feeds
-    "xml",                                  # XML-based feed structure
-    "web-programming",                      # For web-related functionality
-    "content-management"                    # Content syndication
+    "data-structures",
+    "parsing",
+    "encoding",
+    "web-programming",
+    "development-tools"
 ]
 
 # Keywords for easier discoverability on Crates.io

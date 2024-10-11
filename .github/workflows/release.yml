@@ -54,9 +54,23 @@ jobs:
         run: cargo build --verbose --release --target ${{ matrix.target }}
       - name: Package
         run: |
-          mkdir -p target/package
+          if [ ! -d "target/package" ]; then
+            mkdir -p target/package
+          fi
           cd target/${{ matrix.target }}/release
           tar czf ../../package/${{ matrix.target }}.tar.gz *
+        shell: bash
+
+      - name: Package (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          if (!(Test-Path "target/package")) {
+            mkdir target/package
+          }
+          cd target/${{ matrix.target }}/release
+          tar -czf ../../package/${{ matrix.target }}.tar.gz *
+        shell: pwsh
+
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.target }}
@@ -70,7 +84,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Set version
-        run: echo "VERSION=$(grep version Cargo.toml | sed -n 2p | cut -d '"' -f 2)" >> $GITHUB_ENV
+        run: echo "VERSION=$(grep -m 1 '^version =' Cargo.toml | cut -d '"' -f 2)" >> $GITHUB_ENV
       - uses: actions/download-artifact@v4
         with:
           path: artifacts

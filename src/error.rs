@@ -67,6 +67,10 @@ pub enum RssError {
     /// Custom error for unforeseen scenarios.
     #[error("Custom error: {0}")]
     Custom(String),
+
+    /// Error for invalid RSS version.
+    #[error("Invalid RSS version: {0}")]
+    InvalidRssVersion(String),
 }
 
 /// Represents a specific validation error.
@@ -190,6 +194,7 @@ impl RssError {
             RssError::ItemValidationError(_) => 400,
             RssError::UnknownField(_) => 500,
             RssError::Custom(_) => 500,
+            RssError::InvalidRssVersion(_) => 400,
         }
     }
 }

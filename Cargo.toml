@@ -23,17 +23,6 @@ build = "build.rs"                          # Path to the build script
 # Crate Configuration
 # -----------------------------------------------------------------------------
 
-[[bench]]
-# [[bench]] sections define benchmarks.
-name = "benchmark"
-harness = false
-path = "benches/criterion.rs"
-
-[profile.bench]
-# Profile for benchmarks.
-debug = true
-
-
 # Crates.io categories
 categories = [
     "data-formats",                         # For handling RSS and XML formats
@@ -86,3 +75,19 @@ lazy_static = "1.5"
 # Library-specific settings
 name = "rss_gen"                        # Internal name of the library
 path = "src/lib.rs"                     # Path to the library entry point
+
+# -----------------------------------------------------------------------------
+# Benchmarking
+# -----------------------------------------------------------------------------
+
+[[bench]]
+# [[bench]] sections define benchmarks.
+name = "benchmark"
+harness = false
+path = "benches/criterion.rs"
+
+[profile.bench]
+# Profile for benchmarks.
+debug = true
+
+

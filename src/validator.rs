@@ -6,6 +6,7 @@
 use crate::data::{RssData, RssVersion};
 use crate::error::{Result, RssError, ValidationError};
 use dtt::datetime::DateTime;
+use url::Url;
 
 /// RSS feed validator for validating the structure and content of an RSS feed.
 pub struct RssFeedValidator<'a> {
@@ -58,6 +59,29 @@ impl<'a> RssFeedValidator<'a> {
     }
 
     fn validate_structure(&self, errors: &mut Vec<ValidationError>) {
+        // Validate channel link
+        if let Err(e) =
+            self.validate_url(&self.rss_data.link, "channel link")
+        {
+            errors.push(ValidationError {
+                field: "link".to_string(),
+                message: e.to_string(),
+            });
+        }
+
+        // Validate item links
+        for (index, item) in self.rss_data.items.iter().enumerate() {
+            if let Err(e) = self.validate_url(
+                &item.link,
+                &format!("item[{}] link", index),
+            ) {
+                errors.push(ValidationError {
+                    field: format!("item[{}].link", index),
+                    message: e.to_string(),
+                });
+            }
+        }
+
         if self.rss_data.items.is_empty() {
             errors.push(ValidationError {
                 field: "items".to_string(),
@@ -181,7 +205,6 @@ impl<'a> RssFeedValidator<'a> {
     ) {
         match self.rss_data.version {
             RssVersion::RSS2_0 => {
-                // RSS 2.0 specific validations
                 if self.rss_data.generator.is_empty() {
                     errors.push(ValidationError {
                         field: "generator".to_string(),
@@ -190,9 +213,16 @@ impl<'a> RssFeedValidator<'a> {
                                 .to_string(),
                     });
                 }
+                if self.rss_data.atom_link.is_empty() {
+                    errors.push(ValidationError {
+                        field: "atom_link".to_string(),
+                        message:
+                            "atom:link is required for RSS 2.0 feeds"
+                                .to_string(),
+                    });
+                }
             }
             RssVersion::RSS1_0 => {
-                // RSS 1.0 specific validations
                 if self
                     .rss_data
                     .items
@@ -206,10 +236,31 @@ impl<'a> RssFeedValidator<'a> {
                                 .to_string(),
                     });
                 }
+                // Add more RSS 1.0 specific checks
             }
-            _ => {
-                // Other version specific validations can be added here
+            RssVersion::RSS0_92
+            | RssVersion::RSS0_91
+            | RssVersion::RSS0_90 => {
+                // Add specific checks for older RSS versions
             }
+        }
+    }
+
+    fn validate_url(&self, url: &str, field: &str) -> Result<()> {
+        match Url::parse(url) {
+            Ok(parsed_url) => {
+                if parsed_url.scheme() == "http"
+                    || parsed_url.scheme() == "https"
+                {
+                    Ok(())
+                } else {
+                    Err(RssError::InvalidUrl(format!("Invalid URL scheme in {}: {}. Only HTTP and HTTPS are allowed.", field, url)))
+                }
+            }
+            Err(_) => Err(RssError::InvalidUrl(format!(
+                "Invalid URL in {}: {}",
+                field, url
+            ))),
         }
     }
 }
@@ -273,5 +324,153 @@ mod tests {
         }
     }
 
-    // Add more tests as needed
+    #[test]
+    fn test_validate_url_valid() {
+        let binding = RssData::new(None);
+        let validator = RssFeedValidator::new(&binding);
+        assert!(validator
+            .validate_url("https://example.com", "test")
+            .is_ok());
+        assert!(validator
+            .validate_url("http://example.com", "test")
+            .is_ok());
+        assert!(validator
+            .validate_url(
+                "https://sub.example.com/path?query=value",
+                "test"
+            )
+            .is_ok());
+    }
+
+    #[test]
+    fn test_validate_url_invalid() {
+        let binding = RssData::new(None);
+        let validator = RssFeedValidator::new(&binding);
+        assert!(validator.validate_url("not a url", "test").is_err());
+        assert!(validator
+            .validate_url("ftp://example.com", "test")
+            .is_err());
+        assert!(validator.validate_url("http://", "test").is_err());
+        assert!(validator.validate_url("https://", "test").is_err());
+        assert!(validator
+            .validate_url("file:///path/to/file", "test")
+            .is_err());
+    }
+
+    #[test]
+    fn test_validate_structure_with_urls() {
+        let mut rss_data = RssData::new(Some(RssVersion::RSS2_0))
+            .title("Test Feed")
+            .link("https://example.com")
+            .description("A test feed")
+            .atom_link("https://example.com/feed.xml");
+
+        rss_data.add_item(
+            RssItem::new()
+                .title("Test Item")
+                .link("https://example.com/item1")
+                .description("A test item")
+                .guid("unique-id-1"),
+        );
+
+        let validator = RssFeedValidator::new(&rss_data);
+        let mut errors = Vec::new();
+        validator.validate_structure(&mut errors);
+        assert!(errors.is_empty());
+
+        // Test with invalid URL
+        rss_data.link = "not a url".to_string();
+        let validator = RssFeedValidator::new(&rss_data);
+        let mut errors = Vec::new();
+        validator.validate_structure(&mut errors);
+        assert!(errors
+            .iter()
+            .any(|e| e.message.contains("Invalid URL")));
+    }
+
+    #[test]
+    fn test_validate_version_specific_rss2_0() {
+        let mut rss_data = RssData::new(Some(RssVersion::RSS2_0))
+            .title("Test Feed")
+            .link("https://example.com")
+            .description("A test feed")
+            .atom_link("https://example.com/feed.xml")
+            .generator("RSS Gen Test");
+
+        let validator = RssFeedValidator::new(&rss_data);
+        let mut errors = Vec::new();
+        validator.validate_version_specific(&mut errors);
+        assert!(errors.is_empty());
+
+        // Test without generator
+        rss_data.generator = String::new();
+        let validator = RssFeedValidator::new(&rss_data);
+        let mut errors = Vec::new();
+        validator.validate_version_specific(&mut errors);
+        assert!(errors
+            .iter()
+            .any(|e| e.message.contains("generator is recommended")));
+
+        // Test without atom:link
+        rss_data.atom_link = String::new();
+        let validator = RssFeedValidator::new(&rss_data);
+        let mut errors = Vec::new();
+        validator.validate_version_specific(&mut errors);
+        assert!(errors
+            .iter()
+            .any(|e| e.message.contains("atom:link is required")));
+    }
+
+    #[test]
+    fn test_validate_version_specific_rss1_0() {
+        let mut rss_data = RssData::new(Some(RssVersion::RSS1_0))
+            .title("Test Feed")
+            .link("https://example.com")
+            .description("A test feed");
+
+        rss_data.add_item(
+            RssItem::new()
+                .title("Test Item")
+                .link("https://example.com/item1")
+                .description("A test item")
+                .guid("unique-id-1"),
+        );
+
+        let validator = RssFeedValidator::new(&rss_data);
+        let mut errors = Vec::new();
+        validator.validate_version_specific(&mut errors);
+        assert!(errors.is_empty());
+
+        // Test without guid
+        rss_data.items[0].guid = String::new();
+        let validator = RssFeedValidator::new(&rss_data);
+        let mut errors = Vec::new();
+        validator.validate_version_specific(&mut errors);
+        assert!(errors.iter().any(|e| e
+            .message
+            .contains("All items must have a guid in RSS 1.0")));
+    }
+
+    #[test]
+    fn test_validate_version_specific_older_versions() {
+        for version in &[
+            RssVersion::RSS0_90,
+            RssVersion::RSS0_91,
+            RssVersion::RSS0_92,
+        ] {
+            let rss_data = RssData::new(Some(*version))
+                .title("Test Feed")
+                .link("https://example.com")
+                .description("A test feed");
+
+            let validator = RssFeedValidator::new(&rss_data);
+            let mut errors = Vec::new();
+            validator.validate_version_specific(&mut errors);
+            assert!(
+                errors.is_empty(),
+                "Unexpected errors for version {:?}",
+                version
+            );
+        }
+    }
 }

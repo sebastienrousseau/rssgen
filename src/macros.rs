@@ -31,9 +31,9 @@
 /// fn generate_rss() -> Result<(), Box<dyn std::error::Error>> {
 ///     let mut writer = Writer::new(Cursor::new(Vec::new()));
 ///     let options = RssData::new()
-///         .title("My Blog")
-///         .link("https://example.com")
-///         .description("A blog about Rust");
+///         .Title("My Blog")
+///         .Link("https://example.com")
+///         .Description("A blog about Rust");
 ///
 ///     let result: Result<Writer<Cursor<Vec<u8>>>, Box<dyn std::error::Error>> = macro_generate_rss!(writer, options);
 ///     assert!(result.is_ok());
@@ -93,10 +93,10 @@ macro_rules! macro_generate_rss {
         macro_write_element!(writer, "ttl", &$options.ttl)?;
 
         // Write image element
-        if !$options.image.is_empty() {
+        if !$options.image_url.is_empty() {
             writer
                 .write_event(Event::Start(BytesStart::new("image")))?;
-            macro_write_element!(writer, "url", &$options.image)?;
+            macro_write_element!(writer, "url", &$options.image_url)?;
             macro_write_element!(writer, "title", &$options.title)?;
             macro_write_element!(writer, "link", &$options.link)?;
             writer.write_event(Event::End(BytesEnd::new("image")))?;
@@ -189,9 +189,9 @@ macro_rules! macro_write_element {
 ///
 /// let mut rss_data = RssData::new(None);
 /// macro_set_rss_data_fields!(rss_data,
-///     title = "My Blog",
-///     link = "https://example.com",
-///     description = "A blog about Rust"
+///     Title = "My Blog",
+///     Link = "https://example.com",
+///     Description = "A blog about Rust"
 /// );
 /// assert_eq!(rss_data.title, "My Blog");
 /// assert_eq!(rss_data.link, "https://example.com");
@@ -200,7 +200,7 @@ macro_rules! macro_write_element {
 #[macro_export]
 macro_rules! macro_set_rss_data_fields {
     ($rss_data:expr, $($field:ident = $value:expr),+ $(,)?) => {
-        $rss_data = $rss_data $(.set(stringify!($field), $value))+
+        $rss_data = $rss_data $(.set($crate::data::RssDataField::$field, $value))+
     };
 }
 
@@ -384,9 +384,9 @@ mod tests {
         let mut rss_data = RssData::new(None);
         macro_set_rss_data_fields!(
             rss_data,
-            title = "My Blog",
-            link = "https://example.com",
-            description = "A blog about Rust"
+            Title = "My Blog",
+            Link = "https://example.com",
+            Description = "A blog about Rust"
         );
 
         assert_eq!(rss_data.title, "My Blog");

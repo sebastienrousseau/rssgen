@@ -31,9 +31,10 @@ A comprehensive Rust library for generating, parsing, serializing, and deseriali
 - Serialization and deserialization of RSS data
 - Extensible elements for managing standard and optional RSS fields
 - Atom link support for modern syndication compatibility
-- Image embedding for RSS 2.0 feeds
+- Image embedding for RSS feeds
 - Comprehensive error handling and validation
-- Performance-optimized XML processing
+- Performance-optimized XML processing using quick-xml
+- Convenient macros for RSS generation and data manipulation
 
 ## Installation
 
@@ -41,7 +42,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rss-gen = "0.0.1"
+rss-gen = "0.0.2"
 ```
 
 ## Usage
@@ -108,6 +109,34 @@ Refer to the [documentation][09] for more details on how to use these macros.
 
 For full API documentation, please visit [docs.rs/rss-gen][09].
 
+## Examples
+
+The library comes with several examples demonstrating various features:
+
+- `example_data.rs`: Shows how to create and manipulate RSS data structures.
+- `example_error.rs`: Demonstrates error handling in RSS Gen.
+- `example_generator.rs`: Illustrates RSS feed generation for different RSS versions.
+- `example_lib.rs`: Provides general usage examples of the library.
+- `example_macros.rs`: Shows how to use the provided macros.
+- `example_parser.rs`: Demonstrates parsing RSS feeds from XML content.
+- `example_validator.rs`: Illustrates the usage of the RSS feed validator.
+
+To run an example, use the following command:
+
+```shell
+cargo run --example example_name
+```
+
+Replace `example_name` with the name of the example you want to run (e.g., `example_generator`).
+
+## Benchmarks
+
+The library includes benchmarks to measure performance. You can run them using:
+
+```shell
+cargo bench
+```
+
 ## Supported RSS Versions
 
 - RSS 0.90
@@ -158,7 +187,7 @@ This crate wouldn't be possible without the valuable open-source work of others,
 [14]: https://www.rust-lang.org "The Rust Programming Language"
 [16]: https://github.com/sebastienrousseau/rssgen/actions?query=branch%3Amain "Build Status"
 
-[build-badge]: https://img.shields.io/github/actions/workflow/status/sebastienrousseau/rss-gen/release.yml?branch=main&style=for-the-badge&logo=github "Build Status"
+[build-badge]: https://img.shields.io/github/actions/workflow/status/sebastienrousseau/rssgen/release.yml?branch=main&style=for-the-badge&logo=github "Build Status"
 [crates-badge]: https://img.shields.io/crates/v/rss-gen.svg?style=for-the-badge 'Crates.io badge'
 [docs-badge]: https://img.shields.io/docsrs/rss-gen.svg?style=for-the-badge 'Docs.rs badge'
 [libs-badge]: https://img.shields.io/badge/lib.rs-v0.1.0-orange.svg?style=for-the-badge 'Lib.rs badge'

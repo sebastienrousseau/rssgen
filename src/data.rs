@@ -161,6 +161,8 @@ pub struct RssData {
 pub struct RssItem {
     /// The GUID of the RSS item (unique identifier).
     pub guid: String,
+    /// The category of the RSS item.
+    pub category: Option<String>,
     /// The description of the RSS item.
     pub description: String,
     /// The link to the RSS item.
@@ -171,8 +173,6 @@ pub struct RssItem {
     pub title: String,
     /// The author of the RSS item.
     pub author: String,
-    /// The category of the RSS item (optional).
-    pub category: Option<String>,
     /// The comments URL related to the RSS item (optional).
     pub comments: Option<String>,
     /// The enclosure (typically for media like podcasts) (optional).
@@ -236,6 +236,7 @@ impl RssData {
             "description" => self.description = value,
             "docs" => self.docs = value,
             "generator" => self.generator = value,
+            "guid" => self.guid = value, // Add this line to handle `guid`
             "image" => self.image = value,
             "language" => self.language = value,
             "last_build_date" => self.last_build_date = value,
@@ -262,6 +263,18 @@ impl RssData {
     /// * `item` - The `RssItem` to be added to the feed.
     pub fn add_item(&mut self, item: RssItem) {
         self.items.push(item);
+    }
+
+    /// Sets the image for the RSS feed.
+    pub fn set_image(
+        &mut self,
+        title: String,
+        url: String,
+        link: String,
+    ) {
+        self.image = title;
+        self.link = url;
+        self.atom_link = link;
     }
 
     /// Removes an item from the RSS feed by its GUID.
@@ -559,6 +572,106 @@ impl RssItem {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use quick_xml::de::from_str;
+
+    #[test]
+    fn test_to_hash_map() {
+        let rss_data = RssData::new(None)
+            .title("Test Title")
+            .link("https://example.com/rss")
+            .description("A test RSS feed")
+            .atom_link("https://example.com/atom")
+            .language("en")
+            .managing_editor("editor@example.com")
+            .webmaster("webmaster@example.com")
+            .last_build_date("2024-03-21T12:00:00Z")
+            .pub_date("2024-03-21T12:00:00Z")
+            .ttl("60")
+            .generator("RSS Gen")
+            .guid("unique-guid")
+            .image("Image Title".to_string())
+            .docs("https://docs.example.com");
+
+        let map = rss_data.to_hash_map();
+        assert_eq!(map.get("title").unwrap(), "Test Title");
+        assert_eq!(map.get("link").unwrap(), "https://example.com/rss");
+        assert_eq!(
+            map.get("atom_link").unwrap(),
+            "https://example.com/atom"
+        );
+        assert_eq!(map.get("language").unwrap(), "en");
+        assert_eq!(
+            map.get("managing_editor").unwrap(),
+            "editor@example.com"
+        );
+        assert_eq!(
+            map.get("webmaster").unwrap(),
+            "webmaster@example.com"
+        );
+        assert_eq!(
+            map.get("last_build_date").unwrap(),
+            "2024-03-21T12:00:00Z"
+        );
+        assert_eq!(
+            map.get("pub_date").unwrap(),
+            "2024-03-21T12:00:00Z"
+        );
+        assert_eq!(map.get("ttl").unwrap(), "60");
+        assert_eq!(map.get("generator").unwrap(), "RSS Gen");
+        assert_eq!(map.get("guid").unwrap(), "unique-guid");
+        assert_eq!(map.get("image").unwrap(), "Image Title");
+        assert_eq!(
+            map.get("docs").unwrap(),
+            "https://docs.example.com"
+        );
+    }
+
+    #[test]
+    fn test_rss_item_with_optional_fields() {
+        let item = RssItem::new()
+            .title("Item with Optional Fields")
+            .link("https://example.com/item")
+            .description("An item with optional fields")
+            .guid("optional-fields-guid")
+            .pub_date("2024-03-21T12:00:00Z");
+
+        assert_eq!(item.title, "Item with Optional Fields");
+        assert_eq!(item.link, "https://example.com/item");
+        assert_eq!(item.description, "An item with optional fields");
+        assert_eq!(item.guid, "optional-fields-guid");
+        assert_eq!(item.pub_date, "2024-03-21T12:00:00Z");
+
+        assert!(item.validate().is_ok());
+    }
+
+    #[test]
+    fn test_invalid_rss_item_fields() {
+        let invalid_item = RssItem::new()
+            .title("")
+            .link("")
+            .guid("")
+            .description("Invalid item with missing fields");
+
+        assert!(invalid_item.validate().is_err());
+
+        if let Err(RssError::ValidationErrors(errors)) =
+            invalid_item.validate()
+        {
+            assert_eq!(errors.len(), 3);
+            assert!(errors.contains(&"Title is missing".to_string()));
+            assert!(errors.contains(&"Link is missing".to_string()));
+            assert!(errors.contains(&"GUID is missing".to_string()));
+        }
+    }
+
+    #[test]
+    fn test_invalid_enum_parsing() {
+        assert!("3.5".parse::<RssVersion>().is_err());
+        assert_eq!(
+            "3.5".parse::<RssVersion>().unwrap_err(),
+            "3.5".to_string()
+        );
+    }
 
     #[test]
     fn test_rss_data_new_and_set() {
@@ -708,5 +821,219 @@ mod tests {
     fn test_parse_date() {
         assert!(parse_date("2024-03-21T12:00:00Z").is_ok());
         assert!(parse_date("invalid date").is_err());
+    }
+
+    #[test]
+    fn test_set_image() {
+        // Test setting the image values
+        let mut rss_data = RssData::new(None);
+        rss_data.set_image(
+            "Test Image Title".to_string(),
+            "https://example.com/image.jpg".to_string(),
+            "https://example.com".to_string(),
+        );
+        rss_data.title = "RSS Feed Title".to_string();
+
+        assert_eq!(rss_data.image, "Test Image Title");
+        assert_eq!(rss_data.link, "https://example.com/image.jpg");
+        assert_eq!(rss_data.atom_link, "https://example.com");
+        assert_eq!(rss_data.title, "RSS Feed Title".to_string());
+    }
+
+    #[test]
+    fn test_set_empty_image() {
+        // Test setting the image with empty values
+        let mut rss_data = RssData::new(None);
+        rss_data.set_image(
+            "".to_string(),
+            "".to_string(),
+            "".to_string(),
+        );
+        rss_data.title = "Empty Image Test".to_string();
+
+        assert_eq!(rss_data.image, "");
+        assert_eq!(rss_data.link, "");
+        assert_eq!(rss_data.atom_link, "");
+        assert_eq!(rss_data.title, "Empty Image Test".to_string());
+    }
+
+    #[test]
+    fn test_image_in_rss_data_validation() {
+        // Test that valid image data passes validation
+        let mut rss_data = RssData::new(None);
+        rss_data.set_image(
+            "Valid Image Title".to_string(),
+            "https://example.com/image.jpg".to_string(),
+            "https://example.com".to_string(),
+        );
+        rss_data.title = "RSS Feed Title".to_string();
+        rss_data.link = "https://example.com/rss".to_string();
+        rss_data.description =
+            "This is a valid RSS feed with an image".to_string();
+
+        assert!(rss_data.validate().is_ok());
+
+        // Test that missing required fields cause validation to fail
+        let mut invalid_rss_data = RssData::new(None);
+        invalid_rss_data.set_image(
+            "Valid Image Title".to_string(),
+            "https://example.com/image.jpg".to_string(),
+            "https://example.com".to_string(),
+        );
+        invalid_rss_data.title = "".to_string();
+        invalid_rss_data.link = "".to_string();
+        invalid_rss_data.description = "".to_string();
+
+        let result = invalid_rss_data.validate();
+        assert!(result.is_err());
+
+        if let Err(RssError::ValidationErrors(errors)) = result {
+            assert_eq!(errors.len(), 3); // There are 3 missing fields: title, link, and description
+            assert!(errors.contains(&"Title is missing".to_string()));
+            assert!(errors.contains(&"Link is missing".to_string()));
+            assert!(
+                errors.contains(&"Description is missing".to_string())
+            );
+        }
+    }
+
+    #[test]
+    fn test_invalid_image_url_validation() {
+        // Test validation fails for an invalid image URL
+        let mut invalid_rss_data = RssData::new(None);
+        invalid_rss_data.set_image(
+            "Invalid Image Title".to_string(),
+            "invalid-url".to_string(), // Invalid URL here
+            "https://example.com".to_string(),
+        );
+        invalid_rss_data.title = "RSS Feed Title".to_string();
+        invalid_rss_data.link = "https://example.com/rss".to_string();
+        invalid_rss_data.description =
+            "This is a valid RSS feed".to_string();
+
+        assert!(validate_url(&invalid_rss_data.image).is_err()); // Should fail on the image URL
+    }
+
+    #[test]
+    fn test_empty_image_validation() {
+        // Test that an empty image does not affect validation of required fields
+        let mut valid_rss_data = RssData::new(None);
+        valid_rss_data.set_image(
+            "".to_string(),
+            "".to_string(),
+            "".to_string(),
+        );
+        valid_rss_data.title = "RSS Feed Title".to_string();
+        valid_rss_data.link = "https://example.com/rss".to_string();
+        valid_rss_data.description =
+            "This is a valid RSS feed".to_string();
+
+        assert!(valid_rss_data.validate().is_ok());
+    }
+
+    #[derive(Debug, Deserialize, PartialEq)]
+    struct Image {
+        title: String,
+        url: String,
+        link: String,
+    }
+
+    #[derive(Debug, Deserialize, PartialEq)]
+    struct Channel {
+        title: String,
+        link: String,
+        description: String,
+        image: Image,
+    }
+
+    #[derive(Debug, Deserialize, PartialEq)]
+    struct Rss {
+        #[serde(rename = "channel")]
+        channel: Channel,
+    }
+
+    #[test]
+    fn test_rss_feed_parsing() {
+        // Mock RSS XML as provided
+        let rss_xml = r#"
+    <?xml version="1.0" encoding="UTF-8"?>
+    <rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/"
+         xmlns:dc="http://purl.org/dc/elements/1.1/"
+         xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:taxo="http://purl.org/rss/1.0/modules/taxonomy/">
+      <channel>
+        <title>GETS Open Tenders or Quotes</title>
+        <link>https://www.gets.govt.nz//ExternalIndex.htm</link>
+        <description>This feed lists the current open tenders or requests for quote listed on the GETS.</description>
+        <image>
+          <title>Open tenders or Requests for Quote from GETS</title>
+          <url>https://www.gets.govt.nz//ext/default/img/getsLogo.jpg</url>
+          <link>https://www.gets.govt.nz//ExternalIndex.htm</link>
+        </image>
+      </channel>
+    </rss>
+    "#;
+
+        // Deserialize the RSS XML into Rss struct
+        let parsed: Rss =
+            from_str(rss_xml).expect("Failed to parse RSS XML");
+
+        // Assert that the parsed data matches expected values
+        assert_eq!(parsed.channel.title, "GETS Open Tenders or Quotes");
+        assert_eq!(
+            parsed.channel.link,
+            "https://www.gets.govt.nz//ExternalIndex.htm"
+        );
+        assert_eq!(parsed.channel.description, "This feed lists the current open tenders or requests for quote listed on the GETS.");
+        assert_eq!(
+            parsed.channel.image.title,
+            "Open tenders or Requests for Quote from GETS"
+        );
+        assert_eq!(
+            parsed.channel.image.url,
+            "https://www.gets.govt.nz//ext/default/img/getsLogo.jpg"
+        );
+        assert_eq!(
+            parsed.channel.image.link,
+            "https://www.gets.govt.nz//ExternalIndex.htm"
+        );
+    }
+
+    #[test]
+    fn test_rss_version_display() {
+        assert_eq!(RssVersion::RSS2_0.to_string(), "2.0");
+        assert_eq!(RssVersion::RSS1_0.to_string(), "1.0");
+    }
+
+    #[test]
+    fn test_rss_version_from_str() {
+        assert_eq!("2.0".parse::<RssVersion>(), Ok(RssVersion::RSS2_0));
+        assert!("3.0".parse::<RssVersion>().is_err());
+    }
+
+    #[test]
+    fn test_rss_data_new() {
+        let rss_data = RssData::new(Some(RssVersion::RSS2_0));
+        assert_eq!(rss_data.version, RssVersion::RSS2_0);
+    }
+
+    #[test]
+    fn test_rss_data_setters() {
+        let rss_data = RssData::new(None)
+            .title("Test Feed")
+            .link("https://example.com")
+            .description("A test feed")
+            .generator("RSS Gen")
+            .guid("unique-guid")
+            .pub_date("2024-03-21T12:00:00Z")
+            .language("en");
+
+        assert_eq!(rss_data.title, "Test Feed");
+        assert_eq!(rss_data.link, "https://example.com");
+        assert_eq!(rss_data.description, "A test feed");
+        assert_eq!(rss_data.generator, "RSS Gen");
+        assert_eq!(rss_data.guid, "unique-guid");
+        assert_eq!(rss_data.pub_date, "2024-03-21T12:00:00Z");
+        assert_eq!(rss_data.language, "en");
     }
 }

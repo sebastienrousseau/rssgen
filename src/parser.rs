@@ -1,8 +1,6 @@
 // Copyright © 2024 RSS Gen. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-// src/parser.rs
-
 use crate::data::{RssData, RssItem, RssVersion};
 use crate::error::{Result, RssError};
 use quick_xml::events::Event;
@@ -54,8 +52,13 @@ pub fn parse_rss(content: &str) -> Result<RssData> {
     let mut buf = Vec::new();
     let mut in_channel = false;
     let mut in_item = false;
+    let mut in_image = false;
     let mut current_item = RssItem::new();
     let mut current_element = String::new();
+
+    let mut image_title = String::new();
+    let mut image_url = String::new();
+    let mut image_link = String::new();
 
     // Flag to determine if this is RSS 1.0 (RDF format)
     let mut is_rss_1_0 = false;
@@ -116,6 +119,8 @@ pub fn parse_rss(content: &str) -> Result<RssData> {
                 } else if name_str == "item" {
                     in_item = true;
                     current_item = RssItem::new();
+                } else if name_str == "image" {
+                    in_image = true;
                 }
 
                 current_element = name_str;
@@ -127,6 +132,13 @@ pub fn parse_rss(content: &str) -> Result<RssData> {
                 } else if name == b"item" {
                     in_item = false;
                     rss_data.add_item(current_item.clone());
+                } else if name == b"image" {
+                    in_image = false;
+                    rss_data.set_image(
+                        image_title.clone(),
+                        image_url.clone(),
+                        image_link.clone(),
+                    );
                 }
 
                 current_element.clear();
@@ -136,7 +148,7 @@ pub fn parse_rss(content: &str) -> Result<RssData> {
                     .unescape()
                     .map_err(RssError::XmlParseError)?
                     .into_owned();
-                if in_channel && !in_item {
+                if in_channel && !in_item && !in_image {
                     if !current_element.is_empty() {
                         // Pass `is_rss_1_0` to handle RSS 1.0 elements
                         parse_channel_element(
@@ -152,10 +164,16 @@ pub fn parse_rss(content: &str) -> Result<RssData> {
                         &current_element,
                         &text,
                     )?;
+                } else if in_image && !current_element.is_empty() {
+                    match current_element.as_str() {
+                        "title" => image_title = text,
+                        "url" => image_url = text,
+                        "link" => image_link = text,
+                        _ => (),
+                    }
                 }
             }
             Ok(Event::CData(ref e)) => {
-                // Handle CDATA event
                 let text =
                     String::from_utf8_lossy(e.as_ref()).into_owned();
                 if in_channel && !in_item {

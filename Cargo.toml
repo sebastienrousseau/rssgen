@@ -62,7 +62,7 @@ exclude = [
 # List of external crates used in this project
 dtt = "0.0"
 log = "0.4"
-quick-xml = "0.36"
+quick-xml = { version = "0.36", features = ["serialize"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "1.0"

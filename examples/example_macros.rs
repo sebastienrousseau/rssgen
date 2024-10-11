@@ -13,12 +13,12 @@
 use quick_xml::events::{BytesEnd, BytesStart, BytesText, Event};
 use quick_xml::Error as XmlError;
 use quick_xml::Writer;
+use rss_gen::macro_set_rss_data_fields;
 use rss_gen::{
     macro_generate_rss, macro_write_element, RssData, RssVersion,
 };
-use std::io::Cursor;
 use std::error::Error;
-use rss_gen::macro_set_rss_data_fields;
+use std::io::Cursor;
 
 /// Custom error type for example execution
 #[derive(Debug)]
@@ -50,7 +50,8 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 /// Demonstrates generating an RSS feed using the `macro_generate_rss!` macro.
-fn generate_rss_macro_example() -> Result<(), Box<dyn std::error::Error>> {
+fn generate_rss_macro_example() -> Result<(), Box<dyn std::error::Error>>
+{
     println!("🦀  Generate Rss Feed Macro Example");
     println!("---------------------------------------------");
 
@@ -61,11 +62,13 @@ fn generate_rss_macro_example() -> Result<(), Box<dyn std::error::Error>> {
         .description("A blog about Rust programming and tutorials.");
 
     // Generate RSS feed using macro
-    macro_generate_rss!(&mut writer, rss_data).map_err(|e: XmlError| {
-        Box::new(ExampleError {
-            message: format!("Failed to generate RSS: {}", e),
-        }) as Box<dyn std::error::Error>
-    })?;
+    macro_generate_rss!(&mut writer, rss_data).map_err(
+        |e: XmlError| {
+            Box::new(ExampleError {
+                message: format!("Failed to generate RSS: {}", e),
+            }) as Box<dyn std::error::Error>
+        },
+    )?;
 
     let result = writer.into_inner().into_inner();
     let xml = String::from_utf8(result).map_err(|e| {
@@ -80,18 +83,20 @@ fn generate_rss_macro_example() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 /// Demonstrates writing an XML element using the `macro_write_element!` macro.
-fn write_element_macro_example() -> Result<(), Box<dyn std::error::Error>> {
+fn write_element_macro_example(
+) -> Result<(), Box<dyn std::error::Error>> {
     println!("\n🦀 Write Xml Element Macro Example");
     println!("---------------------------------------------");
 
     let mut writer = Writer::new(Cursor::new(Vec::new()));
 
     // Writing an XML element using macro
-    macro_write_element!(&mut writer, "title", "My Rust Blog").map_err(|e: XmlError| {
-        Box::new(ExampleError {
-            message: format!("Failed to write XML element: {}", e),
-        }) as Box<dyn std::error::Error>
-    })?;
+    macro_write_element!(&mut writer, "title", "My Rust Blog")
+        .map_err(|e: XmlError| {
+            Box::new(ExampleError {
+                message: format!("Failed to write XML element: {}", e),
+            }) as Box<dyn std::error::Error>
+        })?;
 
     let result = writer.into_inner().into_inner();
     let xml = String::from_utf8(result).map_err(|e| {

@@ -101,10 +101,14 @@ fn quick_rss_example() -> Result<(), Box<dyn Error>> {
     let rss_feed = rss_gen::quick_rss(
         "Quick RSS Feed",
         "https://example.com/quick",
-        "A quickly generated RSS feed"
-    ).map_err(|e| {
+        "A quickly generated RSS feed",
+    )
+    .map_err(|e| {
         Box::new(ExampleError {
-            message: format!("Failed to generate quick RSS feed: {}", e),
+            message: format!(
+                "Failed to generate quick RSS feed: {}",
+                e
+            ),
         }) as Box<dyn Error>
     })?;
 

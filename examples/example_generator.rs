@@ -12,9 +12,9 @@
 
 use quick_xml::Writer;
 use rss_gen::generator::{sanitize_content, write_element};
-use std::io::Cursor;
-use std::error::Error;
 use rss_gen::{generate_rss, RssData, RssItem, RssVersion};
+use std::error::Error;
+use std::io::Cursor;
 
 /// Custom error type for example execution
 #[derive(Debug)]
@@ -41,6 +41,11 @@ pub fn main() -> Result<(), Box<dyn Error>> {
     sanitize_content_example()?;
     write_element_example()?;
     generate_complex_rss_example()?;
+    generate_rss_0_90_example()?;
+    generate_rss_0_91_example()?;
+    generate_rss_0_92_example()?;
+    generate_rss_1_0_example()?;
+    generate_rss_2_0_example()?;
 
     println!("\n🎉  All examples completed successfully!\n");
     Ok(())
@@ -98,7 +103,9 @@ fn generate_complex_rss_example() -> Result<(), Box<dyn Error>> {
     let mut rss_data = RssData::new(Some(RssVersion::RSS2_0))
         .title("Complex RSS Feed")
         .link("https://example.com/complex")
-        .description("A complex RSS feed with multiple items and custom fields")
+        .description(
+            "A complex RSS feed with multiple items and custom fields",
+        )
         .language("en-US")
         .pub_date("Mon, 01 Jan 2024 00:00:00 GMT")
         .last_build_date("Mon, 01 Jan 2024 12:00:00 GMT")
@@ -118,11 +125,177 @@ fn generate_complex_rss_example() -> Result<(), Box<dyn Error>> {
 
     let rss_feed = generate_rss(&rss_data).map_err(|e| {
         Box::new(ExampleError {
-            message: format!("Failed to generate complex RSS feed: {}", e),
+            message: format!(
+                "Failed to generate complex RSS feed: {}",
+                e
+            ),
         }) as Box<dyn Error>
     })?;
 
     println!("    ✅  Generated complex RSS feed:\n    {}", rss_feed);
 
+    Ok(())
+}
+
+fn generate_rss_0_90_example() -> Result<(), Box<dyn Error>> {
+    println!("\n🦀 Generating RSS 0.90 Example");
+    let mut rss_data = RssData::new(Some(RssVersion::RSS0_90))
+        .title("Mozilla Dot Org")
+        .link("http://www.mozilla.org")
+        .description("the Mozilla Organization web site")
+        .image_title("Mozilla")
+        .image_url("http://www.mozilla.org/images/moz.gif")
+        .image_link("http://www.mozilla.org");
+
+    let items = vec![
+        ("New Status Updates", "http://www.mozilla.org/status/"),
+        ("Bugzilla Reorganized", "http://www.mozilla.org/bugs/"),
+        ("Mozilla Party, 2.0!", "http://www.mozilla.org/party/1999/"),
+        (
+            "Unix Platform Parity",
+            "http://www.mozilla.org/build/unix.html",
+        ),
+        (
+            "NPL 1.0M published",
+            "http://www.mozilla.org/NPL/NPL-1.0M.html",
+        ),
+    ];
+
+    for (title, link) in items {
+        rss_data.add_item(RssItem::new().title(title).link(link));
+    }
+
+    let rss_feed = generate_rss(&rss_data)?;
+    println!("Generated RSS 0.90 feed:\n{}", rss_feed);
+    Ok(())
+}
+
+fn generate_rss_0_91_example() -> Result<(), Box<dyn Error>> {
+    println!("\n🦀 Generating RSS 0.91 Example");
+    let mut rss_data = RssData::new(Some(RssVersion::RSS0_91))
+        .title("XML.com")
+        .link("http://www.xml.com/")
+        .description("XML.com features a rich mix of information and services for the XML community.")
+        .language("en-us");
+
+    let items = vec![
+        ("Normalizing XML, Part 2", "http://www.xml.com/pub/a/2002/12/04/normalizing.html", "In this second and final look at applying relational normalization techniques to W3C XML Schema data modeling, Will Provost discusses when not to normalize, the scope of uniqueness and the fourth and fifth normal forms."),
+        ("The .NET Schema Object Model", "http://www.xml.com/pub/a/2002/12/04/som.html", "Priya Lakshminarayanan describes in detail the use of the .NET Schema Object Model for programmatic manipulation of W3C XML Schemas."),
+        ("SVG's Past and Promising Future", "http://www.xml.com/pub/a/2002/12/04/svg.html", "In this month's SVG column, Antoine Quint looks back at SVG's journey through 2002 and looks forward to 2003."),
+    ];
+
+    for (title, link, description) in items {
+        rss_data.add_item(
+            RssItem::new()
+                .title(title)
+                .link(link)
+                .description(description),
+        );
+    }
+
+    let rss_feed = generate_rss(&rss_data)?;
+    println!("Generated RSS 0.91 feed:\n{}", rss_feed);
+    Ok(())
+}
+
+fn generate_rss_0_92_example() -> Result<(), Box<dyn Error>> {
+    println!("\n🦀 Generating RSS 0.92 Example");
+    let mut rss_data = RssData::new(Some(RssVersion::RSS0_92))
+        .title("My Website")
+        .link("http://www.example.com/")
+        .description("News and updates from my website.")
+        .language("en-us")
+        .last_build_date("Mon, 11 Oct 2024 21:57:00 GMT")
+        .image_title("My Website Image")
+        .image_url("http://www.example.com/image.jpg")
+        .image_link("http://www.example.com/");
+
+    let items = vec![
+        (
+            "First article title",
+            "http://www.example.com/article1",
+            "Short description of the article.",
+            "Mon, 11 Oct 2024 12:00:00 GMT",
+        ),
+        (
+            "Second article title",
+            "http://www.example.com/article2",
+            "Short description of the article.",
+            "Sun, 10 Oct 2024 12:00:00 GMT",
+        ),
+    ];
+
+    for (title, link, description, pub_date) in items {
+        rss_data.add_item(
+            RssItem::new()
+                .title(title)
+                .link(link)
+                .description(description)
+                .pub_date(pub_date),
+        );
+    }
+
+    let rss_feed = generate_rss(&rss_data)?;
+    println!("Generated RSS 0.92 feed:\n{}", rss_feed);
+    Ok(())
+}
+
+fn generate_rss_1_0_example() -> Result<(), Box<dyn Error>> {
+    println!("\n🦀 Generating RSS 1.0 Example");
+    let mut rss_data = RssData::new(Some(RssVersion::RSS1_0))
+        .title("XML.com")
+        .link("http://www.xml.com/")
+        .description("XML.com features a rich mix of information and services for the XML community.")
+        .language("en-us");
+
+    let items = vec![
+        ("Normalizing XML, Part 2", "http://www.xml.com/pub/a/2002/12/04/normalizing.html", "In this second and final look at applying relational normalization techniques to W3C XML Schema data modeling, Will Provost discusses when not to normalize, the scope of uniqueness and the fourth and fifth normal forms.", "Will Provost", "2002-12-04"),
+        ("The .NET Schema Object Model", "http://www.xml.com/pub/a/2002/12/04/som.html", "Priya Lakshminarayanan describes in detail the use of the .NET Schema Object Model for programmatic manipulation of W3C XML Schemas.", "Priya Lakshminarayanan", "2002-12-04"),
+        ("SVG's Past and Promising Future", "http://www.xml.com/pub/a/2002/12/04/svg.html", "In this month's SVG column, Antoine Quint looks back at SVG's journey through 2002 and looks forward to 2003.", "Antoine Quint", "2002-12-04"),
+    ];
+
+    for (title, link, description, author, date) in items {
+        rss_data.add_item(
+            RssItem::new()
+                .title(title)
+                .link(link)
+                .description(description)
+                .author(author)
+                .pub_date(date),
+        );
+    }
+
+    let rss_feed = generate_rss(&rss_data)?;
+    println!("Generated RSS 1.0 feed:\n{}", rss_feed);
+    Ok(())
+}
+
+fn generate_rss_2_0_example() -> Result<(), Box<dyn Error>> {
+    println!("\n🦀 Generating RSS 2.0 Example");
+    let mut rss_data = RssData::new(Some(RssVersion::RSS2_0))
+        .title("XML.com")
+        .link("http://www.xml.com/")
+        .description("XML.com features a rich mix of information and services for the XML community.")
+        .language("en-us");
+
+    let items = vec![
+        ("Normalizing XML, Part 2", "http://www.xml.com/pub/a/2002/12/04/normalizing.html", "In this second and final look at applying relational normalization techniques to W3C XML Schema data modeling, Will Provost discusses when not to normalize, the scope of uniqueness and the fourth and fifth normal forms.", "Will Provost", "2002-12-04"),
+        ("The .NET Schema Object Model", "http://www.xml.com/pub/a/2002/12/04/som.html", "Priya Lakshminarayanan describes in detail the use of the .NET Schema Object Model for programmatic manipulation of W3C XML Schemas.", "Priya Lakshminarayanan", "2002-12-04"),
+        ("SVG's Past and Promising Future", "http://www.xml.com/pub/a/2002/12/04/svg.html", "In this month's SVG column, Antoine Quint looks back at SVG's journey through 2002 and looks forward to 2003.", "Antoine Quint", "2002-12-04"),
+    ];
+
+    for (title, link, description, author, date) in items {
+        rss_data.add_item(
+            RssItem::new()
+                .title(title)
+                .link(link)
+                .description(description)
+                .author(author)
+                .pub_date(date),
+        );
+    }
+
+    let rss_feed = generate_rss(&rss_data)?;
+    println!("Generated RSS 2.0 feed:\n{}", rss_feed);
     Ok(())
 }

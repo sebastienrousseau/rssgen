@@ -12,9 +12,24 @@
 
 use rss_gen::validator::RssFeedValidator;
 use rss_gen::{RssData, RssItem, RssVersion};
+use std::error::Error;
+
+/// Custom error type for example execution
+#[derive(Debug)]
+struct ExampleError {
+    message: String,
+}
+
+impl std::fmt::Display for ExampleError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Example Error: {}", self.message)
+    }
+}
+
+impl Error for ExampleError {}
 
 /// Demonstrates validating an RSS feed using the `RssFeedValidator`.
-fn validate_rss_feed_example() {
+fn validate_rss_feed_example() -> Result<(), Box<dyn Error>> {
     println!("\n🧪 RSS Gen Validator Usage Examples \n");
 
     let mut rss_data = RssData::new(Some(RssVersion::RSS2_0))
@@ -36,17 +51,51 @@ fn validate_rss_feed_example() {
     let validator = RssFeedValidator::new(&rss_data);
 
     // Perform validation
+    validator.validate().map_err(|e| {
+        Box::new(ExampleError {
+            message: format!("RSS feed validation failed: {}", e),
+        }) as Box<dyn Error>
+    })?;
+
+    println!("    ✅  RSS feed is valid!");
+
+    Ok(())
+}
+
+/// Demonstrates validating an invalid RSS feed.
+fn validate_invalid_rss_feed_example() -> Result<(), Box<dyn Error>> {
+    println!("\n🧪 RSS Gen Invalid Feed Validator Example \n");
+
+    let invalid_rss_data = RssData::new(Some(RssVersion::RSS2_0))
+        .title("") // Invalid: empty title
+        .link("not-a-valid-url") // Invalid: incorrect URL format
+        .description("An invalid RSS feed");
+
+    let validator = RssFeedValidator::new(&invalid_rss_data);
+
     match validator.validate() {
-        Ok(_) => println!("    ✅  RSS feed is valid!"),
-        Err(e) => println!("    ❌  RSS feed validation failed: {}", e),
+        Ok(_) => {
+            return Err(Box::new(ExampleError {
+                message: "Validation unexpectedly passed for invalid feed".to_string(),
+            }));
+        }
+        Err(e) => {
+            println!("    ✅  Validation correctly failed: {}", e);
+        }
     }
+
+    Ok(())
 }
 
 /// Entry point for the RSS Gen Validator examples.
-pub fn main() {
+pub fn main() -> Result<(), Box<dyn Error>> {
     println!("🦀 Rss Gen Validator Usage Examples");
     println!("---------------------------------------------");
 
     // Run the RSS feed validation example
-    validate_rss_feed_example();
+    validate_rss_feed_example()?;
+    validate_invalid_rss_feed_example()?;
+
+    Ok(())
 }
+

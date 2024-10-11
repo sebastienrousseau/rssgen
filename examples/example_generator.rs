@@ -13,23 +13,41 @@
 use quick_xml::Writer;
 use rss_gen::generator::{sanitize_content, write_element};
 use std::io::Cursor;
+use std::error::Error;
+use rss_gen::{generate_rss, RssData, RssItem, RssVersion};
+
+/// Custom error type for example execution
+#[derive(Debug)]
+struct ExampleError {
+    message: String,
+}
+
+impl std::fmt::Display for ExampleError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Example Error: {}", self.message)
+    }
+}
+
+impl Error for ExampleError {}
 
 /// Entry point for the RSS Generator library examples.
 ///
 /// This function demonstrates content sanitization, XML element writing,
 /// and basic RSS generation.
-pub(crate) fn main() {
+pub fn main() -> Result<(), Box<dyn Error>> {
     println!("\n🧪 RSS Generator Library Usage Examples\n");
 
     // Running the examples
-    sanitize_content_example();
-    write_element_example();
+    sanitize_content_example()?;
+    write_element_example()?;
+    generate_complex_rss_example()?;
 
     println!("\n🎉  All examples completed successfully!\n");
+    Ok(())
 }
 
 /// Demonstrates content sanitization by removing invalid XML characters and escaping special characters.
-fn sanitize_content_example() {
+fn sanitize_content_example() -> Result<(), Box<dyn Error>> {
     println!("🦀 Content Sanitization Example");
     println!("---------------------------------------------");
 
@@ -38,12 +56,14 @@ fn sanitize_content_example() {
 
     println!("    ✅  Original content: {}", content);
     println!("    ✅  Sanitized content: {}", sanitized);
+
+    Ok(())
 }
 
 /// Demonstrates writing an XML element using the `quick_xml` crate.
 ///
 /// This function writes an XML element and prints its representation.
-fn write_element_example() {
+fn write_element_example() -> Result<(), Box<dyn Error>> {
     println!("\n🦀 Write Xml Element Example");
     println!("---------------------------------------------");
 
@@ -52,12 +72,57 @@ fn write_element_example() {
     let content = "This is an example content";
 
     // Writing the XML element
-    match write_element(&mut writer, element_name, content) {
-        Ok(_) => {
-            let result = writer.into_inner().into_inner();
-            let xml = String::from_utf8(result).unwrap();
-            println!("    ✅  XML Element written:\n    {}", xml);
-        }
-        Err(e) => println!("    ❌  Failed to write element: {}", e),
+    write_element(&mut writer, element_name, content).map_err(|e| {
+        Box::new(ExampleError {
+            message: format!("Failed to write XML element: {}", e),
+        }) as Box<dyn Error>
+    })?;
+
+    let result = writer.into_inner().into_inner();
+    let xml = String::from_utf8(result).map_err(|e| {
+        Box::new(ExampleError {
+            message: format!("Failed to convert XML to UTF-8: {}", e),
+        }) as Box<dyn Error>
+    })?;
+
+    println!("    ✅  XML Element written:\n    {}", xml);
+
+    Ok(())
+}
+
+/// Demonstrates generating an RSS feed with multiple items and custom fields.
+fn generate_complex_rss_example() -> Result<(), Box<dyn Error>> {
+    println!("\n🦀  Generate Complex Rss Feed Example");
+    println!("---------------------------------------------");
+
+    let mut rss_data = RssData::new(Some(RssVersion::RSS2_0))
+        .title("Complex RSS Feed")
+        .link("https://example.com/complex")
+        .description("A complex RSS feed with multiple items and custom fields")
+        .language("en-US")
+        .pub_date("Mon, 01 Jan 2024 00:00:00 GMT")
+        .last_build_date("Mon, 01 Jan 2024 12:00:00 GMT")
+        .ttl("60")
+        .image_url("https://example.com/image.jpg");
+
+    // Add multiple items
+    for i in 1..=3 {
+        let item = RssItem::new()
+            .title(format!("Item {}", i))
+            .link(format!("https://example.com/item{}", i))
+            .description(format!("Description for item {}", i))
+            .pub_date(format!("Mon, 0{} Jan 2024 00:00:00 GMT", i))
+            .guid(format!("unique-id-{}", i));
+        rss_data.add_item(item);
     }
+
+    let rss_feed = generate_rss(&rss_data).map_err(|e| {
+        Box::new(ExampleError {
+            message: format!("Failed to generate complex RSS feed: {}", e),
+        }) as Box<dyn Error>
+    })?;
+
+    println!("    ✅  Generated complex RSS feed:\n    {}", rss_feed);
+
+    Ok(())
 }

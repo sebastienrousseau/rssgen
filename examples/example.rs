@@ -1,11 +1,11 @@
 // Copyright © 2024 RSS Gen. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-//! # RSS Gen (rss-gen)
+//! # RSS Gen (rss-gen) Examples
 //!
-//! This file serves as an entry point for running all the RSS Gen (rss-gen) examples, demonstrating logging levels, formats, macros, and library functionality.
-
-#![allow(missing_docs)]
+//! This module serves as an entry point for running all the RSS Gen (rss-gen) examples,
+//! demonstrating various aspects of the library including logging levels, formats,
+//! macros, and core functionality.
 
 mod example_data;
 mod example_error;
@@ -15,20 +15,24 @@ mod example_macros;
 mod example_parser;
 mod example_validator;
 
-/// Entry point to run all RSS Gen examples.
+use std::error::Error;
+
+/// Runs all RSS Gen examples.
 ///
-/// This function calls all the individual examples for log levels, log formats, macros, and library functionality.
-fn main() {
+/// This function sequentially executes all individual examples, demonstrating
+/// various features and capabilities of the RSS Gen library.
+fn main() -> Result<(), Box<dyn Error>> {
     println!("\n🦀 Running RSS Gen (rss-gen) Examples 🦀");
 
-    // Run the example modules.
-    let _ = example_data::main();
-    let _ = example_error::main();
-    example_generator::main();
-    example_lib::main();
-    let _ = example_macros::main();
-    example_parser::main();
-    example_validator::main();
+    // Run the example modules
+    example_data::main()?;
+    example_error::main()?;
+    example_generator::main()?;
+    example_lib::main()?;
+    example_macros::main()?;
+    example_parser::main()?;
+    example_validator::main()?;
 
-    println!("\n🎉 All RustLogs examples completed successfully!\n");
+    println!("\n🎉 All RSS Gen examples completed successfully!\n");
+    Ok(())
 }

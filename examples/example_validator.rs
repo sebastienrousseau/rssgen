@@ -37,7 +37,7 @@ fn validate_rss_feed_example() -> Result<(), Box<dyn Error>> {
         .link("https://myrustblog.com")
         .description("A blog about Rust programming and tutorials.")
         .atom_link("https://myrustblog.com/rss.xml") // Adding atom:link
-        .generator("RSS Gen v0.0.1"); // Adding generator
+        .generator("RSS Gen v0.0.2"); // Adding generator
 
     // Adding at least one item to the feed
     let item = RssItem::new()

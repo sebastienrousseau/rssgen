@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["RssVersion"],"fn":["parse_date","validate_url"],"struct":["RssData","RssItem"]};
+window.SIDEBAR_ITEMS = {"enum":["RssDataField","RssItemField","RssVersion"],"fn":["parse_date","validate_url"],"struct":["RssData","RssItem"]};

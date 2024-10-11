@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/macros.rs`."><title>macros.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-b778ab399e080a4b.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="rss_gen" data-themes="" data-resource-suffix="" data-rustdoc-version="1.83.0-nightly (fa724e5d8 2024-09-27)" data-channel="nightly" data-search-js="search-e056c65ede92db13.js" data-settings-js="settings-805db61a62df4bd2.js" ><script src="../../static.files/storage-1d39b6787ed640ff.js"></script><script defer src="../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-54bc299d2a5e4e43.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-0111fcff984fae8f.css"></noscript><link rel="icon" href="https://kura.pro/rssgen/images/favicon.ico"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">rss_gen/</div>macros.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/macros.rs`."><title>macros.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-49344e4802b2d48a.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="rss_gen" data-themes="" data-resource-suffix="" data-rustdoc-version="1.83.0-nightly (52fd99839 2024-10-10)" data-channel="nightly" data-search-js="search-e056c65ede92db13.js" data-settings-js="settings-805db61a62df4bd2.js" ><script src="../../static.files/storage-1d39b6787ed640ff.js"></script><script defer src="../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-f070b9041d14864c.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-0111fcff984fae8f.css"></noscript><link rel="icon" href="https://kura.pro/rssgen/images/favicon.ico"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">rss_gen/</div>macros.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
 <a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
@@ -461,9 +461,9 @@
 /// fn generate_rss() -&gt; Result&lt;(), Box&lt;dyn std::error::Error&gt;&gt; {
 ///     let mut writer = Writer::new(Cursor::new(Vec::new()));
 ///     let options = RssData::new()
-///         .title("My Blog")
-///         .link("https://example.com")
-///         .description("A blog about Rust");
+///         .Title("My Blog")
+///         .Link("https://example.com")
+///         .Description("A blog about Rust");
 ///
 ///     let result: Result&lt;Writer&lt;Cursor&lt;Vec&lt;u8&gt;&gt;&gt;, Box&lt;dyn std::error::Error&gt;&gt; = macro_generate_rss!(writer, options);
 ///     assert!(result.is_ok());
@@ -523,10 +523,10 @@
         <span class="macro">macro_write_element!</span>(writer, <span class="string">"ttl"</span>, <span class="kw-2">&amp;</span><span class="macro-nonterminal">$options</span>.ttl)<span class="question-mark">?</span>;
 
         <span class="comment">// Write image element
-        </span><span class="kw">if </span>!<span class="macro-nonterminal">$options</span>.image.is_empty() {
+        </span><span class="kw">if </span>!<span class="macro-nonterminal">$options</span>.image_url.is_empty() {
             writer
                 .write_event(Event::Start(BytesStart::new(<span class="string">"image"</span>)))<span class="question-mark">?</span>;
-            <span class="macro">macro_write_element!</span>(writer, <span class="string">"url"</span>, <span class="kw-2">&amp;</span><span class="macro-nonterminal">$options</span>.image)<span class="question-mark">?</span>;
+            <span class="macro">macro_write_element!</span>(writer, <span class="string">"url"</span>, <span class="kw-2">&amp;</span><span class="macro-nonterminal">$options</span>.image_url)<span class="question-mark">?</span>;
             <span class="macro">macro_write_element!</span>(writer, <span class="string">"title"</span>, <span class="kw-2">&amp;</span><span class="macro-nonterminal">$options</span>.title)<span class="question-mark">?</span>;
             <span class="macro">macro_write_element!</span>(writer, <span class="string">"link"</span>, <span class="kw-2">&amp;</span><span class="macro-nonterminal">$options</span>.link)<span class="question-mark">?</span>;
             writer.write_event(Event::End(BytesEnd::new(<span class="string">"image"</span>)))<span class="question-mark">?</span>;
@@ -619,9 +619,9 @@
 ///
 /// let mut rss_data = RssData::new(None);
 /// macro_set_rss_data_fields!(rss_data,
-///     title = "My Blog",
-///     link = "https://example.com",
-///     description = "A blog about Rust"
+///     Title = "My Blog",
+///     Link = "https://example.com",
+///     Description = "A blog about Rust"
 /// );
 /// assert_eq!(rss_data.title, "My Blog");
 /// assert_eq!(rss_data.link, "https://example.com");
@@ -630,7 +630,7 @@
 </span><span class="attr">#[macro_export]
 </span><span class="macro">macro_rules!</span> macro_set_rss_data_fields {
     (<span class="macro-nonterminal">$rss_data</span>:expr, $(<span class="macro-nonterminal">$field</span>:ident = <span class="macro-nonterminal">$value</span>:expr),+ $(,)<span class="question-mark">?</span>) =&gt; {
-        <span class="macro-nonterminal">$rss_data </span>= <span class="macro-nonterminal">$rss_data </span>$(.set(<span class="macro">stringify!</span>(<span class="macro-nonterminal">$field</span>), <span class="macro-nonterminal">$value</span>))+
+        <span class="macro-nonterminal">$rss_data </span>= <span class="macro-nonterminal">$rss_data </span>$(.set(<span class="macro-nonterminal">$crate::data::RssDataField</span>::<span class="macro-nonterminal">$field</span>, <span class="macro-nonterminal">$value</span>))+
     };
 }
 
@@ -814,9 +814,9 @@
         <span class="kw">let </span><span class="kw-2">mut </span>rss_data = RssData::new(<span class="prelude-val">None</span>);
         <span class="macro">macro_set_rss_data_fields!</span>(
             rss_data,
-            title = <span class="string">"My Blog"</span>,
-            link = <span class="string">"https://example.com"</span>,
-            description = <span class="string">"A blog about Rust"
+            Title = <span class="string">"My Blog"</span>,
+            Link = <span class="string">"https://example.com"</span>,
+            Description = <span class="string">"A blog about Rust"
         </span>);
 
         <span class="macro">assert_eq!</span>(rss_data.title, <span class="string">"My Blog"</span>);

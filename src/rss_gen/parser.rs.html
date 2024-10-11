@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/parser.rs`."><title>parser.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-b778ab399e080a4b.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="rss_gen" data-themes="" data-resource-suffix="" data-rustdoc-version="1.83.0-nightly (fa724e5d8 2024-09-27)" data-channel="nightly" data-search-js="search-e056c65ede92db13.js" data-settings-js="settings-805db61a62df4bd2.js" ><script src="../../static.files/storage-1d39b6787ed640ff.js"></script><script defer src="../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-54bc299d2a5e4e43.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-0111fcff984fae8f.css"></noscript><link rel="icon" href="https://kura.pro/rssgen/images/favicon.ico"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">rss_gen/</div>parser.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/parser.rs`."><title>parser.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-49344e4802b2d48a.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="rss_gen" data-themes="" data-resource-suffix="" data-rustdoc-version="1.83.0-nightly (52fd99839 2024-10-10)" data-channel="nightly" data-search-js="search-e056c65ede92db13.js" data-settings-js="settings-805db61a62df4bd2.js" ><script src="../../static.files/storage-1d39b6787ed640ff.js"></script><script defer src="../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-f070b9041d14864c.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-0111fcff984fae8f.css"></noscript><link rel="icon" href="https://kura.pro/rssgen/images/favicon.ico"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">rss_gen/</div>parser.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
 <a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
@@ -535,10 +535,26 @@
 <a href="#534" id="534">534</a>
 <a href="#535" id="535">535</a>
 <a href="#536" id="536">536</a>
-<a href="#537" id="537">537</a></pre></div><pre class="rust"><code><span class="comment">// Copyright © 2024 RSS Gen. All rights reserved.
+<a href="#537" id="537">537</a>
+<a href="#538" id="538">538</a>
+<a href="#539" id="539">539</a>
+<a href="#540" id="540">540</a>
+<a href="#541" id="541">541</a>
+<a href="#542" id="542">542</a>
+<a href="#543" id="543">543</a>
+<a href="#544" id="544">544</a>
+<a href="#545" id="545">545</a>
+<a href="#546" id="546">546</a>
+<a href="#547" id="547">547</a>
+<a href="#548" id="548">548</a>
+<a href="#549" id="549">549</a>
+<a href="#550" id="550">550</a>
+<a href="#551" id="551">551</a>
+<a href="#552" id="552">552</a>
+<a href="#553" id="553">553</a>
+<a href="#554" id="554">554</a>
+<a href="#555" id="555">555</a></pre></div><pre class="rust"><code><span class="comment">// Copyright © 2024 RSS Gen. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0 OR MIT
-
-// src/parser.rs
 
 </span><span class="kw">use </span><span class="kw">crate</span>::data::{RssData, RssItem, RssVersion};
 <span class="kw">use </span><span class="kw">crate</span>::error::{<span class="prelude-ty">Result</span>, RssError};
@@ -591,8 +607,13 @@
     <span class="kw">let </span><span class="kw-2">mut </span>buf = Vec::new();
     <span class="kw">let </span><span class="kw-2">mut </span>in_channel = <span class="bool-val">false</span>;
     <span class="kw">let </span><span class="kw-2">mut </span>in_item = <span class="bool-val">false</span>;
+    <span class="kw">let </span><span class="kw-2">mut </span>in_image = <span class="bool-val">false</span>;
     <span class="kw">let </span><span class="kw-2">mut </span>current_item = RssItem::new();
     <span class="kw">let </span><span class="kw-2">mut </span>current_element = String::new();
+
+    <span class="kw">let </span><span class="kw-2">mut </span>image_title = String::new();
+    <span class="kw">let </span><span class="kw-2">mut </span>image_url = String::new();
+    <span class="kw">let </span><span class="kw-2">mut </span>image_link = String::new();
 
     <span class="comment">// Flag to determine if this is RSS 1.0 (RDF format)
     </span><span class="kw">let </span><span class="kw-2">mut </span>is_rss_1_0 = <span class="bool-val">false</span>;
@@ -653,6 +674,8 @@
                 </span>} <span class="kw">else if </span>name_str == <span class="string">"item" </span>{
                     in_item = <span class="bool-val">true</span>;
                     current_item = RssItem::new();
+                } <span class="kw">else if </span>name_str == <span class="string">"image" </span>{
+                    in_image = <span class="bool-val">true</span>;
                 }
 
                 current_element = name_str;
@@ -664,6 +687,13 @@
                 } <span class="kw">else if </span>name == <span class="string">b"item" </span>{
                     in_item = <span class="bool-val">false</span>;
                     rss_data.add_item(current_item.clone());
+                } <span class="kw">else if </span>name == <span class="string">b"image" </span>{
+                    in_image = <span class="bool-val">false</span>;
+                    rss_data.set_image(
+                        image_title.clone(),
+                        image_url.clone(),
+                        image_link.clone(),
+                    );
                 }
 
                 current_element.clear();
@@ -673,7 +703,7 @@
                     .unescape()
                     .map_err(RssError::XmlParseError)<span class="question-mark">?
                     </span>.into_owned();
-                <span class="kw">if </span>in_channel &amp;&amp; !in_item {
+                <span class="kw">if </span>in_channel &amp;&amp; !in_item &amp;&amp; !in_image {
                     <span class="kw">if </span>!current_element.is_empty() {
                         <span class="comment">// Pass `is_rss_1_0` to handle RSS 1.0 elements
                         </span>parse_channel_element(
@@ -689,11 +719,17 @@
                         <span class="kw-2">&amp;</span>current_element,
                         <span class="kw-2">&amp;</span>text,
                     )<span class="question-mark">?</span>;
+                } <span class="kw">else if </span>in_image &amp;&amp; !current_element.is_empty() {
+                    <span class="kw">match </span>current_element.as_str() {
+                        <span class="string">"title" </span>=&gt; image_title = text,
+                        <span class="string">"url" </span>=&gt; image_url = text,
+                        <span class="string">"link" </span>=&gt; image_link = text,
+                        <span class="kw">_ </span>=&gt; (),
+                    }
                 }
             }
             <span class="prelude-val">Ok</span>(Event::CData(<span class="kw-2">ref </span>e)) =&gt; {
-                <span class="comment">// Handle CDATA event
-                </span><span class="kw">let </span>text =
+                <span class="kw">let </span>text =
                     String::from_utf8_lossy(e.as_ref()).into_owned();
                 <span class="kw">if </span>in_channel &amp;&amp; !in_item {
                     parse_channel_element(

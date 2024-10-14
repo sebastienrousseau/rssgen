@@ -29,12 +29,21 @@ pub use data::{RssData, RssItem, RssVersion};
 pub use error::{Result, RssError};
 pub use generator::generate_rss;
 pub use parser::parse_rss;
+use url::Url;
 
 /// The current version of the rss-gen crate, set at compile-time from Cargo.toml.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-/// Maximum length of input strings for validation and generation.
-const MAX_INPUT_LENGTH: usize = 1000;
+/// Maximum lengths for title fields in the RSS feed.
+pub const MAX_TITLE_LENGTH: usize = 256;
+/// Maximum lengths for link fields in the RSS feed.
+pub const MAX_LINK_LENGTH: usize = 2048;
+/// Maximum lengths for description fields in the RSS feed.
+pub const MAX_DESCRIPTION_LENGTH: usize = 100_000;
+/// Maximum lengths for general fields in the RSS feed.
+pub const MAX_GENERAL_LENGTH: usize = 1024;
+/// Maximum lengths for feed fields in the RSS feed.
+pub const MAX_FEED_SIZE: usize = 1_048_576;
 
 /// A convenience function to generate a minimal valid RSS 2.0 feed.
 ///
@@ -88,19 +97,29 @@ pub fn quick_rss(
         ));
     }
 
-    if title.len() > MAX_INPUT_LENGTH
-        || link.len() > MAX_INPUT_LENGTH
-        || description.len() > MAX_INPUT_LENGTH
-    {
+    if title.len() > MAX_TITLE_LENGTH {
+        return Err(RssError::InvalidInput(format!(
+            "Title exceeds maximum allowed length of {} characters",
+            MAX_TITLE_LENGTH
+        )));
+    }
+
+    if link.len() > MAX_LINK_LENGTH {
+        return Err(RssError::InvalidInput(format!(
+            "Link exceeds maximum allowed length of {} characters",
+            MAX_LINK_LENGTH
+        )));
+    }
+
+    if description.len() > MAX_DESCRIPTION_LENGTH {
         return Err(RssError::InvalidInput(
-            "Input exceeds maximum allowed length".to_string(),
+            format!("Description exceeds maximum allowed length of {} characters", MAX_DESCRIPTION_LENGTH)
         ));
     }
 
-    // Basic URL validation
-    if !link.starts_with("http://") && !link.starts_with("https://") {
+    if Url::parse(link).is_err() {
         return Err(RssError::InvalidInput(
-            "Link must start with http:// or https://".to_string(),
+            "Invalid URL format".to_string(),
         ));
     }
 
@@ -150,9 +169,11 @@ mod tests {
         let result =
             quick_rss("", "https://example.com", "Description");
         assert!(result.is_err());
+        assert!(matches!(result, Err(RssError::InvalidInput(_))));
 
-        let result = quick_rss("Title", "invalid_url", "Description");
+        let result = quick_rss("Title", "not-a-url", "Description");
         assert!(result.is_err());
+        assert!(matches!(result, Err(RssError::InvalidInput(_))));
     }
 
     #[test]
@@ -162,24 +183,54 @@ mod tests {
     }
 
     #[test]
-    fn test_quick_rss_max_length() {
-        let long_string = "a".repeat(MAX_INPUT_LENGTH + 1);
+    fn test_quick_rss_max_title_length() {
+        let long_title = "a".repeat(MAX_TITLE_LENGTH + 1);
         let result = quick_rss(
-            &long_string,
+            &long_title,
             "https://example.com",
             "Description",
         );
         assert!(result.is_err());
+        assert!(matches!(result, Err(RssError::InvalidInput(_))));
+
+        let max_title = "a".repeat(MAX_TITLE_LENGTH);
+        let result =
+            quick_rss(&max_title, "https://example.com", "Description");
+        assert!(result.is_ok());
     }
 
     #[test]
-    fn test_quick_rss_max_length_boundary() {
-        let max_length_string = "a".repeat(MAX_INPUT_LENGTH);
-        let result = quick_rss(
-            &max_length_string,
-            "https://example.com",
-            "Description",
+    fn test_quick_rss_max_link_length() {
+        let long_link = format!(
+            "https://example.com/{}",
+            "a".repeat(MAX_LINK_LENGTH - 19)
         );
+        let result = quick_rss("Title", &long_link, "Description");
+        assert!(result.is_err());
+        assert!(matches!(result, Err(RssError::InvalidInput(_))));
+
+        let max_link = format!(
+            "https://example.com/{}",
+            "a".repeat(MAX_LINK_LENGTH - 20)
+        );
+        let result = quick_rss("Title", &max_link, "Description");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_quick_rss_max_description_length() {
+        let long_description = "a".repeat(MAX_DESCRIPTION_LENGTH + 1);
+        let result = quick_rss(
+            "Title",
+            "https://example.com",
+            &long_description,
+        );
+        assert!(result.is_err());
+        assert!(matches!(result, Err(RssError::InvalidInput(_))));
+
+        let max_description = "a".repeat(MAX_DESCRIPTION_LENGTH);
+        let result =
+            quick_rss("Title", "https://example.com", &max_description);
         assert!(result.is_ok());
     }
 
@@ -201,5 +252,47 @@ mod tests {
             "A test RSS feed",
         );
         assert!(result.is_ok());
+    }
+
+    // Note: The following tests depend on the implementation of RssData and its methods,
+    // which are not shown in the provided code. You may need to adjust these tests
+    // based on your actual implementation.
+
+    #[test]
+    fn test_rss_data_validate_size() {
+        let mut rss_data = RssData::new(Some(RssVersion::RSS2_0))
+            .title("Test Feed")
+            .link("https://example.com")
+            .description("A test RSS feed");
+
+        // Add items until we exceed MAX_FEED_SIZE
+        let item_content = "a".repeat(10000); // Increased content size
+        for _ in 0..100 {
+            // Reduced number of iterations
+            rss_data.add_item(
+                RssItem::new()
+                    .title(&item_content)
+                    .link("https://example.com/item")
+                    .description(&item_content),
+            );
+        }
+
+        assert!(rss_data.validate_size().is_err());
+    }
+
+    #[test]
+    fn test_max_general_length() {
+        let mut rss_data = RssData::new(Some(RssVersion::RSS2_0))
+            .title("Test Feed")
+            .link("https://example.com")
+            .description("A test RSS feed");
+
+        let long_general_field = "a".repeat(MAX_GENERAL_LENGTH + 1);
+        rss_data.category = long_general_field.clone();
+
+        assert!(rss_data.validate().is_err());
+
+        rss_data.category = "a".repeat(MAX_GENERAL_LENGTH);
+        assert!(rss_data.validate().is_ok());
     }
 }

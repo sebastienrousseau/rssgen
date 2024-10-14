@@ -8,7 +8,10 @@
 //! It includes definitions for RSS versions, RSS data, and RSS items, as well as
 //! utility functions for URL validation and date parsing.
 
-use crate::error::{Result, RssError};
+use crate::{
+    error::{Result, RssError},
+    MAX_FEED_SIZE, MAX_GENERAL_LENGTH,
+};
 use dtt::datetime::DateTime;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -222,6 +225,36 @@ impl RssData {
         }
     }
 
+    /// Validates the size of the RSS feed to ensure it does not exceed the maximum allowed size.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(())` if the feed size is valid.
+    /// * `Err(RssError)` if the feed size exceeds the maximum allowed size.
+    ///
+    pub fn validate_size(&self) -> Result<()> {
+        let mut total_size = 0;
+        total_size += self.title.len();
+        total_size += self.link.len();
+        total_size += self.description.len();
+        // Add sizes of other fields...
+
+        for item in &self.items {
+            total_size += item.title.len();
+            total_size += item.link.len();
+            total_size += item.description.len();
+            // Add sizes of other item fields...
+        }
+
+        if total_size > MAX_FEED_SIZE {
+            return Err(RssError::InvalidInput(
+                format!("Total feed size exceeds maximum allowed size of {} bytes", MAX_FEED_SIZE)
+            ));
+        }
+
+        Ok(())
+    }
+
     /// Sets the image for the RSS feed.
     ///
     /// # Arguments
@@ -298,6 +331,14 @@ impl RssData {
 
         if self.description.is_empty() {
             errors.push("Description is missing".to_string());
+        }
+
+        // Check category length
+        if self.category.len() > MAX_GENERAL_LENGTH {
+            return Err(RssError::InvalidInput(format!(
+                "Category exceeds maximum allowed length of {} characters",
+                MAX_GENERAL_LENGTH
+            )));
         }
 
         if !self.pub_date.is_empty() {

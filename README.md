@@ -42,7 +42,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rss-gen = "0.0.2"
+rss-gen = "0.0.3"
 ```
 
 ## Usage

@@ -16,9 +16,7 @@ use time::OffsetDateTime;
 use url::Url;
 
 /// Represents the different versions of RSS.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[non_exhaustive]
 pub enum RssVersion {
     /// RSS version 0.90
@@ -77,126 +75,8 @@ impl FromStr for RssVersion {
     }
 }
 
-/// Validates a URL string.
-///
-/// # Arguments
-///
-/// * `url` - A string slice that holds the URL to validate.
-///
-/// # Returns
-///
-/// * `Ok(())` if the URL is valid.
-/// * `Err(RssError)` if the URL is invalid.
-pub fn validate_url(url: &str) -> Result<()> {
-    let parsed_url = Url::parse(url)
-        .map_err(|_| RssError::InvalidUrl(url.to_string()))?;
-
-    if parsed_url.scheme() != "http" && parsed_url.scheme() != "https" {
-        return Err(RssError::InvalidUrl(
-            "URL must use http or https protocol".to_string(),
-        ));
-    }
-
-    Ok(())
-}
-
-/// Parses a date string into a `DateTime`.
-///
-/// # Arguments
-///
-/// * `date_str` - A string slice that holds the date to parse.
-///
-/// # Returns
-///
-/// * `Ok(DateTime)` if the date is valid and successfully parsed.
-/// * `Err(RssError)` if the date is invalid or cannot be parsed.
-pub fn parse_date(
-    date_str: &str,
-) -> std::result::Result<DateTime, RssError> {
-    // Try parsing the date string using Time's built-in methods
-    if let Ok(_parsed_time) = OffsetDateTime::parse(
-        date_str,
-        &time::format_description::well_known::Iso8601::DEFAULT,
-    ) {
-        // Create a new DateTime using the parsed time and UTC offset
-        return Ok(
-            DateTime::new_with_tz("UTC").expect("UTC is always valid")
-        );
-    }
-
-    // If the date format is not ISO 8601, fall back to manual RFC 2822-like parsing
-    let components: Vec<&str> = date_str.split_whitespace().collect();
-
-    if components.len() == 6 {
-        let _day: u8 = components[1].parse().map_err(|_| {
-            RssError::DateParseError(date_str.to_string())
-        })?;
-        let _month = parse_month(components[2])?;
-        let _year: i32 = components[3].parse().map_err(|_| {
-            RssError::DateParseError(date_str.to_string())
-        })?;
-        let time_components: Vec<&str> =
-            components[4].split(':').collect();
-        let hours: i8 = time_components[0].parse().map_err(|_| {
-            RssError::DateParseError(date_str.to_string())
-        })?;
-        let minutes: i8 = time_components[1].parse().map_err(|_| {
-            RssError::DateParseError(date_str.to_string())
-        })?;
-        let _seconds: i8 =
-            time_components[2].parse().map_err(|_| {
-                RssError::DateParseError(date_str.to_string())
-            })?;
-
-        // Create a new DateTime with custom hours and minutes offset
-        return DateTime::new_with_custom_offset(hours, minutes)
-            .map_err(|e| RssError::DateParseError(e.to_string()));
-    }
-
-    // If the format doesn't match either, return an error
-    Err(RssError::DateParseError(date_str.to_string()))
-}
-
-fn parse_month(month: &str) -> std::result::Result<u8, RssError> {
-    match month {
-        "Jan" => Ok(1),
-        "Feb" => Ok(2),
-        "Mar" => Ok(3),
-        "Apr" => Ok(4),
-        "May" => Ok(5),
-        "Jun" => Ok(6),
-        "Jul" => Ok(7),
-        "Aug" => Ok(8),
-        "Sep" => Ok(9),
-        "Oct" => Ok(10),
-        "Nov" => Ok(11),
-        "Dec" => Ok(12),
-        _ => Err(RssError::DateParseError(month.to_string())),
-    }
-}
-
-/// Sanitizes input by escaping HTML special characters.
-///
-/// # Arguments
-///
-/// * `input` - A string slice containing the input to sanitize.
-///
-/// # Returns
-///
-/// A `String` with HTML special characters escaped.
-fn sanitize_input(input: &str) -> String {
-    input
-        .replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-        .replace('"', "&quot;")
-        .replace('\'', "&#x27;")
-}
-
 /// Represents the main structure for an RSS feed.
-#[derive(
-    Debug, Clone, PartialEq, Serialize, Deserialize, Default, Eq, Hash,
-)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default, Eq, Hash)]
 #[non_exhaustive]
 pub struct RssData {
     /// The Atom link of the RSS feed.
@@ -241,34 +121,6 @@ pub struct RssData {
     pub items: Vec<RssItem>,
     /// The version of the RSS feed.
     pub version: RssVersion,
-}
-
-/// Represents an item in the RSS feed.
-#[derive(
-    Debug, Default, PartialEq, Eq, Hash, Clone, Serialize, Deserialize,
-)]
-#[non_exhaustive]
-pub struct RssItem {
-    /// The GUID of the RSS item (unique identifier).
-    pub guid: String,
-    /// The category of the RSS item.
-    pub category: Option<String>,
-    /// The description of the RSS item.
-    pub description: String,
-    /// The link to the RSS item.
-    pub link: String,
-    /// The publication date of the RSS item.
-    pub pub_date: String,
-    /// The title of the RSS item.
-    pub title: String,
-    /// The author of the RSS item.
-    pub author: String,
-    /// The comments URL related to the RSS item (optional).
-    pub comments: Option<String>,
-    /// The enclosure (typically for media like podcasts) (optional).
-    pub enclosure: Option<String>,
-    /// The source of the RSS item (optional).
-    pub source: Option<String>,
 }
 
 impl RssData {
@@ -318,11 +170,7 @@ impl RssData {
     /// # Returns
     ///
     /// The updated `RssData` instance.
-    pub fn set<T: Into<String>>(
-        mut self,
-        field: RssDataField,
-        value: T,
-    ) -> Self {
+    pub fn set<T: Into<String>>(mut self, field: RssDataField, value: T) -> Self {
         let value = sanitize_input(&value.into());
         match field {
             RssDataField::AtomLink => self.atom_link = value,
@@ -339,15 +187,53 @@ impl RssData {
             RssDataField::Language => self.language = value,
             RssDataField::LastBuildDate => self.last_build_date = value,
             RssDataField::Link => self.link = value,
-            RssDataField::ManagingEditor => {
-                self.managing_editor = value
-            }
+            RssDataField::ManagingEditor => self.managing_editor = value,
             RssDataField::PubDate => self.pub_date = value,
             RssDataField::Title => self.title = value,
             RssDataField::Ttl => self.ttl = value,
             RssDataField::Webmaster => self.webmaster = value,
         }
         self
+    }
+
+    /// Sets the image for the RSS feed.
+    ///
+    /// # Arguments
+    ///
+    /// * `title` - The title of the image.
+    /// * `url` - The URL of the image.
+    /// * `link` - The link associated with the image.
+    pub fn set_image(&mut self, title: String, url: String, link: String) {
+        self.image_title = sanitize_input(&title);
+        self.image_url = sanitize_input(&url);
+        self.image_link = sanitize_input(&link);
+    }
+
+    /// Sets the value of a specified item field for the most recent RSS item.
+    ///
+    /// # Arguments
+    ///
+    /// * `field` - The field to set.
+    /// * `value` - The value to assign to the field.
+    ///
+    pub fn set_item_field<T: Into<String>>(&mut self, field: RssItemField, value: T) {
+        let value = sanitize_input(&value.into());
+        if self.items.is_empty() {
+            self.items.push(RssItem::new());
+        }
+        let item = self.items.last_mut().unwrap();
+        match field {
+            RssItemField::Guid => item.guid = value,
+            RssItemField::Category => item.category = Some(value),
+            RssItemField::Description => item.description = value,
+            RssItemField::Link => item.link = value,
+            RssItemField::PubDate => item.pub_date = value,
+            RssItemField::Title => item.title = value,
+            RssItemField::Author => item.author = value,
+            RssItemField::Comments => item.comments = Some(value),
+            RssItemField::Enclosure => item.enclosure = Some(value),
+            RssItemField::Source => item.source = Some(value),
+        }
     }
 
     /// Adds an item to the RSS feed.
@@ -359,24 +245,6 @@ impl RssData {
     /// * `item` - The `RssItem` to be added to the feed.
     pub fn add_item(&mut self, item: RssItem) {
         self.items.push(item);
-    }
-
-    /// Sets the image for the RSS feed.
-    ///
-    /// # Arguments
-    ///
-    /// * `title` - The title of the image.
-    /// * `url` - The URL of the image.
-    /// * `link` - The link associated with the image.
-    pub fn set_image(
-        &mut self,
-        title: String,
-        url: String,
-        link: String,
-    ) {
-        self.image_title = sanitize_input(&title);
-        self.image_url = sanitize_input(&url);
-        self.image_link = sanitize_input(&link);
     }
 
     /// Removes an item from the RSS feed by its GUID.
@@ -418,11 +286,9 @@ impl RssData {
             errors.push("Title is missing".to_string());
         }
 
-        // Check if the link is missing
         if self.link.is_empty() {
             errors.push("Link is missing".to_string());
         } else if let Err(e) = validate_url(&self.link) {
-            // If the link is present, validate its URL format
             errors.push(format!("Invalid link: {}", e));
         }
 
@@ -463,15 +329,9 @@ impl RssData {
         map.insert("image_url".to_string(), self.image_url.clone());
         map.insert("image_link".to_string(), self.image_link.clone());
         map.insert("language".to_string(), self.language.clone());
-        map.insert(
-            "last_build_date".to_string(),
-            self.last_build_date.clone(),
-        );
+        map.insert("last_build_date".to_string(), self.last_build_date.clone());
         map.insert("link".to_string(), self.link.clone());
-        map.insert(
-            "managing_editor".to_string(),
-            self.managing_editor.clone(),
-        );
+        map.insert("managing_editor".to_string(), self.managing_editor.clone());
         map.insert("pub_date".to_string(), self.pub_date.clone());
         map.insert("title".to_string(), self.title.clone());
         map.insert("ttl".to_string(), self.ttl.clone());
@@ -646,6 +506,32 @@ pub enum RssDataField {
     Webmaster,
 }
 
+/// Represents an item in the RSS feed.
+#[derive(Debug, Default, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct RssItem {
+    /// The GUID of the RSS item (unique identifier).
+    pub guid: String,
+    /// The category of the RSS item.
+    pub category: Option<String>,
+    /// The description of the RSS item.
+    pub description: String,
+    /// The link to the RSS item.
+    pub link: String,
+    /// The publication date of the RSS item.
+    pub pub_date: String,
+    /// The title of the RSS item.
+    pub title: String,
+    /// The author of the RSS item.
+    pub author: String,
+    /// The comments URL related to the RSS item (optional).
+    pub comments: Option<String>,
+    /// The enclosure (typically for media like podcasts) (optional).
+    pub enclosure: Option<String>,
+    /// The source of the RSS item (optional).
+    pub source: Option<String>,
+}
+
 impl RssItem {
     /// Creates a new `RssItem` with default values.
     #[must_use]
@@ -663,11 +549,7 @@ impl RssItem {
     /// # Returns
     ///
     /// The updated `RssItem` instance.
-    pub fn set<T: Into<String>>(
-        mut self,
-        field: RssItemField,
-        value: T,
-    ) -> Self {
+    pub fn set<T: Into<String>>(mut self, field: RssItemField, value: T) -> Self {
         let value = sanitize_input(&value.into());
         match field {
             RssItemField::Guid => self.guid = value,
@@ -697,7 +579,6 @@ impl RssItem {
             validation_errors.push("Title is missing".to_string());
         }
 
-        // Check for empty link field
         if self.link.is_empty() {
             validation_errors.push("Link is missing".to_string());
         } else if let Err(e) = validate_url(&self.link) {
@@ -710,8 +591,7 @@ impl RssItem {
 
         if !self.pub_date.is_empty() {
             if let Err(e) = parse_date(&self.pub_date) {
-                validation_errors
-                    .push(format!("Invalid publication date: {}", e));
+                validation_errors.push(format!("Invalid publication date: {}", e));
             }
         }
 
@@ -720,6 +600,16 @@ impl RssItem {
         }
 
         Ok(())
+    }
+
+    /// Parses the `pub_date` string into a `DateTime` object.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(DateTime)` if the date is valid and successfully parsed.
+    /// * `Err(RssError)` if the date is invalid or cannot be parsed.
+    pub fn pub_date_parsed(&self) -> Result<DateTime> {
+        parse_date(&self.pub_date)
     }
 
     // Field setter methods
@@ -783,16 +673,6 @@ impl RssItem {
     pub fn source<T: Into<String>>(self, value: T) -> Self {
         self.set(RssItemField::Source, value)
     }
-
-    /// Parses the `pub_date` string into a `DateTime` object.
-    ///
-    /// # Returns
-    ///
-    /// * `Ok(DateTime)` if the date is valid and successfully parsed.
-    /// * `Err(RssError)` if the date is invalid or cannot be parsed.
-    pub fn pub_date_parsed(&self) -> Result<DateTime> {
-        parse_date(&self.pub_date)
-    }
 }
 
 /// Represents the fields of an RSS item.
@@ -820,152 +700,150 @@ pub enum RssItemField {
     Source,
 }
 
+/// Validates a URL string.
+///
+/// # Arguments
+///
+/// * `url` - A string slice that holds the URL to validate.
+///
+/// # Returns
+///
+/// * `Ok(())` if the URL is valid.
+/// * `Err(RssError)` if the URL is invalid.
+pub fn validate_url(url: &str) -> Result<()> {
+    let parsed_url = Url::parse(url).map_err(|_| RssError::InvalidUrl(url.to_string()))?;
+
+    if parsed_url.scheme() != "http" && parsed_url.scheme() != "https" {
+        return Err(RssError::InvalidUrl("URL must use http or https protocol".to_string()));
+    }
+
+    Ok(())
+}
+
+/// Parses a date string into a `DateTime`.
+///
+/// # Arguments
+///
+/// * `date_str` - A string slice that holds the date to parse.
+///
+/// # Returns
+///
+/// * `Ok(DateTime)` if the date is valid and successfully parsed.
+/// * `Err(RssError)` if the date is invalid or cannot be parsed.
+pub fn parse_date(date_str: &str) -> std::result::Result<DateTime, RssError> {
+    // Try parsing the date string using Time's built-in methods
+    if let Ok(_parsed_time) = OffsetDateTime::parse(
+        date_str,
+        &time::format_description::well_known::Iso8601::DEFAULT,
+    ) {
+        // Create a new DateTime using the parsed time and UTC offset
+        return Ok(DateTime::new_with_tz("UTC").expect("UTC is always valid"));
+    }
+
+    // If the date format is not ISO 8601, fall back to manual RFC 2822-like parsing
+    let components: Vec<&str> = date_str.split_whitespace().collect();
+
+    if components.len() == 6 {
+        let _day: u8 = components[1].parse().map_err(|_| RssError::DateParseError(date_str.to_string()))?;
+        let _month = parse_month(components[2])?;
+        let _year: i32 = components[3].parse().map_err(|_| RssError::DateParseError(date_str.to_string()))?;
+        let time_components: Vec<&str> = components[4].split(':').collect();
+        let hours: i8 = time_components[0].parse().map_err(|_| RssError::DateParseError(date_str.to_string()))?;
+        let minutes: i8 = time_components[1].parse().map_err(|_| RssError::DateParseError(date_str.to_string()))?;
+        let _seconds: i8 = time_components[2].parse().map_err(|_| RssError::DateParseError(date_str.to_string()))?;
+
+        // Create a new DateTime with custom hours and minutes offset
+        return DateTime::new_with_custom_offset(hours, minutes).map_err(|e| RssError::DateParseError(e.to_string()));
+    }
+
+    // If the format doesn't match either, return an error
+    Err(RssError::DateParseError(date_str.to_string()))
+}
+
+/// Parses a month string into its numerical representation.
+///
+/// # Arguments
+///
+/// * `month` - A string slice representing the month.
+///
+/// # Returns
+///
+/// * `Ok(u8)` if the month is valid and successfully parsed.
+/// * `Err(RssError)` if the month is invalid or cannot be parsed.
+fn parse_month(month: &str) -> std::result::Result<u8, RssError> {
+    match month {
+        "Jan" => Ok(1),
+        "Feb" => Ok(2),
+        "Mar" => Ok(3),
+        "Apr" => Ok(4),
+        "May" => Ok(5),
+        "Jun" => Ok(6),
+        "Jul" => Ok(7),
+        "Aug" => Ok(8),
+        "Sep" => Ok(9),
+        "Oct" => Ok(10),
+        "Nov" => Ok(11),
+        "Dec" => Ok(12),
+        _ => Err(RssError::DateParseError(month.to_string())),
+    }
+}
+
+/// Sanitizes input by escaping HTML special characters.
+///
+/// # Arguments
+///
+/// * `input` - A string slice containing the input to sanitize.
+///
+/// # Returns
+///
+/// A `String` with HTML special characters escaped.
+fn sanitize_input(input: &str) -> String {
+    input
+        .replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+        .replace('\'', "&#x27;")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use quick_xml::de::from_str;
 
     #[test]
-    fn test_to_hash_map() {
+    fn test_rss_version() {
+        assert_eq!(RssVersion::RSS2_0.as_str(), "2.0");
+        assert_eq!(RssVersion::default(), RssVersion::RSS2_0);
+        assert_eq!(RssVersion::RSS1_0.to_string(), "1.0");
+        assert!(matches!("2.0".parse::<RssVersion>(), Ok(RssVersion::RSS2_0)));
+        assert!("3.0".parse::<RssVersion>().is_err());
+    }
+
+    #[test]
+    fn test_rss_data_new() {
+        let rss_data = RssData::new(Some(RssVersion::RSS2_0));
+        assert_eq!(rss_data.version, RssVersion::RSS2_0);
+    }
+
+    #[test]
+    fn test_rss_data_setters() {
         let rss_data = RssData::new(None)
-            .title("Test Title")
-            .link("https://example.com/rss")
-            .description("A test RSS feed")
-            .atom_link("https://example.com/atom")
-            .language("en")
-            .managing_editor("editor@example.com")
-            .webmaster("webmaster@example.com")
-            .last_build_date("2024-03-21T12:00:00Z")
-            .pub_date("2024-03-21T12:00:00Z")
-            .ttl("60")
+            .title("Test Feed")
+            .link("https://example.com")
+            .description("A test feed")
             .generator("RSS Gen")
             .guid("unique-guid")
-            .image_title("Image Title".to_string())
-            .docs("https://docs.example.com");
+            .pub_date("2024-03-21T12:00:00Z")
+            .language("en");
 
-        let map = rss_data.to_hash_map();
-
-        // Use expect or unwrap_or for safer access
-        assert_eq!(
-            map.get("title").expect("Title not found"),
-            "Test Title"
-        );
-        assert_eq!(
-            map.get("link").expect("Link not found"),
-            "https://example.com/rss"
-        );
-        assert_eq!(
-            map.get("atom_link").expect("Atom link not found"),
-            "https://example.com/atom"
-        );
-        assert_eq!(
-            map.get("language").expect("Language not found"),
-            "en"
-        );
-        assert_eq!(
-            map.get("managing_editor")
-                .expect("Managing editor not found"),
-            "editor@example.com"
-        );
-        assert_eq!(
-            map.get("webmaster").expect("Webmaster not found"),
-            "webmaster@example.com"
-        );
-        assert_eq!(
-            map.get("last_build_date")
-                .expect("Last build date not found"),
-            "2024-03-21T12:00:00Z"
-        );
-        assert_eq!(
-            map.get("pub_date").expect("Pub date not found"),
-            "2024-03-21T12:00:00Z"
-        );
-        assert_eq!(map.get("ttl").expect("TTL not found"), "60");
-        assert_eq!(
-            map.get("generator").expect("Generator not found"),
-            "RSS Gen"
-        );
-        assert_eq!(
-            map.get("guid").expect("GUID not found"),
-            "unique-guid"
-        );
-        assert_eq!(
-            map.get("image_title").expect("Image Title not found"),
-            "Image Title"
-        );
-        assert_eq!(
-            map.get("docs").expect("Docs not found"),
-            "https://docs.example.com"
-        );
-    }
-
-    #[test]
-    fn test_rss_item_with_optional_fields() {
-        let item = RssItem::new()
-            .title("Item with Optional Fields")
-            .link("https://example.com/item")
-            .description("An item with optional fields")
-            .guid("optional-fields-guid")
-            .pub_date("2024-03-21T12:00:00Z");
-
-        assert_eq!(item.title, "Item with Optional Fields");
-        assert_eq!(item.link, "https://example.com/item");
-        assert_eq!(item.description, "An item with optional fields");
-        assert_eq!(item.guid, "optional-fields-guid");
-        assert_eq!(item.pub_date, "2024-03-21T12:00:00Z");
-
-        assert!(item.validate().is_ok());
-    }
-
-    #[test]
-    fn test_invalid_rss_item_fields() {
-        let invalid_item = RssItem::new()
-            .title("")
-            .link("")
-            .guid("")
-            .description("Invalid item with missing fields");
-
-        assert!(invalid_item.validate().is_err());
-
-        if let Err(RssError::ValidationErrors(errors)) =
-            invalid_item.validate()
-        {
-            assert_eq!(errors.len(), 3);
-            assert!(errors.contains(&"Title is missing".to_string()));
-            assert!(errors.contains(&"Link is missing".to_string()));
-            assert!(errors.contains(&"GUID is missing".to_string()));
-        }
-    }
-
-    #[test]
-    fn test_invalid_enum_parsing() {
-        let invalid_version = "3.5".parse::<RssVersion>();
-
-        // Ensure the parse function returns an error
-        assert!(invalid_version.is_err());
-
-        // Check if the error is the expected RssError::InvalidRssVersion variant
-        if let Err(RssError::InvalidRssVersion(version)) =
-            invalid_version
-        {
-            assert_eq!(version, "3.5".to_string());
-        } else {
-            panic!("Expected RssError::InvalidRssVersion");
-        }
-    }
-
-    #[test]
-    fn test_rss_data_new_and_set() {
-        let rss_data = RssData::new(None)
-            .title("Test RSS Feed")
-            .link("https://example.com")
-            .description("A test RSS feed")
-            .version(RssVersion::RSS2_0);
-
-        assert_eq!(rss_data.title, "Test RSS Feed");
+        assert_eq!(rss_data.title, "Test Feed");
         assert_eq!(rss_data.link, "https://example.com");
-        assert_eq!(rss_data.description, "A test RSS feed");
-        assert_eq!(rss_data.version, RssVersion::RSS2_0);
+        assert_eq!(rss_data.description, "A test feed");
+        assert_eq!(rss_data.generator, "RSS Gen");
+        assert_eq!(rss_data.guid, "unique-guid");
+        assert_eq!(rss_data.pub_date, "2024-03-21T12:00:00Z");
+        assert_eq!(rss_data.language, "en");
     }
 
     #[test]
@@ -1084,18 +962,6 @@ mod tests {
     }
 
     #[test]
-    fn test_rss_version() {
-        assert_eq!(RssVersion::RSS2_0.as_str(), "2.0");
-        assert_eq!(RssVersion::default(), RssVersion::RSS2_0);
-        assert_eq!(RssVersion::RSS1_0.to_string(), "1.0");
-        assert!(matches!(
-            "2.0".parse::<RssVersion>(),
-            Ok(RssVersion::RSS2_0)
-        ));
-        assert!("3.0".parse::<RssVersion>().is_err());
-    }
-
-    #[test]
     fn test_validate_url() {
         assert!(validate_url("https://example.com").is_ok());
         assert!(validate_url("not a url").is_err());
@@ -1105,223 +971,6 @@ mod tests {
     fn test_parse_date() {
         assert!(parse_date("2024-03-21T12:00:00Z").is_ok());
         assert!(parse_date("invalid date").is_err());
-    }
-
-    #[test]
-    fn test_set_image() {
-        let mut rss_data = RssData::new(None);
-        rss_data.set_image(
-            "Test Image Title".to_string(),
-            "https://example.com/image.jpg".to_string(),
-            "https://example.com".to_string(),
-        );
-        rss_data.title = "RSS Feed Title".to_string();
-
-        // Ensure the image URL and other fields are set correctly
-        assert_eq!(rss_data.image_title, "Test Image Title");
-        assert_eq!(rss_data.image_url, "https://example.com/image.jpg"); // Ensure this matches
-        assert_eq!(rss_data.image_link, "https://example.com");
-        assert_eq!(rss_data.title, "RSS Feed Title".to_string());
-    }
-
-    #[test]
-    fn test_set_empty_image() {
-        // Test setting the image with empty values
-        let mut rss_data = RssData::new(None);
-        rss_data.set_image(
-            "".to_string(),
-            "".to_string(),
-            "".to_string(),
-        );
-        rss_data.title = "Empty Image Test".to_string();
-
-        assert_eq!(rss_data.image_title, "");
-        assert_eq!(rss_data.link, "");
-        assert_eq!(rss_data.atom_link, "");
-        assert_eq!(rss_data.title, "Empty Image Test".to_string());
-    }
-
-    #[test]
-    fn test_image_in_rss_data_validation() {
-        // Test that valid image data passes validation
-        let mut rss_data = RssData::new(None);
-        rss_data.set_image(
-            "Valid Image Title".to_string(),
-            "https://example.com/image.jpg".to_string(),
-            "https://example.com".to_string(),
-        );
-        rss_data.title = "RSS Feed Title".to_string();
-        rss_data.link = "https://example.com/rss".to_string();
-        rss_data.description =
-            "This is a valid RSS feed with an image".to_string();
-
-        assert!(rss_data.validate().is_ok());
-
-        // Test that missing required fields cause validation to fail
-        let mut invalid_rss_data = RssData::new(None);
-        invalid_rss_data.set_image(
-            "Valid Image Title".to_string(),
-            "https://example.com/image.jpg".to_string(),
-            "https://example.com".to_string(),
-        );
-        invalid_rss_data.title = "".to_string();
-        invalid_rss_data.link = "".to_string();
-        invalid_rss_data.description = "".to_string();
-
-        let result = invalid_rss_data.validate();
-        assert!(result.is_err());
-
-        if let Err(RssError::ValidationErrors(errors)) = result {
-            assert_eq!(errors.len(), 3); // There are 3 missing fields: title, link, and description
-            assert!(errors.contains(&"Title is missing".to_string()));
-            assert!(errors.contains(&"Link is missing".to_string()));
-            assert!(
-                errors.contains(&"Description is missing".to_string())
-            );
-        }
-    }
-
-    #[test]
-    fn test_invalid_image_url_validation() {
-        // Test validation fails for an invalid image URL
-        let mut invalid_rss_data = RssData::new(None);
-        invalid_rss_data.set_image(
-            "Invalid Image Title".to_string(),
-            "invalid-url".to_string(), // Invalid URL here
-            "https://example.com".to_string(),
-        );
-        invalid_rss_data.title = "RSS Feed Title".to_string();
-        invalid_rss_data.link = "https://example.com/rss".to_string();
-        invalid_rss_data.description =
-            "This is a valid RSS feed".to_string();
-
-        assert!(validate_url(&invalid_rss_data.image_url).is_err()); // Should fail on the image URL
-    }
-
-    #[test]
-    fn test_empty_image_validation() {
-        // Test that an empty image does not affect validation of required fields
-        let mut valid_rss_data = RssData::new(None);
-        valid_rss_data.set_image(
-            "".to_string(),
-            "".to_string(),
-            "".to_string(),
-        );
-        valid_rss_data.title = "RSS Feed Title".to_string();
-        valid_rss_data.link = "https://example.com/rss".to_string();
-        valid_rss_data.description =
-            "This is a valid RSS feed".to_string();
-
-        assert!(valid_rss_data.validate().is_ok());
-    }
-
-    #[derive(Debug, Deserialize, PartialEq)]
-    struct Image {
-        title: String,
-        url: String,
-        link: String,
-    }
-
-    #[derive(Debug, Deserialize, PartialEq)]
-    struct Channel {
-        title: String,
-        link: String,
-        description: String,
-        image: Image,
-    }
-
-    #[derive(Debug, Deserialize, PartialEq)]
-    struct Rss {
-        #[serde(rename = "channel")]
-        channel: Channel,
-    }
-
-    #[test]
-    fn test_rss_feed_parsing() {
-        // Mock RSS XML as provided
-        let rss_xml = r#"
-    <?xml version="1.0" encoding="UTF-8"?>
-    <rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/"
-         xmlns:dc="http://purl.org/dc/elements/1.1/"
-         xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
-         xmlns:taxo="http://purl.org/rss/1.0/modules/taxonomy/">
-      <channel>
-        <title>GETS Open Tenders or Quotes</title>
-        <link>https://www.gets.govt.nz//ExternalIndex.htm</link>
-        <description>This feed lists the current open tenders or requests for quote listed on the GETS.</description>
-        <image>
-          <title>Open tenders or Requests for Quote from GETS</title>
-          <url>https://www.gets.govt.nz//ext/default/img/getsLogo.jpg</url>
-          <link>https://www.gets.govt.nz//ExternalIndex.htm</link>
-        </image>
-      </channel>
-    </rss>
-    "#;
-
-        // Deserialize the RSS XML into Rss struct
-        let parsed: Rss =
-            from_str(rss_xml).expect("Failed to parse RSS XML");
-
-        // Assert that the parsed data matches expected values
-        assert_eq!(parsed.channel.title, "GETS Open Tenders or Quotes");
-        assert_eq!(
-            parsed.channel.link,
-            "https://www.gets.govt.nz//ExternalIndex.htm"
-        );
-        assert_eq!(parsed.channel.description, "This feed lists the current open tenders or requests for quote listed on the GETS.");
-        assert_eq!(
-            parsed.channel.image.title,
-            "Open tenders or Requests for Quote from GETS"
-        );
-        assert_eq!(
-            parsed.channel.image.url,
-            "https://www.gets.govt.nz//ext/default/img/getsLogo.jpg"
-        );
-        assert_eq!(
-            parsed.channel.image.link,
-            "https://www.gets.govt.nz//ExternalIndex.htm"
-        );
-    }
-
-    #[test]
-    fn test_rss_version_display() {
-        assert_eq!(RssVersion::RSS2_0.to_string(), "2.0");
-        assert_eq!(RssVersion::RSS1_0.to_string(), "1.0");
-    }
-
-    #[test]
-    fn test_rss_version_from_str() {
-        assert!(matches!(
-            "2.0".parse::<RssVersion>(),
-            Ok(RssVersion::RSS2_0)
-        ));
-        assert!("3.0".parse::<RssVersion>().is_err());
-    }
-
-    #[test]
-    fn test_rss_data_new() {
-        let rss_data = RssData::new(Some(RssVersion::RSS2_0));
-        assert_eq!(rss_data.version, RssVersion::RSS2_0);
-    }
-
-    #[test]
-    fn test_rss_data_setters() {
-        let rss_data = RssData::new(None)
-            .title("Test Feed")
-            .link("https://example.com")
-            .description("A test feed")
-            .generator("RSS Gen")
-            .guid("unique-guid")
-            .pub_date("2024-03-21T12:00:00Z")
-            .language("en");
-
-        assert_eq!(rss_data.title, "Test Feed");
-        assert_eq!(rss_data.link, "https://example.com");
-        assert_eq!(rss_data.description, "A test feed");
-        assert_eq!(rss_data.generator, "RSS Gen");
-        assert_eq!(rss_data.guid, "unique-guid");
-        assert_eq!(rss_data.pub_date, "2024-03-21T12:00:00Z");
-        assert_eq!(rss_data.language, "en");
     }
 
     #[test]
@@ -1356,5 +1005,108 @@ mod tests {
         assert_eq!(item.title, "Test Item");
         assert_eq!(item.link, "https://example.com/item");
         assert_eq!(item.guid, "unique-id");
+    }
+
+    #[test]
+    fn test_to_hash_map() {
+        let rss_data = RssData::new(None)
+            .title("Test Title")
+            .link("https://example.com/rss")
+            .description("A test RSS feed")
+            .atom_link("https://example.com/atom")
+            .language("en")
+            .managing_editor("editor@example.com")
+            .webmaster("webmaster@example.com")
+            .last_build_date("2024-03-21T12:00:00Z")
+            .pub_date("2024-03-21T12:00:00Z")
+            .ttl("60")
+            .generator("RSS Gen")
+            .guid("unique-guid")
+            .image_title("Image Title".to_string())
+            .docs("https://docs.example.com");
+
+        let map = rss_data.to_hash_map();
+
+        assert_eq!(map.get("title").unwrap(), "Test Title");
+        assert_eq!(map.get("link").unwrap(), "https://example.com/rss");
+        assert_eq!(map.get("atom_link").unwrap(), "https://example.com/atom");
+        assert_eq!(map.get("language").unwrap(), "en");
+        assert_eq!(map.get("managing_editor").unwrap(), "editor@example.com");
+        assert_eq!(map.get("webmaster").unwrap(), "webmaster@example.com");
+        assert_eq!(map.get("last_build_date").unwrap(), "2024-03-21T12:00:00Z");
+        assert_eq!(map.get("pub_date").unwrap(), "2024-03-21T12:00:00Z");
+        assert_eq!(map.get("ttl").unwrap(), "60");
+        assert_eq!(map.get("generator").unwrap(), "RSS Gen");
+        assert_eq!(map.get("guid").unwrap(), "unique-guid");
+        assert_eq!(map.get("image_title").unwrap(), "Image Title");
+        assert_eq!(map.get("docs").unwrap(), "https://docs.example.com");
+    }
+
+    #[test]
+    fn test_set_image() {
+        let mut rss_data = RssData::new(None);
+        rss_data.set_image(
+            "Test Image Title".to_string(),
+            "https://example.com/image.jpg".to_string(),
+            "https://example.com".to_string(),
+        );
+        rss_data.title = "RSS Feed Title".to_string();
+
+        assert_eq!(rss_data.image_title, "Test Image Title");
+        assert_eq!(rss_data.image_url, "https://example.com/image.jpg");
+        assert_eq!(rss_data.image_link, "https://example.com");
+        assert_eq!(rss_data.title, "RSS Feed Title");
+    }
+
+    #[test]
+    fn test_rss_feed_parsing() {
+        let rss_xml = r#"
+        <?xml version="1.0" encoding="UTF-8"?>
+        <rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/"
+             xmlns:dc="http://purl.org/dc/elements/1.1/"
+             xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+             xmlns:taxo="http://purl.org/rss/1.0/modules/taxonomy/">
+          <channel>
+            <title>GETS Open Tenders or Quotes</title>
+            <link>https://www.gets.govt.nz//ExternalIndex.htm</link>
+            <description>This feed lists the current open tenders or requests for quote listed on the GETS.</description>
+            <image>
+              <title>Open tenders or Requests for Quote from GETS</title>
+              <url>https://www.gets.govt.nz//ext/default/img/getsLogo.jpg</url>
+              <link>https://www.gets.govt.nz//ExternalIndex.htm</link>
+            </image>
+          </channel>
+        </rss>
+        "#;
+
+        #[derive(Debug, Deserialize, PartialEq)]
+        struct Image {
+            title: String,
+            url: String,
+            link: String,
+        }
+
+        #[derive(Debug, Deserialize, PartialEq)]
+        struct Channel {
+            title: String,
+            link: String,
+            description: String,
+            image: Image,
+        }
+
+        #[derive(Debug, Deserialize, PartialEq)]
+        struct Rss {
+            #[serde(rename = "channel")]
+            channel: Channel,
+        }
+
+        let parsed: Rss = from_str(rss_xml).expect("Failed to parse RSS XML");
+
+        assert_eq!(parsed.channel.title, "GETS Open Tenders or Quotes");
+        assert_eq!(parsed.channel.link, "https://www.gets.govt.nz//ExternalIndex.htm");
+        assert_eq!(parsed.channel.description, "This feed lists the current open tenders or requests for quote listed on the GETS.");
+        assert_eq!(parsed.channel.image.title, "Open tenders or Requests for Quote from GETS");
+        assert_eq!(parsed.channel.image.url, "https://www.gets.govt.nz//ext/default/img/getsLogo.jpg");
+        assert_eq!(parsed.channel.image.link, "https://www.gets.govt.nz//ExternalIndex.htm");
     }
 }

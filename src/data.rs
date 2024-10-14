@@ -849,17 +849,25 @@ mod tests {
     #[test]
     fn test_rss_data_validate() {
         let valid_rss_data = RssData::new(None)
-            .title("Test RSS Feed")
+            .title("Valid Feed")
             .link("https://example.com")
-            .description("A test RSS feed");
+            .description("A valid RSS feed");
 
         assert!(valid_rss_data.validate().is_ok());
 
         let invalid_rss_data = RssData::new(None)
-            .title("Test RSS Feed")
-            .description("A test RSS feed");
+            .title("Invalid Feed")
+            .link("not a valid url")
+            .description("An invalid RSS feed");
 
-        assert!(invalid_rss_data.validate().is_err());
+        let result = invalid_rss_data.validate();
+        assert!(result.is_err());
+        if let Err(RssError::ValidationErrors(errors)) = result {
+            assert!(errors.iter().any(|e| e.contains("Invalid link")),
+                "Expected an error containing 'Invalid link', but got: {:?}", errors);
+        } else {
+            panic!("Expected ValidationErrors");
+        }
     }
 
     #[test]
@@ -1108,5 +1116,68 @@ mod tests {
         assert_eq!(parsed.channel.image.title, "Open tenders or Requests for Quote from GETS");
         assert_eq!(parsed.channel.image.url, "https://www.gets.govt.nz//ext/default/img/getsLogo.jpg");
         assert_eq!(parsed.channel.image.link, "https://www.gets.govt.nz//ExternalIndex.htm");
+    }
+
+    #[test]
+    fn test_rss_version_from_str() {
+        assert_eq!(RssVersion::from_str("0.90").unwrap(), RssVersion::RSS0_90);
+        assert_eq!(RssVersion::from_str("0.91").unwrap(), RssVersion::RSS0_91);
+        assert_eq!(RssVersion::from_str("0.92").unwrap(), RssVersion::RSS0_92);
+        assert_eq!(RssVersion::from_str("1.0").unwrap(), RssVersion::RSS1_0);
+        assert_eq!(RssVersion::from_str("2.0").unwrap(), RssVersion::RSS2_0);
+        assert!(RssVersion::from_str("3.0").is_err());
+    }
+
+    #[test]
+    fn test_rss_version_display() {
+        assert_eq!(format!("{}", RssVersion::RSS0_90), "0.90");
+        assert_eq!(format!("{}", RssVersion::RSS0_91), "0.91");
+        assert_eq!(format!("{}", RssVersion::RSS0_92), "0.92");
+        assert_eq!(format!("{}", RssVersion::RSS1_0), "1.0");
+        assert_eq!(format!("{}", RssVersion::RSS2_0), "2.0");
+    }
+
+    #[test]
+    fn test_rss_data_set_methods() {
+        let rss_data = RssData::new(None)
+            .atom_link("https://example.com/atom")
+            .author("John Doe")
+            .category("Technology")
+            .copyright("© 2024 Example Inc.")
+            .description("A sample RSS feed")
+            .docs("https://example.com/rss-docs")
+            .generator("RSS Gen v1.0")
+            .guid("unique-guid-123")
+            .image_title("Feed Image")
+            .image_url("https://example.com/image.jpg")
+            .image_link("https://example.com")
+            .language("en-US")
+            .last_build_date("2024-03-21T12:00:00Z")
+            .link("https://example.com")
+            .managing_editor("editor@example.com")
+            .pub_date("2024-03-21T00:00:00Z")
+            .title("Sample Feed")
+            .ttl("60")
+            .webmaster("webmaster@example.com");
+
+        assert_eq!(rss_data.atom_link, "https://example.com/atom");
+        assert_eq!(rss_data.author, "John Doe");
+        assert_eq!(rss_data.category, "Technology");
+        assert_eq!(rss_data.copyright, "© 2024 Example Inc.");
+        assert_eq!(rss_data.description, "A sample RSS feed");
+        assert_eq!(rss_data.docs, "https://example.com/rss-docs");
+        assert_eq!(rss_data.generator, "RSS Gen v1.0");
+        assert_eq!(rss_data.guid, "unique-guid-123");
+        assert_eq!(rss_data.image_title, "Feed Image");
+        assert_eq!(rss_data.image_url, "https://example.com/image.jpg");
+        assert_eq!(rss_data.image_link, "https://example.com");
+        assert_eq!(rss_data.language, "en-US");
+        assert_eq!(rss_data.last_build_date, "2024-03-21T12:00:00Z");
+        assert_eq!(rss_data.link, "https://example.com");
+        assert_eq!(rss_data.managing_editor, "editor@example.com");
+        assert_eq!(rss_data.pub_date, "2024-03-21T00:00:00Z");
+        assert_eq!(rss_data.title, "Sample Feed");
+        assert_eq!(rss_data.ttl, "60");
+        assert_eq!(rss_data.webmaster, "webmaster@example.com");
     }
 }

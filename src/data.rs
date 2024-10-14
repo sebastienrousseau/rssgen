@@ -16,7 +16,9 @@ use time::OffsetDateTime;
 use url::Url;
 
 /// Represents the different versions of RSS.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
 #[non_exhaustive]
 pub enum RssVersion {
     /// RSS version 0.90
@@ -76,7 +78,9 @@ impl FromStr for RssVersion {
 }
 
 /// Represents the main structure for an RSS feed.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default, Eq, Hash)]
+#[derive(
+    Debug, Clone, PartialEq, Serialize, Deserialize, Default, Eq, Hash,
+)]
 #[non_exhaustive]
 pub struct RssData {
     /// The Atom link of the RSS feed.
@@ -170,7 +174,11 @@ impl RssData {
     /// # Returns
     ///
     /// The updated `RssData` instance.
-    pub fn set<T: Into<String>>(mut self, field: RssDataField, value: T) -> Self {
+    pub fn set<T: Into<String>>(
+        mut self,
+        field: RssDataField,
+        value: T,
+    ) -> Self {
         let value = sanitize_input(&value.into());
         match field {
             RssDataField::AtomLink => self.atom_link = value,
@@ -187,7 +195,9 @@ impl RssData {
             RssDataField::Language => self.language = value,
             RssDataField::LastBuildDate => self.last_build_date = value,
             RssDataField::Link => self.link = value,
-            RssDataField::ManagingEditor => self.managing_editor = value,
+            RssDataField::ManagingEditor => {
+                self.managing_editor = value
+            }
             RssDataField::PubDate => self.pub_date = value,
             RssDataField::Title => self.title = value,
             RssDataField::Ttl => self.ttl = value,
@@ -203,7 +213,12 @@ impl RssData {
     /// * `title` - The title of the image.
     /// * `url` - The URL of the image.
     /// * `link` - The link associated with the image.
-    pub fn set_image(&mut self, title: String, url: String, link: String) {
+    pub fn set_image(
+        &mut self,
+        title: String,
+        url: String,
+        link: String,
+    ) {
         self.image_title = sanitize_input(&title);
         self.image_url = sanitize_input(&url);
         self.image_link = sanitize_input(&link);
@@ -216,7 +231,11 @@ impl RssData {
     /// * `field` - The field to set.
     /// * `value` - The value to assign to the field.
     ///
-    pub fn set_item_field<T: Into<String>>(&mut self, field: RssItemField, value: T) {
+    pub fn set_item_field<T: Into<String>>(
+        &mut self,
+        field: RssItemField,
+        value: T,
+    ) {
         let value = sanitize_input(&value.into());
         if self.items.is_empty() {
             self.items.push(RssItem::new());
@@ -329,9 +348,15 @@ impl RssData {
         map.insert("image_url".to_string(), self.image_url.clone());
         map.insert("image_link".to_string(), self.image_link.clone());
         map.insert("language".to_string(), self.language.clone());
-        map.insert("last_build_date".to_string(), self.last_build_date.clone());
+        map.insert(
+            "last_build_date".to_string(),
+            self.last_build_date.clone(),
+        );
         map.insert("link".to_string(), self.link.clone());
-        map.insert("managing_editor".to_string(), self.managing_editor.clone());
+        map.insert(
+            "managing_editor".to_string(),
+            self.managing_editor.clone(),
+        );
         map.insert("pub_date".to_string(), self.pub_date.clone());
         map.insert("title".to_string(), self.title.clone());
         map.insert("ttl".to_string(), self.ttl.clone());
@@ -507,7 +532,9 @@ pub enum RssDataField {
 }
 
 /// Represents an item in the RSS feed.
-#[derive(Debug, Default, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
+#[derive(
+    Debug, Default, PartialEq, Eq, Hash, Clone, Serialize, Deserialize,
+)]
 #[non_exhaustive]
 pub struct RssItem {
     /// The GUID of the RSS item (unique identifier).
@@ -549,7 +576,11 @@ impl RssItem {
     /// # Returns
     ///
     /// The updated `RssItem` instance.
-    pub fn set<T: Into<String>>(mut self, field: RssItemField, value: T) -> Self {
+    pub fn set<T: Into<String>>(
+        mut self,
+        field: RssItemField,
+        value: T,
+    ) -> Self {
         let value = sanitize_input(&value.into());
         match field {
             RssItemField::Guid => self.guid = value,
@@ -591,7 +622,8 @@ impl RssItem {
 
         if !self.pub_date.is_empty() {
             if let Err(e) = parse_date(&self.pub_date) {
-                validation_errors.push(format!("Invalid publication date: {}", e));
+                validation_errors
+                    .push(format!("Invalid publication date: {}", e));
             }
         }
 
@@ -711,10 +743,13 @@ pub enum RssItemField {
 /// * `Ok(())` if the URL is valid.
 /// * `Err(RssError)` if the URL is invalid.
 pub fn validate_url(url: &str) -> Result<()> {
-    let parsed_url = Url::parse(url).map_err(|_| RssError::InvalidUrl(url.to_string()))?;
+    let parsed_url = Url::parse(url)
+        .map_err(|_| RssError::InvalidUrl(url.to_string()))?;
 
     if parsed_url.scheme() != "http" && parsed_url.scheme() != "https" {
-        return Err(RssError::InvalidUrl("URL must use http or https protocol".to_string()));
+        return Err(RssError::InvalidUrl(
+            "URL must use http or https protocol".to_string(),
+        ));
     }
 
     Ok(())
@@ -730,30 +765,47 @@ pub fn validate_url(url: &str) -> Result<()> {
 ///
 /// * `Ok(DateTime)` if the date is valid and successfully parsed.
 /// * `Err(RssError)` if the date is invalid or cannot be parsed.
-pub fn parse_date(date_str: &str) -> std::result::Result<DateTime, RssError> {
+pub fn parse_date(
+    date_str: &str,
+) -> std::result::Result<DateTime, RssError> {
     // Try parsing the date string using Time's built-in methods
     if let Ok(_parsed_time) = OffsetDateTime::parse(
         date_str,
         &time::format_description::well_known::Iso8601::DEFAULT,
     ) {
         // Create a new DateTime using the parsed time and UTC offset
-        return Ok(DateTime::new_with_tz("UTC").expect("UTC is always valid"));
+        return Ok(
+            DateTime::new_with_tz("UTC").expect("UTC is always valid")
+        );
     }
 
     // If the date format is not ISO 8601, fall back to manual RFC 2822-like parsing
     let components: Vec<&str> = date_str.split_whitespace().collect();
 
     if components.len() == 6 {
-        let _day: u8 = components[1].parse().map_err(|_| RssError::DateParseError(date_str.to_string()))?;
+        let _day: u8 = components[1].parse().map_err(|_| {
+            RssError::DateParseError(date_str.to_string())
+        })?;
         let _month = parse_month(components[2])?;
-        let _year: i32 = components[3].parse().map_err(|_| RssError::DateParseError(date_str.to_string()))?;
-        let time_components: Vec<&str> = components[4].split(':').collect();
-        let hours: i8 = time_components[0].parse().map_err(|_| RssError::DateParseError(date_str.to_string()))?;
-        let minutes: i8 = time_components[1].parse().map_err(|_| RssError::DateParseError(date_str.to_string()))?;
-        let _seconds: i8 = time_components[2].parse().map_err(|_| RssError::DateParseError(date_str.to_string()))?;
+        let _year: i32 = components[3].parse().map_err(|_| {
+            RssError::DateParseError(date_str.to_string())
+        })?;
+        let time_components: Vec<&str> =
+            components[4].split(':').collect();
+        let hours: i8 = time_components[0].parse().map_err(|_| {
+            RssError::DateParseError(date_str.to_string())
+        })?;
+        let minutes: i8 = time_components[1].parse().map_err(|_| {
+            RssError::DateParseError(date_str.to_string())
+        })?;
+        let _seconds: i8 =
+            time_components[2].parse().map_err(|_| {
+                RssError::DateParseError(date_str.to_string())
+            })?;
 
         // Create a new DateTime with custom hours and minutes offset
-        return DateTime::new_with_custom_offset(hours, minutes).map_err(|e| RssError::DateParseError(e.to_string()));
+        return DateTime::new_with_custom_offset(hours, minutes)
+            .map_err(|e| RssError::DateParseError(e.to_string()));
     }
 
     // If the format doesn't match either, return an error
@@ -816,7 +868,10 @@ mod tests {
         assert_eq!(RssVersion::RSS2_0.as_str(), "2.0");
         assert_eq!(RssVersion::default(), RssVersion::RSS2_0);
         assert_eq!(RssVersion::RSS1_0.to_string(), "1.0");
-        assert!(matches!("2.0".parse::<RssVersion>(), Ok(RssVersion::RSS2_0)));
+        assert!(matches!(
+            "2.0".parse::<RssVersion>(),
+            Ok(RssVersion::RSS2_0)
+        ));
         assert!("3.0".parse::<RssVersion>().is_err());
     }
 
@@ -1037,17 +1092,35 @@ mod tests {
 
         assert_eq!(map.get("title").unwrap(), "Test Title");
         assert_eq!(map.get("link").unwrap(), "https://example.com/rss");
-        assert_eq!(map.get("atom_link").unwrap(), "https://example.com/atom");
+        assert_eq!(
+            map.get("atom_link").unwrap(),
+            "https://example.com/atom"
+        );
         assert_eq!(map.get("language").unwrap(), "en");
-        assert_eq!(map.get("managing_editor").unwrap(), "editor@example.com");
-        assert_eq!(map.get("webmaster").unwrap(), "webmaster@example.com");
-        assert_eq!(map.get("last_build_date").unwrap(), "2024-03-21T12:00:00Z");
-        assert_eq!(map.get("pub_date").unwrap(), "2024-03-21T12:00:00Z");
+        assert_eq!(
+            map.get("managing_editor").unwrap(),
+            "editor@example.com"
+        );
+        assert_eq!(
+            map.get("webmaster").unwrap(),
+            "webmaster@example.com"
+        );
+        assert_eq!(
+            map.get("last_build_date").unwrap(),
+            "2024-03-21T12:00:00Z"
+        );
+        assert_eq!(
+            map.get("pub_date").unwrap(),
+            "2024-03-21T12:00:00Z"
+        );
         assert_eq!(map.get("ttl").unwrap(), "60");
         assert_eq!(map.get("generator").unwrap(), "RSS Gen");
         assert_eq!(map.get("guid").unwrap(), "unique-guid");
         assert_eq!(map.get("image_title").unwrap(), "Image Title");
-        assert_eq!(map.get("docs").unwrap(), "https://docs.example.com");
+        assert_eq!(
+            map.get("docs").unwrap(),
+            "https://docs.example.com"
+        );
     }
 
     #[test]
@@ -1108,23 +1181,51 @@ mod tests {
             channel: Channel,
         }
 
-        let parsed: Rss = from_str(rss_xml).expect("Failed to parse RSS XML");
+        let parsed: Rss =
+            from_str(rss_xml).expect("Failed to parse RSS XML");
 
         assert_eq!(parsed.channel.title, "GETS Open Tenders or Quotes");
-        assert_eq!(parsed.channel.link, "https://www.gets.govt.nz//ExternalIndex.htm");
+        assert_eq!(
+            parsed.channel.link,
+            "https://www.gets.govt.nz//ExternalIndex.htm"
+        );
         assert_eq!(parsed.channel.description, "This feed lists the current open tenders or requests for quote listed on the GETS.");
-        assert_eq!(parsed.channel.image.title, "Open tenders or Requests for Quote from GETS");
-        assert_eq!(parsed.channel.image.url, "https://www.gets.govt.nz//ext/default/img/getsLogo.jpg");
-        assert_eq!(parsed.channel.image.link, "https://www.gets.govt.nz//ExternalIndex.htm");
+        assert_eq!(
+            parsed.channel.image.title,
+            "Open tenders or Requests for Quote from GETS"
+        );
+        assert_eq!(
+            parsed.channel.image.url,
+            "https://www.gets.govt.nz//ext/default/img/getsLogo.jpg"
+        );
+        assert_eq!(
+            parsed.channel.image.link,
+            "https://www.gets.govt.nz//ExternalIndex.htm"
+        );
     }
 
     #[test]
     fn test_rss_version_from_str() {
-        assert_eq!(RssVersion::from_str("0.90").unwrap(), RssVersion::RSS0_90);
-        assert_eq!(RssVersion::from_str("0.91").unwrap(), RssVersion::RSS0_91);
-        assert_eq!(RssVersion::from_str("0.92").unwrap(), RssVersion::RSS0_92);
-        assert_eq!(RssVersion::from_str("1.0").unwrap(), RssVersion::RSS1_0);
-        assert_eq!(RssVersion::from_str("2.0").unwrap(), RssVersion::RSS2_0);
+        assert_eq!(
+            RssVersion::from_str("0.90").unwrap(),
+            RssVersion::RSS0_90
+        );
+        assert_eq!(
+            RssVersion::from_str("0.91").unwrap(),
+            RssVersion::RSS0_91
+        );
+        assert_eq!(
+            RssVersion::from_str("0.92").unwrap(),
+            RssVersion::RSS0_92
+        );
+        assert_eq!(
+            RssVersion::from_str("1.0").unwrap(),
+            RssVersion::RSS1_0
+        );
+        assert_eq!(
+            RssVersion::from_str("2.0").unwrap(),
+            RssVersion::RSS2_0
+        );
         assert!(RssVersion::from_str("3.0").is_err());
     }
 
@@ -1179,5 +1280,86 @@ mod tests {
         assert_eq!(rss_data.title, "Sample Feed");
         assert_eq!(rss_data.ttl, "60");
         assert_eq!(rss_data.webmaster, "webmaster@example.com");
+    }
+
+    #[test]
+    fn test_rss_data_empty() {
+        let rss_data = RssData::new(None);
+        assert!(rss_data.title.is_empty());
+        assert!(rss_data.link.is_empty());
+        assert!(rss_data.description.is_empty());
+        assert_eq!(rss_data.items.len(), 0);
+    }
+
+    #[test]
+    fn test_rss_item_empty() {
+        let item = RssItem::new();
+        assert!(item.title.is_empty());
+        assert!(item.link.is_empty());
+        assert!(item.guid.is_empty());
+        assert!(item.description.is_empty());
+    }
+
+    #[test]
+    fn test_rss_data_to_hash_map() {
+        let rss_data = RssData::new(None)
+            .title("Test Feed")
+            .link("https://example.com")
+            .description("A test feed");
+
+        let hash_map = rss_data.to_hash_map();
+        assert_eq!(hash_map.get("title").unwrap(), "Test Feed");
+        assert_eq!(
+            hash_map.get("link").unwrap(),
+            "https://example.com"
+        );
+        assert_eq!(hash_map.get("description").unwrap(), "A test feed");
+    }
+
+    #[test]
+    fn test_rss_data_version_setter() {
+        let rss_data = RssData::new(None).version(RssVersion::RSS1_0);
+        assert_eq!(rss_data.version, RssVersion::RSS1_0);
+    }
+
+    #[test]
+    fn test_remove_item_not_found() {
+        let mut rss_data = RssData::new(None);
+        let item = RssItem::new().guid("existing-guid");
+        rss_data.add_item(item);
+
+        // Try removing an item with a non-existent GUID
+        let removed = rss_data.remove_item("non-existent-guid");
+        assert!(!removed);
+        assert_eq!(rss_data.items.len(), 1);
+    }
+
+    #[test]
+    fn test_set_item_field_empty_items() {
+        let mut rss_data = RssData::new(None);
+        rss_data.set_item_field(RssItemField::Title, "Test Item Title");
+
+        assert_eq!(rss_data.items.len(), 1);
+        assert_eq!(rss_data.items[0].title, "Test Item Title");
+    }
+
+    #[test]
+    fn test_set_image_empty() {
+        let mut rss_data = RssData::new(None);
+        rss_data.set_image(
+            "".to_string(),
+            "".to_string(),
+            "".to_string(),
+        );
+
+        assert!(rss_data.image_title.is_empty());
+        assert!(rss_data.image_url.is_empty());
+        assert!(rss_data.image_link.is_empty());
+    }
+
+    #[test]
+    fn test_rss_item_set_empty_field() {
+        let item = RssItem::new().set(RssItemField::Title, "");
+        assert!(item.title.is_empty());
     }
 }

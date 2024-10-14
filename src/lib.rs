@@ -3,65 +3,11 @@
 
 // src/lib.rs
 
-//! # RSS Gen
-//!
-//! `rss-gen` is a comprehensive Rust library for generating, parsing, serializing, and deserializing RSS feeds.
-//! It supports multiple RSS versions, providing flexibility for creating and handling feeds across different formats.
-//!
-//! ## Features
-//!
-//! - Support for RSS versions 0.90, 0.91, 0.92, 1.0, and 2.0
-//! - Generation of RSS feeds from structured data
-//! - Parsing of existing RSS feeds into structured data
-//! - Serialization and deserialization of RSS data
-//! - Extensible elements for managing standard and optional RSS fields
-//! - Atom link support for modern syndication compatibility
-//! - Image embedding for RSS 2.0 feeds
-//!
-//! ## Examples
-//!
-//! ### Generating an RSS 2.0 feed
-//!
-//! ```rust
-//! use rss_gen::{RssData, RssVersion, generate_rss};
-//!
-//! let rss_data = RssData::new(Some(RssVersion::RSS2_0))
-//!     .title("My Rust Blog")
-//!     .link("https://myrustblog.com")
-//!     .description("A blog about Rust programming and tutorials.");
-//!
-//! match generate_rss(&rss_data) {
-//!     Ok(rss_feed) => println!("Generated RSS feed: {}", rss_feed),
-//!     Err(e) => eprintln!("Error generating RSS feed: {}", e),
-//! }
-//! ```
-//!
-//! ### Parsing an existing RSS feed
-//!
-//! ```rust
-//! use rss_gen::parse_rss;
-//!
-//! let rss_content = r#"
-//!     <?xml version="1.0" encoding="UTF-8"?>
-//!     <rss version="2.0">
-//!         <channel>
-//!             <title>My Rust Blog</title>
-//!             <link>https://myrustblog.com</link>
-//!             <description>A blog about Rust programming and tutorials.</description>
-//!         </channel>
-//!     </rss>
-//! "#;
-//!
-//! match parse_rss(rss_content) {
-//!     Ok(parsed_data) => println!("Parsed RSS data: {:?}", parsed_data),
-//!     Err(e) => eprintln!("Error parsing RSS feed: {}", e),
-//! }
-//! ```
-
+#![doc = include_str!("../README.md")]
 #![doc(
     html_favicon_url = "https://kura.pro/rssgen/images/favicon.ico",
     html_logo_url = "https://kura.pro/rssgen/images/logos/rssgen.svg",
-    html_root_url = "https://docs.rs/rssgen"
+    html_root_url = "https://docs.rs/rss-gen"
 )]
 #![crate_name = "rss_gen"]
 #![crate_type = "lib"]
@@ -84,8 +30,11 @@ pub use error::{Result, RssError};
 pub use generator::generate_rss;
 pub use parser::parse_rss;
 
-/// The current version of the rss-gen crate.
+/// The current version of the rss-gen crate, set at compile-time from Cargo.toml.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+
+/// Maximum length of input strings for validation and generation.
+const MAX_INPUT_LENGTH: usize = 1000;
 
 /// A convenience function to generate a minimal valid RSS 2.0 feed.
 ///
@@ -119,11 +68,42 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 ///     Err(e) => eprintln!("Error: {}", e),
 /// }
 /// ```
+///
+/// # Security
+///
+/// This function performs basic input validation, but it's recommended to sanitize
+/// the input parameters before passing them to this function, especially if they
+/// come from untrusted sources.
+#[must_use = "This function returns a Result that should be handled"]
 pub fn quick_rss(
     title: &str,
     link: &str,
     description: &str,
 ) -> Result<String> {
+    // Validate input
+    if title.is_empty() || link.is_empty() || description.is_empty() {
+        return Err(RssError::InvalidInput(
+            "Title, link, and description must not be empty"
+                .to_string(),
+        ));
+    }
+
+    if title.len() > MAX_INPUT_LENGTH
+        || link.len() > MAX_INPUT_LENGTH
+        || description.len() > MAX_INPUT_LENGTH
+    {
+        return Err(RssError::InvalidInput(
+            "Input exceeds maximum allowed length".to_string(),
+        ));
+    }
+
+    // Basic URL validation
+    if !link.starts_with("http://") && !link.starts_with("https://") {
+        return Err(RssError::InvalidInput(
+            "Link must start with http:// or https://".to_string(),
+        ));
+    }
+
     let mut rss_data = RssData::new(Some(RssVersion::RSS2_0))
         .title(title)
         .link(link)
@@ -163,5 +143,63 @@ mod tests {
         assert!(feed
             .contains("<link>https://example.com/example-item</link>"));
         assert!(feed.contains("<description>This is an example item in the RSS feed</description>"));
+    }
+
+    #[test]
+    fn test_quick_rss_invalid_input() {
+        let result =
+            quick_rss("", "https://example.com", "Description");
+        assert!(result.is_err());
+
+        let result = quick_rss("Title", "invalid_url", "Description");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_version_constant() {
+        assert!(VERSION.starts_with(char::is_numeric));
+        assert!(VERSION.split('.').count() >= 2);
+    }
+
+    #[test]
+    fn test_quick_rss_max_length() {
+        let long_string = "a".repeat(MAX_INPUT_LENGTH + 1);
+        let result = quick_rss(
+            &long_string,
+            "https://example.com",
+            "Description",
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_quick_rss_max_length_boundary() {
+        let max_length_string = "a".repeat(MAX_INPUT_LENGTH);
+        let result = quick_rss(
+            &max_length_string,
+            "https://example.com",
+            "Description",
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_quick_rss_https() {
+        let result = quick_rss(
+            "Test Feed",
+            "https://example.com",
+            "A test RSS feed",
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_quick_rss_http() {
+        let result = quick_rss(
+            "Test Feed",
+            "http://example.com",
+            "A test RSS feed",
+        );
+        assert!(result.is_ok());
     }
 }

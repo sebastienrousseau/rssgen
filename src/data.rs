@@ -1,6 +1,8 @@
 // Copyright © 2024 RSS Gen. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+// src/data.rs
+
 //! This module contains the core data structures and functionality for RSS feeds.
 //!
 //! It includes definitions for RSS versions, RSS data, and RSS items, as well as
@@ -12,7 +14,10 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt;
 use std::str::FromStr;
-use time::OffsetDateTime;
+use time::{
+    format_description::well_known::Iso8601,
+    format_description::well_known::Rfc2822, OffsetDateTime,
+};
 use url::Url;
 
 /// Represents the different versions of RSS.
@@ -39,25 +44,26 @@ impl RssVersion {
     /// # Returns
     ///
     /// A static string slice representing the RSS version.
-    pub fn as_str(&self) -> &'static str {
+    #[must_use]
+    pub const fn as_str(&self) -> &'static str {
         match self {
-            RssVersion::RSS0_90 => "0.90",
-            RssVersion::RSS0_91 => "0.91",
-            RssVersion::RSS0_92 => "0.92",
-            RssVersion::RSS1_0 => "1.0",
-            RssVersion::RSS2_0 => "2.0",
+            Self::RSS0_90 => "0.90",
+            Self::RSS0_91 => "0.91",
+            Self::RSS0_92 => "0.92",
+            Self::RSS1_0 => "1.0",
+            Self::RSS2_0 => "2.0",
         }
     }
 }
 
 impl Default for RssVersion {
     fn default() -> Self {
-        RssVersion::RSS2_0
+        Self::RSS2_0
     }
 }
 
 impl fmt::Display for RssVersion {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.as_str())
     }
 }
@@ -67,20 +73,18 @@ impl FromStr for RssVersion {
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         match s {
-            "0.90" => Ok(RssVersion::RSS0_90),
-            "0.91" => Ok(RssVersion::RSS0_91),
-            "0.92" => Ok(RssVersion::RSS0_92),
-            "1.0" => Ok(RssVersion::RSS1_0),
-            "2.0" => Ok(RssVersion::RSS2_0),
+            "0.90" => Ok(Self::RSS0_90),
+            "0.91" => Ok(Self::RSS0_91),
+            "0.92" => Ok(Self::RSS0_92),
+            "1.0" => Ok(Self::RSS1_0),
+            "2.0" => Ok(Self::RSS2_0),
             _ => Err(RssError::InvalidRssVersion(s.to_string())),
         }
     }
 }
 
 /// Represents the main structure for an RSS feed.
-#[derive(
-    Debug, Clone, PartialEq, Serialize, Deserialize, Default, Eq, Hash,
-)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 #[non_exhaustive]
 pub struct RssData {
     /// The Atom link of the RSS feed.
@@ -139,28 +143,9 @@ impl RssData {
     /// A new `RssData` instance.
     #[must_use]
     pub fn new(version: Option<RssVersion>) -> Self {
-        RssData {
+        Self {
             version: version.unwrap_or_default(),
-            atom_link: String::new(),
-            author: String::new(),
-            category: String::new(),
-            copyright: String::new(),
-            description: String::new(),
-            docs: String::new(),
-            generator: String::new(),
-            guid: String::new(),
-            image_title: String::new(),
-            image_url: String::new(),
-            image_link: String::new(),
-            language: String::new(),
-            last_build_date: String::new(),
-            link: String::new(),
-            managing_editor: String::new(),
-            pub_date: String::new(),
-            title: String::new(),
-            ttl: String::new(),
-            webmaster: String::new(),
-            items: Vec::new(),
+            ..Default::default()
         }
     }
 
@@ -206,24 +191,6 @@ impl RssData {
         self
     }
 
-    /// Sets the image for the RSS feed.
-    ///
-    /// # Arguments
-    ///
-    /// * `title` - The title of the image.
-    /// * `url` - The URL of the image.
-    /// * `link` - The link associated with the image.
-    pub fn set_image(
-        &mut self,
-        title: String,
-        url: String,
-        link: String,
-    ) {
-        self.image_title = sanitize_input(&title);
-        self.image_url = sanitize_input(&url);
-        self.image_link = sanitize_input(&link);
-    }
-
     /// Sets the value of a specified item field for the most recent RSS item.
     ///
     /// # Arguments
@@ -253,6 +220,24 @@ impl RssData {
             RssItemField::Enclosure => item.enclosure = Some(value),
             RssItemField::Source => item.source = Some(value),
         }
+    }
+
+    /// Sets the image for the RSS feed.
+    ///
+    /// # Arguments
+    ///
+    /// * `title` - The title of the image.
+    /// * `url` - The URL of the image.
+    /// * `link` - The link associated with the image.
+    pub fn set_image(
+        &mut self,
+        title: String,
+        url: String,
+        link: String,
+    ) {
+        self.image_title = sanitize_input(&title);
+        self.image_url = sanitize_input(&url);
+        self.image_link = sanitize_input(&link);
     }
 
     /// Adds an item to the RSS feed.
@@ -533,7 +518,7 @@ pub enum RssDataField {
 
 /// Represents an item in the RSS feed.
 #[derive(
-    Debug, Default, PartialEq, Eq, Hash, Clone, Serialize, Deserialize,
+    Debug, Default, PartialEq, Eq, Clone, Serialize, Deserialize,
 )]
 #[non_exhaustive]
 pub struct RssItem {
@@ -563,7 +548,7 @@ impl RssItem {
     /// Creates a new `RssItem` with default values.
     #[must_use]
     pub fn new() -> Self {
-        RssItem::default()
+        Self::default()
     }
 
     /// Sets the value of a field and returns the `RssItem` instance for method chaining.
@@ -765,21 +750,22 @@ pub fn validate_url(url: &str) -> Result<()> {
 ///
 /// * `Ok(DateTime)` if the date is valid and successfully parsed.
 /// * `Err(RssError)` if the date is invalid or cannot be parsed.
-pub fn parse_date(
-    date_str: &str,
-) -> std::result::Result<DateTime, RssError> {
-    // Try parsing the date string using Time's built-in methods
-    if let Ok(_parsed_time) = OffsetDateTime::parse(
-        date_str,
-        &time::format_description::well_known::Iso8601::DEFAULT,
-    ) {
-        // Create a new DateTime using the parsed time and UTC offset
+pub fn parse_date(date_str: &str) -> Result<DateTime> {
+    // Try parsing as RFC 2822
+    if OffsetDateTime::parse(date_str, &Rfc2822).is_ok() {
         return Ok(
             DateTime::new_with_tz("UTC").expect("UTC is always valid")
         );
     }
 
-    // If the date format is not ISO 8601, fall back to manual RFC 2822-like parsing
+    // Try parsing as ISO 8601
+    if OffsetDateTime::parse(date_str, &Iso8601::DEFAULT).is_ok() {
+        return Ok(
+            DateTime::new_with_tz("UTC").expect("UTC is always valid")
+        );
+    }
+
+    // If the date format is not RFC 2822 or ISO 8601, fall back to manual parsing
     let components: Vec<&str> = date_str.split_whitespace().collect();
 
     if components.len() == 6 {
@@ -808,7 +794,7 @@ pub fn parse_date(
             .map_err(|e| RssError::DateParseError(e.to_string()));
     }
 
-    // If the format doesn't match either, return an error
+    // If the format doesn't match any of the above, return an error
     Err(RssError::DateParseError(date_str.to_string()))
 }
 
@@ -822,7 +808,7 @@ pub fn parse_date(
 ///
 /// * `Ok(u8)` if the month is valid and successfully parsed.
 /// * `Err(RssError)` if the month is invalid or cannot be parsed.
-fn parse_month(month: &str) -> std::result::Result<u8, RssError> {
+fn parse_month(month: &str) -> Result<u8> {
     match month {
         "Jan" => Ok(1),
         "Feb" => Ok(2),
@@ -1032,6 +1018,7 @@ mod tests {
 
     #[test]
     fn test_parse_date() {
+        assert!(parse_date("Mon, 01 Jan 2024 00:00:00 GMT").is_ok());
         assert!(parse_date("2024-03-21T12:00:00Z").is_ok());
         assert!(parse_date("invalid date").is_err());
     }

@@ -772,4 +772,258 @@ mod tests {
             Err(e) => panic!("Failed to parse RSS 2.0: {:?}", e),
         }
     }
+
+    #[test]
+    fn test_parse_channel_language() {
+        let mut rss_data = RssData::default();
+        let result = parse_channel_element(
+            &mut rss_data,
+            "language",
+            "en-US",
+            false,
+        );
+        assert!(result.is_ok());
+        assert_eq!(rss_data.language, "en-US");
+    }
+
+    #[test]
+    fn test_parse_channel_copyright() {
+        let mut rss_data = RssData::default();
+        let result = parse_channel_element(
+            &mut rss_data,
+            "copyright",
+            "© 2024",
+            false,
+        );
+        assert!(result.is_ok());
+        assert_eq!(rss_data.copyright, "© 2024");
+    }
+
+    #[test]
+    fn test_parse_channel_managing_editor() {
+        let mut rss_data = RssData::default();
+        let result = parse_channel_element(
+            &mut rss_data,
+            "managingEditor",
+            "editor@example.com",
+            false,
+        );
+        assert!(result.is_ok());
+        assert_eq!(rss_data.managing_editor, "editor@example.com");
+    }
+
+    #[test]
+    fn test_parse_channel_webmaster() {
+        let mut rss_data = RssData::default();
+        let result = parse_channel_element(
+            &mut rss_data,
+            "webMaster",
+            "webmaster@example.com",
+            false,
+        );
+        assert!(result.is_ok());
+        assert_eq!(rss_data.webmaster, "webmaster@example.com");
+    }
+
+    #[test]
+    fn test_parse_channel_pub_date() {
+        let mut rss_data = RssData::default();
+        let result = parse_channel_element(
+            &mut rss_data,
+            "pubDate",
+            "Mon, 10 Oct 2024 04:00:00 GMT",
+            false,
+        );
+        assert!(result.is_ok());
+        assert_eq!(rss_data.pub_date, "Mon, 10 Oct 2024 04:00:00 GMT");
+    }
+
+    #[test]
+    fn test_parse_channel_last_build_date() {
+        let mut rss_data = RssData::default();
+        let result = parse_channel_element(
+            &mut rss_data,
+            "lastBuildDate",
+            "Mon, 10 Oct 2024 05:00:00 GMT",
+            false,
+        );
+        assert!(result.is_ok());
+        assert_eq!(
+            rss_data.last_build_date,
+            "Mon, 10 Oct 2024 05:00:00 GMT"
+        );
+    }
+
+    #[test]
+    fn test_parse_channel_category() {
+        let mut rss_data = RssData::default();
+        let result = parse_channel_element(
+            &mut rss_data,
+            "category",
+            "Technology",
+            false,
+        );
+        assert!(result.is_ok());
+        assert_eq!(rss_data.category, "Technology");
+    }
+
+    #[test]
+    fn test_parse_channel_generator() {
+        let mut rss_data = RssData::default();
+        let result = parse_channel_element(
+            &mut rss_data,
+            "generator",
+            "RSS Generator v1.0",
+            false,
+        );
+        assert!(result.is_ok());
+        assert_eq!(rss_data.generator, "RSS Generator v1.0");
+    }
+
+    #[test]
+    fn test_parse_channel_docs() {
+        let mut rss_data = RssData::default();
+        let result = parse_channel_element(
+            &mut rss_data,
+            "docs",
+            "https://example.com/rss/docs",
+            false,
+        );
+        assert!(result.is_ok());
+        assert_eq!(rss_data.docs, "https://example.com/rss/docs");
+    }
+
+    #[test]
+    fn test_parse_channel_ttl() {
+        let mut rss_data = RssData::default();
+        let result =
+            parse_channel_element(&mut rss_data, "ttl", "60", false);
+        assert!(result.is_ok());
+        assert_eq!(rss_data.ttl, "60");
+    }
+
+    #[test]
+    fn test_parse_channel_items_rss_1_0() {
+        let mut rss_data = RssData::default();
+        let result =
+            parse_channel_element(&mut rss_data, "items", "", true);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_parse_channel_items_non_rss_1_0() {
+        let mut rss_data = RssData::default();
+        let result =
+            parse_channel_element(&mut rss_data, "items", "", false);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_channel_rdf_seq_rss_1_0() {
+        let mut rss_data = RssData::default();
+        let result =
+            parse_channel_element(&mut rss_data, "rdf:Seq", "", true);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_parse_channel_rdf_seq_non_rss_1_0() {
+        let mut rss_data = RssData::default();
+        let result =
+            parse_channel_element(&mut rss_data, "rdf:Seq", "", false);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_item_author() {
+        let mut item = RssItem::default();
+        parse_item_element(
+            &mut item,
+            "author",
+            "author@example.com",
+            &[],
+        );
+        assert_eq!(item.author, "author@example.com");
+    }
+
+    #[test]
+    fn test_parse_item_guid() {
+        let mut item = RssItem::default();
+        parse_item_element(&mut item, "guid", "1234-5678", &[]);
+        assert_eq!(item.guid, "1234-5678");
+    }
+
+    #[test]
+    fn test_parse_item_pub_date() {
+        let mut item = RssItem::default();
+        parse_item_element(
+            &mut item,
+            "pubDate",
+            "Mon, 10 Oct 2024 04:00:00 GMT",
+            &[],
+        );
+        assert_eq!(item.pub_date, "Mon, 10 Oct 2024 04:00:00 GMT");
+    }
+
+    #[test]
+    fn test_parse_item_category() {
+        let mut item = RssItem::default();
+        parse_item_element(&mut item, "category", "Technology", &[]);
+        assert_eq!(item.category, Some("Technology".to_string()));
+    }
+
+    #[test]
+    fn test_parse_item_comments() {
+        let mut item = RssItem::default();
+        parse_item_element(
+            &mut item,
+            "comments",
+            "https://example.com/comments",
+            &[],
+        );
+        assert_eq!(
+            item.comments,
+            Some("https://example.com/comments".to_string())
+        );
+    }
+
+    #[test]
+    fn test_parse_item_enclosure_with_attributes() {
+        let mut item = RssItem::default();
+        let attributes = vec![
+            (
+                "url".to_string(),
+                "https://example.com/audio.mp3".to_string(),
+            ),
+            ("length".to_string(), "123456".to_string()),
+            ("type".to_string(), "audio/mpeg".to_string()),
+        ];
+        parse_item_element(&mut item, "enclosure", "", &attributes);
+        assert_eq!(
+            item.enclosure,
+            Some("url=\"https://example.com/audio.mp3\" length=\"123456\" type=\"audio/mpeg\"".to_string())
+        );
+    }
+
+    #[test]
+    fn test_parse_item_enclosure_without_attributes() {
+        let mut item = RssItem::default();
+        parse_item_element(&mut item, "enclosure", "", &[]);
+        assert_eq!(item.enclosure, None);
+    }
+
+    #[test]
+    fn test_parse_item_source() {
+        let mut item = RssItem::default();
+        parse_item_element(
+            &mut item,
+            "source",
+            "https://example.com",
+            &[],
+        );
+        assert_eq!(
+            item.source,
+            Some("https://example.com".to_string())
+        );
+    }
 }

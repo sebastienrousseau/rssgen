@@ -42,7 +42,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rss-gen = "0.0.2"
+rss-gen = "0.0.3"
 ```
 
 ## Usage
@@ -84,7 +84,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         </rss>
     "#;
 
-    match parse_rss(rss_content) {
+    match parse_rss(rss_content, None) {
         Ok(parsed_data) => println!("Parsed RSS data: {:?}", parsed_data),
         Err(e) => eprintln!("Error parsing RSS feed: {}", e),
     }

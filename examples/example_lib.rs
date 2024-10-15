@@ -82,10 +82,9 @@ fn parse_rss_example() -> Result<(), Box<dyn Error>> {
     "#;
 
     // Parse the RSS content
-    let rss_data = parse_rss(rss_content).map_err(|e| {
-        Box::new(ExampleError {
-            message: format!("Failed to parse RSS feed: {}", e),
-        }) as Box<dyn Error>
+    let rss_data = parse_rss(rss_content, None).map_err(|e| {
+        eprintln!("Error parsing RSS: {}", e);
+        e
     })?;
 
     println!("    ✅  Parsed RSS feed: {:#?}", rss_data); // Pretty-print the parsed data

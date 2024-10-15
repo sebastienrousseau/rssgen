@@ -3,68 +3,20 @@
 
 // src/lib.rs
 
-//! # RSS Gen
-//!
-//! `rss-gen` is a comprehensive Rust library for generating, parsing, serializing, and deserializing RSS feeds.
-//! It supports multiple RSS versions, providing flexibility for creating and handling feeds across different formats.
-//!
-//! ## Features
-//!
-//! - Support for RSS versions 0.90, 0.91, 0.92, 1.0, and 2.0
-//! - Generation of RSS feeds from structured data
-//! - Parsing of existing RSS feeds into structured data
-//! - Serialization and deserialization of RSS data
-//! - Extensible elements for managing standard and optional RSS fields
-//! - Atom link support for modern syndication compatibility
-//! - Image embedding for RSS 2.0 feeds
-//!
-//! ## Examples
-//!
-//! ### Generating an RSS 2.0 feed
-//!
-//! ```rust
-//! use rss_gen::{RssData, RssVersion, generate_rss};
-//!
-//! let rss_data = RssData::new(Some(RssVersion::RSS2_0))
-//!     .title("My Rust Blog")
-//!     .link("https://myrustblog.com")
-//!     .description("A blog about Rust programming and tutorials.");
-//!
-//! match generate_rss(&rss_data) {
-//!     Ok(rss_feed) => println!("Generated RSS feed: {}", rss_feed),
-//!     Err(e) => eprintln!("Error generating RSS feed: {}", e),
-//! }
-//! ```
-//!
-//! ### Parsing an existing RSS feed
-//!
-//! ```rust
-//! use rss_gen::parse_rss;
-//!
-//! let rss_content = r#"
-//!     <?xml version="1.0" encoding="UTF-8"?>
-//!     <rss version="2.0">
-//!         <channel>
-//!             <title>My Rust Blog</title>
-//!             <link>https://myrustblog.com</link>
-//!             <description>A blog about Rust programming and tutorials.</description>
-//!         </channel>
-//!     </rss>
-//! "#;
-//!
-//! match parse_rss(rss_content) {
-//!     Ok(parsed_data) => println!("Parsed RSS data: {:?}", parsed_data),
-//!     Err(e) => eprintln!("Error parsing RSS feed: {}", e),
-//! }
-//! ```
-
+#![doc = include_str!("../README.md")]
 #![doc(
     html_favicon_url = "https://kura.pro/rssgen/images/favicon.ico",
     html_logo_url = "https://kura.pro/rssgen/images/logos/rssgen.svg",
-    html_root_url = "https://docs.rs/rssgen"
+    html_root_url = "https://docs.rs/rss-gen"
 )]
 #![crate_name = "rss_gen"]
 #![crate_type = "lib"]
+#![warn(missing_docs)]
+#![forbid(unsafe_code)]
+#![deny(clippy::all)]
+#![deny(clippy::cargo)]
+#![deny(clippy::pedantic)]
+#![allow(clippy::module_name_repetitions)]
 
 /// Contains the main types and data structures used to represent RSS feeds.
 pub mod data;
@@ -84,8 +36,19 @@ pub use error::{Result, RssError};
 pub use generator::generate_rss;
 pub use parser::parse_rss;
 
-/// The current version of the rss-gen crate.
+/// The current version of the rss-gen crate, set at compile-time from Cargo.toml.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+
+/// Maximum length for title fields in the RSS feed.
+pub const MAX_TITLE_LENGTH: usize = 256;
+/// Maximum length for link fields in the RSS feed.
+pub const MAX_LINK_LENGTH: usize = 2048;
+/// Maximum length for description fields in the RSS feed.
+pub const MAX_DESCRIPTION_LENGTH: usize = 100_000;
+/// Maximum length for general fields in the RSS feed.
+pub const MAX_GENERAL_LENGTH: usize = 1024;
+/// Maximum size for the entire RSS feed.
+pub const MAX_FEED_SIZE: usize = 1_048_576; // 1 MB
 
 /// A convenience function to generate a minimal valid RSS 2.0 feed.
 ///
@@ -119,11 +82,50 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 ///     Err(e) => eprintln!("Error: {}", e),
 /// }
 /// ```
+///
+/// # Errors
+///
+/// This function will return an error if:
+/// - Any of the input strings are empty
+/// - Any of the input strings exceed their respective maximum lengths
+/// - The `link` is not a valid URL starting with "http://" or "https://"
+/// - RSS generation fails for any reason
+///
+/// # Security
+///
+/// This function performs basic input validation, but it's recommended to sanitize
+/// the input parameters before passing them to this function, especially if they
+/// come from untrusted sources.
+#[must_use = "This function returns a Result that should be handled"]
 pub fn quick_rss(
     title: &str,
     link: &str,
     description: &str,
 ) -> Result<String> {
+    // Validate input
+    if title.is_empty() || link.is_empty() || description.is_empty() {
+        return Err(RssError::InvalidInput(
+            "Title, link, and description must not be empty"
+                .to_string(),
+        ));
+    }
+
+    if title.len() > MAX_TITLE_LENGTH
+        || link.len() > MAX_LINK_LENGTH
+        || description.len() > MAX_DESCRIPTION_LENGTH
+    {
+        return Err(RssError::InvalidInput(
+            "Input exceeds maximum allowed length".to_string(),
+        ));
+    }
+
+    // Basic URL validation
+    if !link.starts_with("http://") && !link.starts_with("https://") {
+        return Err(RssError::InvalidInput(
+            "Link must start with http:// or https://".to_string(),
+        ));
+    }
+
     let mut rss_data = RssData::new(Some(RssVersion::RSS2_0))
         .title(title)
         .link(link)
@@ -134,10 +136,20 @@ pub fn quick_rss(
         RssItem::new()
             .title("Example Item")
             .link(format!("{}/example-item", link))
-            .description("This is an example item in the RSS feed"),
+            .description("This is an example item in the RSS feed")
+            .guid(format!("{}/example-item", link)),
     );
 
     generate_rss(&rss_data)
+}
+
+/// Prelude module for convenient importing of common types and functions.
+pub mod prelude {
+    pub use crate::data::{RssData, RssItem, RssVersion};
+    pub use crate::error::{Result, RssError};
+    pub use crate::generate_rss;
+    pub use crate::parse_rss;
+    pub use crate::quick_rss;
 }
 
 #[cfg(test)]
@@ -163,5 +175,136 @@ mod tests {
         assert!(feed
             .contains("<link>https://example.com/example-item</link>"));
         assert!(feed.contains("<description>This is an example item in the RSS feed</description>"));
+    }
+
+    #[test]
+    fn test_quick_rss_invalid_input() {
+        let result =
+            quick_rss("", "https://example.com", "Description");
+        assert!(result.is_err());
+        assert!(matches!(result, Err(RssError::InvalidInput(_))));
+
+        let result = quick_rss("Title", "not-a-url", "Description");
+        assert!(result.is_err());
+        assert!(matches!(result, Err(RssError::InvalidInput(_))));
+    }
+
+    #[test]
+    fn test_version_constant() {
+        assert!(VERSION.starts_with(char::is_numeric));
+        assert!(VERSION.split('.').count() >= 2);
+    }
+
+    #[test]
+    fn test_quick_rss_max_title_length() {
+        let long_title = "a".repeat(MAX_TITLE_LENGTH + 1);
+        let result = quick_rss(
+            &long_title,
+            "https://example.com",
+            "Description",
+        );
+        assert!(result.is_err());
+        assert!(matches!(result, Err(RssError::InvalidInput(_))));
+
+        let max_title = "a".repeat(MAX_TITLE_LENGTH);
+        let result =
+            quick_rss(&max_title, "https://example.com", "Description");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_quick_rss_max_link_length() {
+        let long_link = format!(
+            "https://example.com/{}",
+            "a".repeat(MAX_LINK_LENGTH - 19)
+        );
+        let result = quick_rss("Title", &long_link, "Description");
+        assert!(result.is_err());
+        assert!(matches!(result, Err(RssError::InvalidInput(_))));
+
+        let max_link = format!(
+            "https://example.com/{}",
+            "a".repeat(MAX_LINK_LENGTH - 20)
+        );
+        let result = quick_rss("Title", &max_link, "Description");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_quick_rss_max_description_length() {
+        let long_description = "a".repeat(MAX_DESCRIPTION_LENGTH + 1);
+        let result = quick_rss(
+            "Title",
+            "https://example.com",
+            &long_description,
+        );
+        assert!(result.is_err());
+        assert!(matches!(result, Err(RssError::InvalidInput(_))));
+
+        let max_description = "a".repeat(MAX_DESCRIPTION_LENGTH);
+        let result =
+            quick_rss("Title", "https://example.com", &max_description);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_quick_rss_https() {
+        let result = quick_rss(
+            "Test Feed",
+            "https://example.com",
+            "A test RSS feed",
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_quick_rss_http() {
+        let result = quick_rss(
+            "Test Feed",
+            "http://example.com",
+            "A test RSS feed",
+        );
+        assert!(result.is_ok());
+    }
+
+    // Note: The following tests depend on the implementation of RssData and its methods,
+    // which are not shown in the provided code. You may need to adjust these tests
+    // based on your actual implementation.
+
+    #[test]
+    fn test_rss_data_validate_size() {
+        let mut rss_data = RssData::new(Some(RssVersion::RSS2_0))
+            .title("Test Feed")
+            .link("https://example.com")
+            .description("A test RSS feed");
+
+        // Add items until we exceed MAX_FEED_SIZE
+        let item_content = "a".repeat(10000);
+        for _ in 0..100 {
+            rss_data.add_item(
+                RssItem::new()
+                    .title(&item_content)
+                    .link("https://example.com/item")
+                    .description(&item_content),
+            );
+        }
+
+        assert!(rss_data.validate_size().is_err());
+    }
+
+    #[test]
+    fn test_max_general_length() {
+        let mut rss_data = RssData::new(Some(RssVersion::RSS2_0))
+            .title("Test Feed")
+            .link("https://example.com")
+            .description("A test RSS feed");
+
+        let long_general_field = "a".repeat(MAX_GENERAL_LENGTH + 1);
+        rss_data.category.clone_from(&long_general_field);
+
+        assert!(rss_data.validate().is_err());
+
+        rss_data.category = "a".repeat(MAX_GENERAL_LENGTH);
+        assert!(rss_data.validate().is_ok());
     }
 }

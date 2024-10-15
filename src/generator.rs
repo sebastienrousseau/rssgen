@@ -23,6 +23,7 @@ const XML_ENCODING: &str = "utf-8";
 /// # Returns
 ///
 /// A `String` with invalid XML characters removed and special characters escaped.
+#[must_use]
 pub fn sanitize_content(content: &str) -> String {
     content
         .chars()
@@ -48,13 +49,16 @@ pub fn sanitize_content(content: &str) -> String {
 /// # Returns
 ///
 /// A `Result` indicating success or failure of the write operation.
+///
+/// # Errors
+///
+/// This function returns an `Err` if there is an issue with writing XML content.
 pub fn write_element<W: std::io::Write>(
     writer: &mut Writer<W>,
     name: &str,
     content: &str,
 ) -> Result<()> {
     writer.write_event(Event::Start(BytesStart::new(name)))?;
-    // Content should not be sanitized again here
     writer.write_event(Event::Text(BytesText::new(content)))?;
     writer.write_event(Event::End(BytesEnd::new(name)))?;
     Ok(())
@@ -73,6 +77,10 @@ pub fn write_element<W: std::io::Write>(
 ///
 /// * `Ok(String)` - The generated RSS feed as a string if successful.
 /// * `Err(RssError)` - An error if RSS generation fails.
+///
+/// # Errors
+///
+/// This function returns an error if there are issues in validating the RSS data or writing the RSS feed.
 ///
 /// # Example
 ///
@@ -98,19 +106,19 @@ pub fn generate_rss(options: &RssData) -> Result<String> {
 
     match options.version {
         RssVersion::RSS0_90 => {
-            write_rss_channel_0_90(&mut writer, options)?
+            write_rss_channel_0_90(&mut writer, options)?;
         }
         RssVersion::RSS0_91 => {
-            write_rss_channel_0_91(&mut writer, options)?
+            write_rss_channel_0_91(&mut writer, options)?;
         }
         RssVersion::RSS0_92 => {
-            write_rss_channel_0_92(&mut writer, options)?
+            write_rss_channel_0_92(&mut writer, options)?;
         }
         RssVersion::RSS1_0 => {
-            write_rss_channel_1_0(&mut writer, options)?
+            write_rss_channel_1_0(&mut writer, options)?;
         }
         RssVersion::RSS2_0 => {
-            write_rss_channel_2_0(&mut writer, options)?
+            write_rss_channel_2_0(&mut writer, options)?;
         }
     }
 
@@ -257,7 +265,7 @@ fn write_channel_elements<W: std::io::Write>(
         ("ttl", &options.ttl),
     ];
 
-    for (name, content) in elements.iter() {
+    for (name, content) in &elements {
         if !content.is_empty() {
             write_element(writer, name, content)?;
         }
@@ -308,7 +316,7 @@ fn write_item<W: std::io::Write>(
         ("author", &item.author),
     ];
 
-    for (name, content) in item_elements.iter() {
+    for (name, content) in &item_elements {
         if !content.is_empty() {
             write_element(writer, name, content)?;
         }

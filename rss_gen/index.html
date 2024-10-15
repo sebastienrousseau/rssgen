@@ -1,6 +1,19 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="RSS Gen"><title>rss_gen - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../static.files/rustdoc-49344e4802b2d48a.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="rss_gen" data-themes="" data-resource-suffix="" data-rustdoc-version="1.83.0-nightly (52fd99839 2024-10-10)" data-channel="nightly" data-search-js="search-e056c65ede92db13.js" data-settings-js="settings-805db61a62df4bd2.js" ><script src="../static.files/storage-1d39b6787ed640ff.js"></script><script defer src="../crates.js"></script><script defer src="../static.files/main-f070b9041d14864c.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-0111fcff984fae8f.css"></noscript><link rel="icon" href="https://kura.pro/rssgen/images/favicon.ico"></head><body class="rustdoc mod crate"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button><a class="logo-container" href="../rss_gen/index.html"><img src="https://kura.pro/rssgen/images/logos/rssgen.svg" alt=""></a></nav><nav class="sidebar"><div class="sidebar-crate"><a class="logo-container" href="../rss_gen/index.html"><img src="https://kura.pro/rssgen/images/logos/rssgen.svg" alt="logo"></a><h2><a href="../rss_gen/index.html">rss_gen</a><span class="version">0.0.2</span></h2></div><div class="sidebar-elems"><ul class="block"><li><a id="all-types" href="all.html">All Items</a></li></ul><section id="rustdoc-toc"><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#rss-gen" title="RSS Gen">RSS Gen</a><ul><li><a href="#features" title="Features">Features</a></li><li><a href="#examples" title="Examples">Examples</a></li></ul></li></ul><h3><a href="#reexports">Crate Items</a></h3><ul class="block"><li><a href="#reexports" title="Re-exports">Re-exports</a></li><li><a href="#modules" title="Modules">Modules</a></li><li><a href="#macros" title="Macros">Macros</a></li><li><a href="#constants" title="Constants">Constants</a></li><li><a href="#functions" title="Functions">Functions</a></li></ul></section><div id="rustdoc-modnav"></div></div></nav><div class="sidebar-resizer"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1>Crate <span>rss_gen</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../src/rss_gen/lib.rs.html#6-167">source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><h2 id="rss-gen"><a class="doc-anchor" href="#rss-gen">§</a>RSS Gen</h2>
-<p><code>rss-gen</code> is a comprehensive Rust library for generating, parsing, serializing, and deserializing RSS feeds.
-It supports multiple RSS versions, providing flexibility for creating and handling feeds across different formats.</p>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="API documentation for the Rust `rss_gen` crate."><title>rss_gen - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../static.files/rustdoc-b0742ba02757f159.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="rss_gen" data-themes="" data-resource-suffix="" data-rustdoc-version="1.84.0-nightly (9322d183f 2024-10-14)" data-channel="nightly" data-search-js="search-e056c65ede92db13.js" data-settings-js="settings-805db61a62df4bd2.js" ><script src="../static.files/storage-1d39b6787ed640ff.js"></script><script defer src="../crates.js"></script><script defer src="../static.files/main-f070b9041d14864c.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-0111fcff984fae8f.css"></noscript><link rel="icon" href="https://kura.pro/rssgen/images/favicon.ico"></head><body class="rustdoc mod crate"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button><a class="logo-container" href="../rss_gen/index.html"><img src="https://kura.pro/rssgen/images/logos/rssgen.svg" alt=""></a></nav><nav class="sidebar"><div class="sidebar-crate"><a class="logo-container" href="../rss_gen/index.html"><img src="https://kura.pro/rssgen/images/logos/rssgen.svg" alt="logo"></a><h2><a href="../rss_gen/index.html">rss_gen</a><span class="version">0.0.3</span></h2></div><div class="sidebar-elems"><ul class="block"><li><a id="all-types" href="all.html">All Items</a></li></ul><section id="rustdoc-toc"><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#rss-gen" title="RSS Gen">RSS Gen</a><ul><li><a href="#overview" title="Overview">Overview</a></li><li><a href="#features" title="Features">Features</a></li><li><a href="#installation" title="Installation">Installation</a></li><li><a href="#usage" title="Usage">Usage</a></li><li><a href="#macros" title="Macros">Macros</a></li><li><a href="#documentation" title="Documentation">Documentation</a></li><li><a href="#examples" title="Examples">Examples</a></li><li><a href="#benchmarks" title="Benchmarks">Benchmarks</a></li><li><a href="#supported-rss-versions" title="Supported RSS Versions">Supported RSS Versions</a></li><li><a href="#rust-version-compatibility" title="Rust Version Compatibility">Rust Version Compatibility</a></li><li><a href="#examples-1" title="Examples">Examples</a></li><li><a href="#contribution" title="Contribution">Contribution</a></li><li><a href="#license" title="License">License</a></li><li><a href="#acknowledgments" title="Acknowledgments">Acknowledgments</a></li></ul></li></ul><h3><a href="#reexports">Crate Items</a></h3><ul class="block"><li><a href="#reexports" title="Re-exports">Re-exports</a></li><li><a href="#modules" title="Modules">Modules</a></li><li><a href="#macros-1" title="Macros">Macros</a></li><li><a href="#constants" title="Constants">Constants</a></li><li><a href="#functions" title="Functions">Functions</a></li></ul></section><div id="rustdoc-modnav"></div></div></nav><div class="sidebar-resizer"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1>Crate <span>rss_gen</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../src/rss_gen/lib.rs.html#6-310">source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><!-- markdownlint-disable MD033 MD041 -->
+<p><img src="https://kura.pro/rssgen/images/logos/rssgen.svg"
+alt="RSS Gen logo" height="66" align="right" /></p>
+<!-- markdownlint-enable MD033 MD041 -->
+<h2 id="rss-gen"><a class="doc-anchor" href="#rss-gen">§</a>RSS Gen</h2>
+<p>A comprehensive Rust library for generating, parsing, serializing, and deserializing RSS feeds across various RSS versions.</p>
+<p><a href="https://www.rust-lang.org" title="The Rust Programming Language"><img src="https://img.shields.io/badge/rust-f04041?style=for-the-badge&amp;labelColor=c0282d&amp;logo=rust" alt="Made With Love" title="Made With Rust badge" /></a> <a href="https://crates.io/crates/rss-gen" title="Crates.io"><img src="https://img.shields.io/crates/v/rss-gen.svg?style=for-the-badge" alt="Crates.io" title="Crates.io badge" /></a> <a href="https://lib.rs/crates/rss-gen" title="Lib.rs"><img src="https://img.shields.io/badge/lib.rs-v0.1.0-orange.svg?style=for-the-badge" alt="lib.rs" title="Lib.rs badge" /></a> <a href="https://docs.rs/rss-gen" title="Docs.rs"><img src="https://img.shields.io/docsrs/rss-gen.svg?style=for-the-badge" alt="Docs.rs" title="Docs.rs badge" /></a> <a href="https://opensource.org/license/apache-2-0/" title="Apache License, Version 2.0"><img src="https://img.shields.io/crates/l/rss-gen.svg?style=for-the-badge" alt="License" title="License badge" /></a> <a href="https://github.com/sebastienrousseau/rssgen/actions?query=branch%3Amain" title="Build Status"><img src="https://img.shields.io/github/actions/workflow/status/sebastienrousseau/rssgen/release.yml?branch=main&amp;style=for-the-badge&amp;logo=github" alt="Build Status" title="Build Status" /></a></p>
+<!-- markdownlint-disable MD033 MD041 -->
+<center>
+<!-- markdownlint-enable MD033 MD041 -->
+<p>• <a href="https://rssgen.co" title="RSS Gen Website">Website</a> • <a href="https://docs.rs/rss-gen" title="Docs.rs">Documentation</a> • <a href="https://github.com/sebastienrousseau/rssgen/issues" title="Issues">Report Bug</a> • <a href="https://github.com/sebastienrousseau/rssgen/issues" title="Issues">Request Feature</a> • <a href="https://github.com/sebastienrousseau/rssgen/blob/main/CONTRIBUTING.md" title="Contributing Guidelines">Contributing Guidelines</a></p>
+<!-- markdownlint-disable MD033 MD041 -->
+</center>
+<!-- markdownlint-enable MD033 MD041 -->
+<h3 id="overview"><a class="doc-anchor" href="#overview">§</a>Overview</h3>
+<p><code>rss-gen</code> is a powerful Rust library designed for working with RSS feeds. It provides functionality for generating, parsing, serializing, and deserializing RSS content across multiple RSS versions. It supports the following RSS versions: RSS 0.90, RSS 0.91, RSS 0.92, RSS 1.0, and RSS 2.0. The library offers a flexible and efficient way to handle RSS feeds in your Rust projects.</p>
 <h3 id="features"><a class="doc-anchor" href="#features">§</a>Features</h3>
 <ul>
 <li>Support for RSS versions 0.90, 0.91, 0.92, 1.0, and 2.0</li>
@@ -9,38 +22,112 @@ It supports multiple RSS versions, providing flexibility for creating and handli
 <li>Serialization and deserialization of RSS data</li>
 <li>Extensible elements for managing standard and optional RSS fields</li>
 <li>Atom link support for modern syndication compatibility</li>
-<li>Image embedding for RSS 2.0 feeds</li>
+<li>Image embedding for RSS feeds</li>
+<li>Comprehensive error handling and validation</li>
+<li>Performance-optimized XML processing using quick-xml</li>
+<li>Convenient macros for RSS generation and data manipulation</li>
 </ul>
-<h3 id="examples"><a class="doc-anchor" href="#examples">§</a>Examples</h3><h4 id="generating-an-rss-20-feed"><a class="doc-anchor" href="#generating-an-rss-20-feed">§</a>Generating an RSS 2.0 feed</h4>
+<h3 id="installation"><a class="doc-anchor" href="#installation">§</a>Installation</h3>
+<p>Add this to your <code>Cargo.toml</code>:</p>
+<div class="example-wrap"><pre class="language-toml"><code>[dependencies]
+rss-gen = &quot;0.0.3&quot;</code></pre></div><h3 id="usage"><a class="doc-anchor" href="#usage">§</a>Usage</h3>
+<p>Here’s a basic example of how to use the <code>rss-gen</code> library to generate an RSS feed:</p>
+
 <div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>rss_gen::{RssData, RssVersion, generate_rss};
 
-<span class="kw">let </span>rss_data = RssData::new(<span class="prelude-val">Some</span>(RssVersion::RSS2_0))
-    .title(<span class="string">"My Rust Blog"</span>)
-    .link(<span class="string">"https://myrustblog.com"</span>)
-    .description(<span class="string">"A blog about Rust programming and tutorials."</span>);
+<span class="kw">fn </span>main() -&gt; <span class="prelude-ty">Result</span>&lt;(), Box&lt;<span class="kw">dyn </span>std::error::Error&gt;&gt; {
+    <span class="kw">let </span>rss_data = RssData::new(<span class="prelude-val">Some</span>(RssVersion::RSS2_0))
+        .title(<span class="string">"My Rust Blog"</span>)
+        .link(<span class="string">"https://myrustblog.com"</span>)
+        .description(<span class="string">"A blog about Rust programming and tutorials."</span>);
 
-<span class="kw">match </span>generate_rss(<span class="kw-2">&amp;</span>rss_data) {
-    <span class="prelude-val">Ok</span>(rss_feed) =&gt; <span class="macro">println!</span>(<span class="string">"Generated RSS feed: {}"</span>, rss_feed),
-    <span class="prelude-val">Err</span>(e) =&gt; <span class="macro">eprintln!</span>(<span class="string">"Error generating RSS feed: {}"</span>, e),
+    <span class="kw">match </span>generate_rss(<span class="kw-2">&amp;</span>rss_data) {
+        <span class="prelude-val">Ok</span>(rss_feed) =&gt; <span class="macro">println!</span>(<span class="string">"Generated RSS feed:\n{}"</span>, rss_feed),
+        <span class="prelude-val">Err</span>(e) =&gt; <span class="macro">eprintln!</span>(<span class="string">"Error generating RSS feed: {}"</span>, e),
+    }
+
+    <span class="prelude-val">Ok</span>(())
 }</code></pre></div>
-<h4 id="parsing-an-existing-rss-feed"><a class="doc-anchor" href="#parsing-an-existing-rss-feed">§</a>Parsing an existing RSS feed</h4>
+<p>For parsing an existing RSS feed:</p>
+
 <div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>rss_gen::parse_rss;
 
-<span class="kw">let </span>rss_content = <span class="string">r#"
-    &lt;?xml version="1.0" encoding="UTF-8"?&gt;
-    &lt;rss version="2.0"&gt;
-        &lt;channel&gt;
-            &lt;title&gt;My Rust Blog&lt;/title&gt;
-            &lt;link&gt;https://myrustblog.com&lt;/link&gt;
-            &lt;description&gt;A blog about Rust programming and tutorials.&lt;/description&gt;
-        &lt;/channel&gt;
-    &lt;/rss&gt;
-"#</span>;
+<span class="kw">fn </span>main() -&gt; <span class="prelude-ty">Result</span>&lt;(), Box&lt;<span class="kw">dyn </span>std::error::Error&gt;&gt; {
+    <span class="kw">let </span>rss_content = <span class="string">r#"
+        &lt;?xml version="1.0" encoding="UTF-8"?&gt;
+        &lt;rss version="2.0"&gt;
+            &lt;channel&gt;
+                &lt;title&gt;My Rust Blog&lt;/title&gt;
+                &lt;link&gt;https://myrustblog.com&lt;/link&gt;
+                &lt;description&gt;A blog about Rust programming and tutorials.&lt;/description&gt;
+            &lt;/channel&gt;
+        &lt;/rss&gt;
+    "#</span>;
 
-<span class="kw">match </span>parse_rss(rss_content) {
-    <span class="prelude-val">Ok</span>(parsed_data) =&gt; <span class="macro">println!</span>(<span class="string">"Parsed RSS data: {:?}"</span>, parsed_data),
-    <span class="prelude-val">Err</span>(e) =&gt; <span class="macro">eprintln!</span>(<span class="string">"Error parsing RSS feed: {}"</span>, e),
+    <span class="kw">match </span>parse_rss(rss_content, <span class="prelude-val">None</span>) {
+        <span class="prelude-val">Ok</span>(parsed_data) =&gt; <span class="macro">println!</span>(<span class="string">"Parsed RSS data: {:?}"</span>, parsed_data),
+        <span class="prelude-val">Err</span>(e) =&gt; <span class="macro">eprintln!</span>(<span class="string">"Error parsing RSS feed: {}"</span>, e),
+    }
+
+    <span class="prelude-val">Ok</span>(())
 }</code></pre></div>
+<h3 id="macros"><a class="doc-anchor" href="#macros">§</a>Macros</h3>
+<p>RSS Gen provides a set of convenient macros to simplify RSS feed generation and data manipulation tasks:</p>
+<ul>
+<li><code>macro_generate_rss!</code>: Generates a complete RSS feed in XML format from a given <code>RssData</code> struct.</li>
+<li><code>macro_write_element!</code>: Writes an individual XML element with a given name and content.</li>
+<li><code>macro_set_rss_data_fields!</code>: Sets multiple fields of an <code>RssData</code> struct in one go.</li>
+<li><code>macro_get_args!</code>: Retrieves a named argument from a <code>clap::ArgMatches</code> object, useful for command-line interfaces.</li>
+<li><code>macro_metadata_option!</code>: Extracts an option value from metadata, typically used with <code>HashMap&lt;String, String&gt;</code>.</li>
+</ul>
+<p>Refer to the <a href="https://docs.rs/rss-gen" title="Docs.rs">documentation</a> for more details on how to use these macros.</p>
+<h3 id="documentation"><a class="doc-anchor" href="#documentation">§</a>Documentation</h3>
+<p>For full API documentation, please visit <a href="https://docs.rs/rss-gen" title="Docs.rs">docs.rs/rss-gen</a>.</p>
+<h3 id="examples"><a class="doc-anchor" href="#examples">§</a>Examples</h3>
+<p>The library comes with several examples demonstrating various features:</p>
+<ul>
+<li><code>example_data.rs</code>: Shows how to create and manipulate RSS data structures.</li>
+<li><code>example_error.rs</code>: Demonstrates error handling in RSS Gen.</li>
+<li><code>example_generator.rs</code>: Illustrates RSS feed generation for different RSS versions.</li>
+<li><code>example_lib.rs</code>: Provides general usage examples of the library.</li>
+<li><code>example_macros.rs</code>: Shows how to use the provided macros.</li>
+<li><code>example_parser.rs</code>: Demonstrates parsing RSS feeds from XML content.</li>
+<li><code>example_validator.rs</code>: Illustrates the usage of the RSS feed validator.</li>
+</ul>
+<p>To run an example, use the following command:</p>
+<div class="example-wrap"><pre class="language-shell"><code>cargo run --example example_name</code></pre></div>
+<p>Replace <code>example_name</code> with the name of the example you want to run (e.g., <code>example_generator</code>).</p>
+<h3 id="benchmarks"><a class="doc-anchor" href="#benchmarks">§</a>Benchmarks</h3>
+<p>The library includes benchmarks to measure performance. You can run them using:</p>
+<div class="example-wrap"><pre class="language-shell"><code>cargo bench</code></pre></div><h3 id="supported-rss-versions"><a class="doc-anchor" href="#supported-rss-versions">§</a>Supported RSS Versions</h3>
+<ul>
+<li>RSS 0.90</li>
+<li>RSS 0.91</li>
+<li>RSS 0.92</li>
+<li>RSS 1.0</li>
+<li>RSS 2.0</li>
+</ul>
+<h3 id="rust-version-compatibility"><a class="doc-anchor" href="#rust-version-compatibility">§</a>Rust Version Compatibility</h3>
+<p>Compiler support: requires <code>rustc</code> 1.56.0+</p>
+<h3 id="examples-1"><a class="doc-anchor" href="#examples-1">§</a>Examples</h3>
+<p>To run the examples, clone the repository and use the following command:</p>
+<div class="example-wrap"><pre class="language-shell"><code>cargo run --example example_name</code></pre></div>
+<p>Replace <code>example_name</code> with the name of the example you want to run.</p>
+<h3 id="contribution"><a class="doc-anchor" href="#contribution">§</a>Contribution</h3>
+<p>Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in the work by you, as defined in the Apache-2.0 license, shall be dual licensed as above, without any additional terms or conditions.</p>
+<h3 id="license"><a class="doc-anchor" href="#license">§</a>License</h3>
+<p>The project is dual-licensed under the terms of both the MIT license and the Apache License (Version 2.0).</p>
+<ul>
+<li><a href="https://opensource.org/license/apache-2-0/" title="Apache License, Version 2.0">Apache License, Version 2.0</a></li>
+<li><a href="https://opensource.org/licenses/MIT" title="MIT license">MIT license</a></li>
+</ul>
+<h3 id="acknowledgments"><a class="doc-anchor" href="#acknowledgments">§</a>Acknowledgments</h3>
+<p>This crate wouldn’t be possible without the valuable open-source work of others, especially:</p>
+<ul>
+<li><a href="https://crates.io/crates/quick-xml">quick-xml</a> for fast XML serialization and deserialization.</li>
+</ul>
 </div></details><h2 id="reexports" class="section-header">Re-exports<a href="#reexports" class="anchor">§</a></h2><ul class="item-table"><li><div class="item-name" id="reexport.RssData"><code>pub use data::<a class="struct" href="data/struct.RssData.html" title="struct rss_gen::data::RssData">RssData</a>;</code></div></li><li><div class="item-name" id="reexport.RssItem"><code>pub use data::<a class="struct" href="data/struct.RssItem.html" title="struct rss_gen::data::RssItem">RssItem</a>;</code></div></li><li><div class="item-name" id="reexport.RssVersion"><code>pub use data::<a class="enum" href="data/enum.RssVersion.html" title="enum rss_gen::data::RssVersion">RssVersion</a>;</code></div></li><li><div class="item-name" id="reexport.Result"><code>pub use error::<a class="type" href="error/type.Result.html" title="type rss_gen::error::Result">Result</a>;</code></div></li><li><div class="item-name" id="reexport.RssError"><code>pub use error::<a class="enum" href="error/enum.RssError.html" title="enum rss_gen::error::RssError">RssError</a>;</code></div></li><li><div class="item-name" id="reexport.generate_rss"><code>pub use generator::<a class="fn" href="generator/fn.generate_rss.html" title="fn rss_gen::generator::generate_rss">generate_rss</a>;</code></div></li><li><div class="item-name" id="reexport.parse_rss"><code>pub use parser::<a class="fn" href="parser/fn.parse_rss.html" title="fn rss_gen::parser::parse_rss">parse_rss</a>;</code></div></li></ul><h2 id="modules" class="section-header">Modules<a href="#modules" class="anchor">§</a></h2><ul class="item-table"><li><div class="item-name"><a class="mod" href="data/index.html" title="mod rss_gen::data">data</a></div><div class="desc docblock-short">Contains the main types and data structures used to represent RSS feeds.
 This module contains the core data structures and functionality for RSS feeds.</div></li><li><div class="item-name"><a class="mod" href="error/index.html" title="mod rss_gen::error">error</a></div><div class="desc docblock-short">Defines error types used throughout the library.</div></li><li><div class="item-name"><a class="mod" href="generator/index.html" title="mod rss_gen::generator">generator</a></div><div class="desc docblock-short">Implements RSS feed generation functionality.</div></li><li><div class="item-name"><a class="mod" href="macros/index.html" title="mod rss_gen::macros">macros</a></div><div class="desc docblock-short">Provides procedural macros for simplifying RSS operations.
-This module provides macros for generating RSS feeds and setting fields for RSS data.</div></li><li><div class="item-name"><a class="mod" href="parser/index.html" title="mod rss_gen::parser">parser</a></div><div class="desc docblock-short">Implements RSS feed parsing functionality.</div></li><li><div class="item-name"><a class="mod" href="validator/index.html" title="mod rss_gen::validator">validator</a></div><div class="desc docblock-short">Provides utilities for validating RSS feeds.</div></li></ul><h2 id="macros" class="section-header">Macros<a href="#macros" class="anchor">§</a></h2><ul class="item-table"><li><div class="item-name"><a class="macro" href="macro.macro_generate_rss.html" title="macro rss_gen::macro_generate_rss">macro_<wbr>generate_<wbr>rss</a></div><div class="desc docblock-short">Generates an RSS feed from the given <code>RssData</code> struct.</div></li><li><div class="item-name"><a class="macro" href="macro.macro_get_args.html" title="macro rss_gen::macro_get_args">macro_<wbr>get_<wbr>args</a></div><div class="desc docblock-short"><code>macro_get_args</code> Macro</div></li><li><div class="item-name"><a class="macro" href="macro.macro_metadata_option.html" title="macro rss_gen::macro_metadata_option">macro_<wbr>metadata_<wbr>option</a></div><div class="desc docblock-short"><code>macro_metadata_option</code> Macro</div></li><li><div class="item-name"><a class="macro" href="macro.macro_set_rss_data_fields.html" title="macro rss_gen::macro_set_rss_data_fields">macro_<wbr>set_<wbr>rss_<wbr>data_<wbr>fields</a></div><div class="desc docblock-short">Sets fields of the <code>RssData</code> struct.</div></li><li><div class="item-name"><a class="macro" href="macro.macro_write_element.html" title="macro rss_gen::macro_write_element">macro_<wbr>write_<wbr>element</a></div><div class="desc docblock-short">Writes an XML element with the given name and content.</div></li></ul><h2 id="constants" class="section-header">Constants<a href="#constants" class="anchor">§</a></h2><ul class="item-table"><li><div class="item-name"><a class="constant" href="constant.VERSION.html" title="constant rss_gen::VERSION">VERSION</a></div><div class="desc docblock-short">The current version of the rss-gen crate.</div></li></ul><h2 id="functions" class="section-header">Functions<a href="#functions" class="anchor">§</a></h2><ul class="item-table"><li><div class="item-name"><a class="fn" href="fn.quick_rss.html" title="fn rss_gen::quick_rss">quick_<wbr>rss</a></div><div class="desc docblock-short">A convenience function to generate a minimal valid RSS 2.0 feed.</div></li></ul></section></div></main></body></html>
+This module provides macros for generating RSS feeds and setting fields for RSS data.</div></li><li><div class="item-name"><a class="mod" href="parser/index.html" title="mod rss_gen::parser">parser</a></div><div class="desc docblock-short">Implements RSS feed parsing functionality.
+A robust and flexible RSS feed parser.</div></li><li><div class="item-name"><a class="mod" href="prelude/index.html" title="mod rss_gen::prelude">prelude</a></div><div class="desc docblock-short">Prelude module for convenient importing of common types and functions.</div></li><li><div class="item-name"><a class="mod" href="validator/index.html" title="mod rss_gen::validator">validator</a></div><div class="desc docblock-short">Provides utilities for validating RSS feeds.
+RSS feed validator module</div></li></ul><h2 id="macros-1" class="section-header">Macros<a href="#macros-1" class="anchor">§</a></h2><ul class="item-table"><li><div class="item-name"><a class="macro" href="macro.macro_generate_rss.html" title="macro rss_gen::macro_generate_rss">macro_<wbr>generate_<wbr>rss</a></div><div class="desc docblock-short">Generates an RSS feed from the given <code>RssData</code> struct.</div></li><li><div class="item-name"><a class="macro" href="macro.macro_get_args.html" title="macro rss_gen::macro_get_args">macro_<wbr>get_<wbr>args</a></div><div class="desc docblock-short"><code>macro_get_args</code> Macro</div></li><li><div class="item-name"><a class="macro" href="macro.macro_metadata_option.html" title="macro rss_gen::macro_metadata_option">macro_<wbr>metadata_<wbr>option</a></div><div class="desc docblock-short"><code>macro_metadata_option</code> Macro</div></li><li><div class="item-name"><a class="macro" href="macro.macro_set_rss_data_fields.html" title="macro rss_gen::macro_set_rss_data_fields">macro_<wbr>set_<wbr>rss_<wbr>data_<wbr>fields</a></div><div class="desc docblock-short">Sets fields of the <code>RssData</code> struct.</div></li><li><div class="item-name"><a class="macro" href="macro.macro_write_element.html" title="macro rss_gen::macro_write_element">macro_<wbr>write_<wbr>element</a></div><div class="desc docblock-short">Writes an XML element with the given name and content.</div></li></ul><h2 id="constants" class="section-header">Constants<a href="#constants" class="anchor">§</a></h2><ul class="item-table"><li><div class="item-name"><a class="constant" href="constant.MAX_DESCRIPTION_LENGTH.html" title="constant rss_gen::MAX_DESCRIPTION_LENGTH">MAX_<wbr>DESCRIPTION_<wbr>LENGTH</a></div><div class="desc docblock-short">Maximum length for description fields in the RSS feed.</div></li><li><div class="item-name"><a class="constant" href="constant.MAX_FEED_SIZE.html" title="constant rss_gen::MAX_FEED_SIZE">MAX_<wbr>FEED_<wbr>SIZE</a></div><div class="desc docblock-short">Maximum size for the entire RSS feed.</div></li><li><div class="item-name"><a class="constant" href="constant.MAX_GENERAL_LENGTH.html" title="constant rss_gen::MAX_GENERAL_LENGTH">MAX_<wbr>GENERAL_<wbr>LENGTH</a></div><div class="desc docblock-short">Maximum length for general fields in the RSS feed.</div></li><li><div class="item-name"><a class="constant" href="constant.MAX_LINK_LENGTH.html" title="constant rss_gen::MAX_LINK_LENGTH">MAX_<wbr>LINK_<wbr>LENGTH</a></div><div class="desc docblock-short">Maximum length for link fields in the RSS feed.</div></li><li><div class="item-name"><a class="constant" href="constant.MAX_TITLE_LENGTH.html" title="constant rss_gen::MAX_TITLE_LENGTH">MAX_<wbr>TITLE_<wbr>LENGTH</a></div><div class="desc docblock-short">Maximum length for title fields in the RSS feed.</div></li><li><div class="item-name"><a class="constant" href="constant.VERSION.html" title="constant rss_gen::VERSION">VERSION</a></div><div class="desc docblock-short">The current version of the rss-gen crate, set at compile-time from Cargo.toml.</div></li></ul><h2 id="functions" class="section-header">Functions<a href="#functions" class="anchor">§</a></h2><ul class="item-table"><li><div class="item-name"><a class="fn" href="fn.quick_rss.html" title="fn rss_gen::quick_rss">quick_<wbr>rss</a></div><div class="desc docblock-short">A convenience function to generate a minimal valid RSS 2.0 feed.</div></li></ul></section></div></main></body></html>

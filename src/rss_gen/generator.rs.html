@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/generator.rs`."><title>generator.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-49344e4802b2d48a.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="rss_gen" data-themes="" data-resource-suffix="" data-rustdoc-version="1.83.0-nightly (52fd99839 2024-10-10)" data-channel="nightly" data-search-js="search-e056c65ede92db13.js" data-settings-js="settings-805db61a62df4bd2.js" ><script src="../../static.files/storage-1d39b6787ed640ff.js"></script><script defer src="../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-f070b9041d14864c.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-0111fcff984fae8f.css"></noscript><link rel="icon" href="https://kura.pro/rssgen/images/favicon.ico"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">rss_gen/</div>generator.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/generator.rs`."><title>generator.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-b0742ba02757f159.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="rss_gen" data-themes="" data-resource-suffix="" data-rustdoc-version="1.84.0-nightly (9322d183f 2024-10-14)" data-channel="nightly" data-search-js="search-e056c65ede92db13.js" data-settings-js="settings-805db61a62df4bd2.js" ><script src="../../static.files/storage-1d39b6787ed640ff.js"></script><script defer src="../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-f070b9041d14864c.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-0111fcff984fae8f.css"></noscript><link rel="icon" href="https://kura.pro/rssgen/images/favicon.ico"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">rss_gen/</div>generator.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
 <a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
@@ -670,7 +670,15 @@
 <a href="#669" id="669">669</a>
 <a href="#670" id="670">670</a>
 <a href="#671" id="671">671</a>
-<a href="#672" id="672">672</a></pre></div><pre class="rust"><code><span class="comment">// Copyright © 2024 RSS Generator. All rights reserved.
+<a href="#672" id="672">672</a>
+<a href="#673" id="673">673</a>
+<a href="#674" id="674">674</a>
+<a href="#675" id="675">675</a>
+<a href="#676" id="676">676</a>
+<a href="#677" id="677">677</a>
+<a href="#678" id="678">678</a>
+<a href="#679" id="679">679</a>
+<a href="#680" id="680">680</a></pre></div><pre class="rust"><code><span class="comment">// Copyright © 2024 RSS Generator. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 // src/generator.rs
@@ -695,6 +703,7 @@
 /// # Returns
 ///
 /// A `String` with invalid XML characters removed and special characters escaped.
+</span><span class="attr">#[must_use]
 </span><span class="kw">pub fn </span>sanitize_content(content: <span class="kw-2">&amp;</span>str) -&gt; String {
     content
         .chars()
@@ -720,14 +729,17 @@
 /// # Returns
 ///
 /// A `Result` indicating success or failure of the write operation.
+///
+/// # Errors
+///
+/// This function returns an `Err` if there is an issue with writing XML content.
 </span><span class="kw">pub fn </span>write_element&lt;W: std::io::Write&gt;(
     writer: <span class="kw-2">&amp;mut </span>Writer&lt;W&gt;,
     name: <span class="kw-2">&amp;</span>str,
     content: <span class="kw-2">&amp;</span>str,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
     writer.write_event(Event::Start(BytesStart::new(name)))<span class="question-mark">?</span>;
-    <span class="comment">// Content should not be sanitized again here
-    </span>writer.write_event(Event::Text(BytesText::new(content)))<span class="question-mark">?</span>;
+    writer.write_event(Event::Text(BytesText::new(content)))<span class="question-mark">?</span>;
     writer.write_event(Event::End(BytesEnd::new(name)))<span class="question-mark">?</span>;
     <span class="prelude-val">Ok</span>(())
 }
@@ -745,6 +757,10 @@
 ///
 /// * `Ok(String)` - The generated RSS feed as a string if successful.
 /// * `Err(RssError)` - An error if RSS generation fails.
+///
+/// # Errors
+///
+/// This function returns an error if there are issues in validating the RSS data or writing the RSS feed.
 ///
 /// # Example
 ///
@@ -770,20 +786,20 @@
 
     <span class="kw">match </span>options.version {
         RssVersion::RSS0_90 =&gt; {
-            write_rss_channel_0_90(<span class="kw-2">&amp;mut </span>writer, options)<span class="question-mark">?
-        </span>}
+            write_rss_channel_0_90(<span class="kw-2">&amp;mut </span>writer, options)<span class="question-mark">?</span>;
+        }
         RssVersion::RSS0_91 =&gt; {
-            write_rss_channel_0_91(<span class="kw-2">&amp;mut </span>writer, options)<span class="question-mark">?
-        </span>}
+            write_rss_channel_0_91(<span class="kw-2">&amp;mut </span>writer, options)<span class="question-mark">?</span>;
+        }
         RssVersion::RSS0_92 =&gt; {
-            write_rss_channel_0_92(<span class="kw-2">&amp;mut </span>writer, options)<span class="question-mark">?
-        </span>}
+            write_rss_channel_0_92(<span class="kw-2">&amp;mut </span>writer, options)<span class="question-mark">?</span>;
+        }
         RssVersion::RSS1_0 =&gt; {
-            write_rss_channel_1_0(<span class="kw-2">&amp;mut </span>writer, options)<span class="question-mark">?
-        </span>}
+            write_rss_channel_1_0(<span class="kw-2">&amp;mut </span>writer, options)<span class="question-mark">?</span>;
+        }
         RssVersion::RSS2_0 =&gt; {
-            write_rss_channel_2_0(<span class="kw-2">&amp;mut </span>writer, options)<span class="question-mark">?
-        </span>}
+            write_rss_channel_2_0(<span class="kw-2">&amp;mut </span>writer, options)<span class="question-mark">?</span>;
+        }
     }
 
     <span class="kw">let </span>xml = writer.into_inner().into_inner();
@@ -929,7 +945,7 @@
         (<span class="string">"ttl"</span>, <span class="kw-2">&amp;</span>options.ttl),
     ];
 
-    <span class="kw">for </span>(name, content) <span class="kw">in </span>elements.iter() {
+    <span class="kw">for </span>(name, content) <span class="kw">in </span><span class="kw-2">&amp;</span>elements {
         <span class="kw">if </span>!content.is_empty() {
             write_element(writer, name, content)<span class="question-mark">?</span>;
         }
@@ -980,7 +996,7 @@
         (<span class="string">"author"</span>, <span class="kw-2">&amp;</span>item.author),
     ];
 
-    <span class="kw">for </span>(name, content) <span class="kw">in </span>item_elements.iter() {
+    <span class="kw">for </span>(name, content) <span class="kw">in </span><span class="kw-2">&amp;</span>item_elements {
         <span class="kw">if </span>!content.is_empty() {
             write_element(writer, name, content)<span class="question-mark">?</span>;
         }

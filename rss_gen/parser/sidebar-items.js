@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["parse_rss"]};
+window.SIDEBAR_ITEMS = {"fn":["parse_rss"],"struct":["ParserConfig"],"trait":["ElementHandler"]};

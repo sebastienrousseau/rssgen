@@ -71,6 +71,14 @@ pub enum RssError {
     /// Error for invalid RSS version.
     #[error("Invalid RSS version: {0}")]
     InvalidRssVersion(String),
+    // #[error("Unknown RSS element: {0}")]
+    // UnknownElement(String),
+
+    // #[error("XML parsing error: {0}")]
+    // XmlParseError(#[from] quick_xml::Error),
+
+    // #[error("IO error: {0}")]
+    // IoError(#[from] std::io::Error),
 }
 
 /// Represents a specific validation error.
@@ -176,25 +184,27 @@ impl RssError {
     /// # Returns
     ///
     /// Returns a `u16` representing an HTTP status code.
+    #[must_use]
     pub fn to_http_status(&self) -> u16 {
         match self {
-            RssError::XmlWriteError(_) | RssError::XmlParseError(_) => {
-                500
-            }
-            RssError::Utf8Error(_) => 500,
-            RssError::MissingField(_) | RssError::InvalidInput(_) => {
-                400
-            }
-            RssError::DateParseError(_) => 400,
-            RssError::IoError(_) => 500,
-            RssError::InvalidUrl(_) => 400,
-            RssError::UnknownElement(_) => 500,
-            RssError::ValidationErrors(_) => 400,
-            RssError::DateSortError(_) => 500,
-            RssError::ItemValidationError(_) => 400,
-            RssError::UnknownField(_) => 500,
-            RssError::Custom(_) => 500,
-            RssError::InvalidRssVersion(_) => 400,
+            // Combine all cases that map to 500
+            RssError::XmlWriteError(_)
+            | RssError::XmlParseError(_)
+            | RssError::Utf8Error(_)
+            | RssError::IoError(_)
+            | RssError::UnknownElement(_)
+            | RssError::DateSortError(_)
+            | RssError::UnknownField(_)
+            | RssError::Custom(_) => 500,
+
+            // Combine all cases that map to 400
+            RssError::MissingField(_)
+            | RssError::InvalidInput(_)
+            | RssError::DateParseError(_)
+            | RssError::InvalidUrl(_)
+            | RssError::ValidationErrors(_)
+            | RssError::ItemValidationError(_)
+            | RssError::InvalidRssVersion(_) => 400,
         }
     }
 }

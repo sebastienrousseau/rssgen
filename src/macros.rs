@@ -15,7 +15,7 @@
 /// # Arguments
 ///
 /// * `$writer` - The Writer instance to write the generated XML events.
-/// * `$options` - The RssData instance containing the metadata values for generating the RSS feed.
+/// * `$options` - The `RssData` instance containing the metadata values for generating the RSS feed.
 ///
 /// # Returns
 ///
@@ -379,8 +379,7 @@ mod tests {
     /// Test setting multiple fields on an `RssData` struct using the macro.
     /// Ensures that all fields are set correctly and in order.
     #[test]
-    fn test_macro_set_rss_data_fields(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn test_macro_set_rss_data_fields() {
         let mut rss_data = RssData::new(None);
         macro_set_rss_data_fields!(
             rss_data,
@@ -392,8 +391,6 @@ mod tests {
         assert_eq!(rss_data.title, "My Blog");
         assert_eq!(rss_data.link, "https://example.com");
         assert_eq!(rss_data.description, "A blog about Rust");
-
-        Ok(())
     }
 
     /// Test metadata option macro when the key exists.
@@ -418,7 +415,7 @@ mod tests {
         assert_eq!(value, ""); // Should return empty string by default
     }
 
-    /// Test metadata option macro with an empty HashMap.
+    /// Test metadata option macro with an empty `HashMap`.
     /// Ensures it handles an empty metadata collection gracefully.
     #[test]
     fn test_macro_metadata_option_empty_metadata() {

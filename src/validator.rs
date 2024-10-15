@@ -30,6 +30,7 @@ impl<'a> RssFeedValidator<'a> {
     /// # Returns
     ///
     /// A new instance of `RssFeedValidator`.
+    #[must_use]
     pub fn new(rss_data: &'a RssData) -> Self {
         RssFeedValidator { rss_data }
     }
@@ -43,6 +44,10 @@ impl<'a> RssFeedValidator<'a> {
     ///
     /// * `Ok(())` if the validation passes.
     /// * `Err(RssError::ValidationErrors)` containing a list of validation errors if any are found.
+    ///
+    /// # Errors
+    ///
+    /// This function returns an `Err(RssError::ValidationErrors)` if any validation checks fail.
     pub fn validate(&self) -> Result<()> {
         let mut errors = Vec::new();
 
@@ -61,7 +66,7 @@ impl<'a> RssFeedValidator<'a> {
         }
     }
 
-    /// Validates the base RssData structure.
+    /// Validates the base `RssData` structure.
     fn validate_rss_data(&self, errors: &mut Vec<ValidationError>) {
         if let Err(e) = self.rss_data.validate() {
             errors.push(ValidationError {
@@ -73,10 +78,10 @@ impl<'a> RssFeedValidator<'a> {
 
     /// Validates the overall structure of the RSS feed.
     fn validate_structure(&self, errors: &mut Vec<ValidationError>) {
-        self.validate_url(&self.rss_data.link, "channel link", errors);
+        Self::validate_url(&self.rss_data.link, "channel link", errors);
 
         for (index, item) in self.rss_data.items.iter().enumerate() {
-            self.validate_url(
+            Self::validate_url(
                 &item.link,
                 &format!("item[{}] link", index),
                 errors,
@@ -138,15 +143,15 @@ impl<'a> RssFeedValidator<'a> {
 
     /// Validates all dates in the RSS feed.
     fn validate_dates(&self, errors: &mut Vec<ValidationError>) {
-        self.validate_date(&self.rss_data.pub_date, "pubDate", errors);
-        self.validate_date(
+        Self::validate_date(&self.rss_data.pub_date, "pubDate", errors);
+        Self::validate_date(
             &self.rss_data.last_build_date,
             "lastBuildDate",
             errors,
         );
 
         for (index, item) in self.rss_data.items.iter().enumerate() {
-            self.validate_date(
+            Self::validate_date(
                 &item.pub_date,
                 &format!("item[{}].pubDate", index),
                 errors,
@@ -156,13 +161,12 @@ impl<'a> RssFeedValidator<'a> {
 
     /// Validates a single date string.
     fn validate_date(
-        &self,
         date_str: &str,
         field: &str,
         errors: &mut Vec<ValidationError>,
     ) {
         if !date_str.is_empty() {
-            if let Err(e) = self.parse_date(date_str) {
+            if let Err(e) = Self::parse_date(date_str) {
                 errors.push(ValidationError {
                     field: field.to_string(),
                     message: format!("Invalid date format: {}", e),
@@ -171,12 +175,21 @@ impl<'a> RssFeedValidator<'a> {
         }
     }
 
-    /// Parses a date string into a DateTime object.
-    fn parse_date(&self, date_str: &str) -> Result<DateTime> {
-        // Define the custom RSS date format without the fixed "GMT"
+    /// Parses a date string into a `DateTime` object.
+    ///
+    /// # Arguments
+    ///
+    /// * `date_str` - The date string to parse.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing the parsed `DateTime` object or an error if the parsing fails.
+    ///
+    /// # Errors
+    ///
+    /// This function returns an `Err(RssError::DateParseError)` if the date format is invalid.
+    pub fn parse_date(date_str: &str) -> Result<DateTime> {
         let rss_date_format = "[weekday repr:short], [day] [month repr:short] [year] [hour]:[minute]:[second]";
-
-        // Use strip_suffix to handle " GMT"
         let date_without_gmt =
             date_str.strip_suffix(" GMT").ok_or_else(|| {
                 RssError::DateParseError(format!(
@@ -196,7 +209,6 @@ impl<'a> RssFeedValidator<'a> {
             ))
         })?;
 
-        // Manually set the UTC offset to "GMT"
         date.offset = time::UtcOffset::UTC;
         Ok(date)
     }
@@ -240,17 +252,18 @@ impl<'a> RssFeedValidator<'a> {
                     });
                 }
             }
-            RssVersion::RSS0_92
-            | RssVersion::RSS0_91
-            | RssVersion::RSS0_90 => {
-                // Add specific checks for older RSS versions if needed
-            }
+            _ => {}
         }
     }
 
     /// Validates a URL string.
+    ///
+    /// # Arguments
+    ///
+    /// * `url` - The URL string to validate.
+    /// * `field` - The field name for error reporting.
+    /// * `errors` - A mutable vector to collect validation errors.
     fn validate_url(
-        &self,
         url: &str,
         field: &str,
         errors: &mut Vec<ValidationError>,
@@ -300,6 +313,10 @@ impl<'a> RssFeedValidator<'a> {
 ///
 /// * `Ok(())` if the validation passes.
 /// * `Err(RssError::ValidationErrors)` containing a list of validation errors if any are found.
+///
+/// # Errors
+///
+/// This function returns an `Err(RssError::ValidationErrors)` if any validation checks fail.
 pub fn validate_rss_feed(rss_data: &RssData) -> Result<()> {
     let validator = RssFeedValidator::new(rss_data);
     validator.validate()
@@ -361,43 +378,45 @@ mod tests {
     #[test]
     fn test_validate_url_valid() {
         let rss_data = RssData::new(None);
-        let validator = RssFeedValidator::new(&rss_data);
         let mut errors = Vec::new();
 
-        validator.validate_url(
+        RssFeedValidator::validate_url(
             "https://example.com",
             "test",
             &mut errors,
         );
-        validator.validate_url(
+        RssFeedValidator::validate_url(
             "http://example.com",
             "test",
             &mut errors,
         );
-        validator.validate_url(
+        RssFeedValidator::validate_url(
             "https://sub.example.com/path?query=value",
             "test",
             &mut errors,
         );
 
         assert!(errors.is_empty());
+        assert!(rss_data.link.is_empty());
     }
 
     #[test]
     fn test_validate_url_invalid() {
-        let rss_data = RssData::new(None);
-        let validator = RssFeedValidator::new(&rss_data);
         let mut errors = Vec::new();
 
-        validator.validate_url("not a url", "test", &mut errors);
-        validator.validate_url(
+        RssFeedValidator::validate_url(
+            "not a url",
+            "test",
+            &mut errors,
+        );
+        RssFeedValidator::validate_url(
             "ftp://example.com",
             "test",
             &mut errors,
         );
-        validator.validate_url("http://", "test", &mut errors);
-        validator.validate_url("https://", "test", &mut errors);
-        validator.validate_url(
+        RssFeedValidator::validate_url("http://", "test", &mut errors);
+        RssFeedValidator::validate_url("https://", "test", &mut errors);
+        RssFeedValidator::validate_url(
             "file:///path/to/file",
             "test",
             &mut errors,
@@ -525,20 +544,14 @@ mod tests {
 
     #[test]
     fn test_parse_date_valid() {
-        let rss_data = RssData::new(None);
-        let validator = RssFeedValidator::new(&rss_data);
-
         let valid_date = "Mon, 01 Jan 2024 00:00:00 GMT";
-        assert!(validator.parse_date(valid_date).is_ok());
+        assert!(RssFeedValidator::parse_date(valid_date).is_ok());
     }
 
     #[test]
     fn test_parse_date_invalid() {
-        let rss_data = RssData::new(None);
-        let validator = RssFeedValidator::new(&rss_data);
-
         let invalid_date = "Invalid Date";
-        assert!(validator.parse_date(invalid_date).is_err());
+        assert!(RssFeedValidator::parse_date(invalid_date).is_err());
     }
 
     #[test]

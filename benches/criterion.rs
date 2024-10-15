@@ -68,13 +68,13 @@ fn benchmark_parse_rss(c: &mut Criterion) {
         .warm_up_time(Duration::from_secs(3))
         .measurement_time(Duration::from_secs(8));
     group.bench_function("Small", |b| {
-        b.iter(|| parse_rss(black_box(&*SMALL_XML)))
+        b.iter(|| parse_rss(black_box(&*SMALL_XML), None))
     });
     group.bench_function("Medium", |b| {
-        b.iter(|| parse_rss(black_box(&*MEDIUM_XML)))
+        b.iter(|| parse_rss(black_box(&*MEDIUM_XML), None))
     });
     group.bench_function("Large", |b| {
-        b.iter(|| parse_rss(black_box(&*LARGE_XML)))
+        b.iter(|| parse_rss(black_box(&*LARGE_XML), None))
     });
     group.finish();
 }

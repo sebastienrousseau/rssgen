@@ -11,6 +11,12 @@
 )]
 #![crate_name = "rss_gen"]
 #![crate_type = "lib"]
+#![warn(missing_docs)]
+#![forbid(unsafe_code)]
+#![deny(clippy::all)]
+#![deny(clippy::cargo)]
+#![deny(clippy::pedantic)]
+#![allow(clippy::module_name_repetitions)]
 
 /// Contains the main types and data structures used to represent RSS feeds.
 pub mod data;
@@ -29,21 +35,20 @@ pub use data::{RssData, RssItem, RssVersion};
 pub use error::{Result, RssError};
 pub use generator::generate_rss;
 pub use parser::parse_rss;
-use url::Url;
 
 /// The current version of the rss-gen crate, set at compile-time from Cargo.toml.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-/// Maximum lengths for title fields in the RSS feed.
+/// Maximum length for title fields in the RSS feed.
 pub const MAX_TITLE_LENGTH: usize = 256;
-/// Maximum lengths for link fields in the RSS feed.
+/// Maximum length for link fields in the RSS feed.
 pub const MAX_LINK_LENGTH: usize = 2048;
-/// Maximum lengths for description fields in the RSS feed.
+/// Maximum length for description fields in the RSS feed.
 pub const MAX_DESCRIPTION_LENGTH: usize = 100_000;
-/// Maximum lengths for general fields in the RSS feed.
+/// Maximum length for general fields in the RSS feed.
 pub const MAX_GENERAL_LENGTH: usize = 1024;
-/// Maximum lengths for feed fields in the RSS feed.
-pub const MAX_FEED_SIZE: usize = 1_048_576;
+/// Maximum size for the entire RSS feed.
+pub const MAX_FEED_SIZE: usize = 1_048_576; // 1 MB
 
 /// A convenience function to generate a minimal valid RSS 2.0 feed.
 ///
@@ -78,6 +83,14 @@ pub const MAX_FEED_SIZE: usize = 1_048_576;
 /// }
 /// ```
 ///
+/// # Errors
+///
+/// This function will return an error if:
+/// - Any of the input strings are empty
+/// - Any of the input strings exceed their respective maximum lengths
+/// - The `link` is not a valid URL starting with "http://" or "https://"
+/// - RSS generation fails for any reason
+///
 /// # Security
 ///
 /// This function performs basic input validation, but it's recommended to sanitize
@@ -97,29 +110,19 @@ pub fn quick_rss(
         ));
     }
 
-    if title.len() > MAX_TITLE_LENGTH {
-        return Err(RssError::InvalidInput(format!(
-            "Title exceeds maximum allowed length of {} characters",
-            MAX_TITLE_LENGTH
-        )));
-    }
-
-    if link.len() > MAX_LINK_LENGTH {
-        return Err(RssError::InvalidInput(format!(
-            "Link exceeds maximum allowed length of {} characters",
-            MAX_LINK_LENGTH
-        )));
-    }
-
-    if description.len() > MAX_DESCRIPTION_LENGTH {
+    if title.len() > MAX_TITLE_LENGTH
+        || link.len() > MAX_LINK_LENGTH
+        || description.len() > MAX_DESCRIPTION_LENGTH
+    {
         return Err(RssError::InvalidInput(
-            format!("Description exceeds maximum allowed length of {} characters", MAX_DESCRIPTION_LENGTH)
+            "Input exceeds maximum allowed length".to_string(),
         ));
     }
 
-    if Url::parse(link).is_err() {
+    // Basic URL validation
+    if !link.starts_with("http://") && !link.starts_with("https://") {
         return Err(RssError::InvalidInput(
-            "Invalid URL format".to_string(),
+            "Link must start with http:// or https://".to_string(),
         ));
     }
 
@@ -133,10 +136,20 @@ pub fn quick_rss(
         RssItem::new()
             .title("Example Item")
             .link(format!("{}/example-item", link))
-            .description("This is an example item in the RSS feed"),
+            .description("This is an example item in the RSS feed")
+            .guid(format!("{}/example-item", link)),
     );
 
     generate_rss(&rss_data)
+}
+
+/// Prelude module for convenient importing of common types and functions.
+pub mod prelude {
+    pub use crate::data::{RssData, RssItem, RssVersion};
+    pub use crate::error::{Result, RssError};
+    pub use crate::generate_rss;
+    pub use crate::parse_rss;
+    pub use crate::quick_rss;
 }
 
 #[cfg(test)]
@@ -266,9 +279,8 @@ mod tests {
             .description("A test RSS feed");
 
         // Add items until we exceed MAX_FEED_SIZE
-        let item_content = "a".repeat(10000); // Increased content size
+        let item_content = "a".repeat(10000);
         for _ in 0..100 {
-            // Reduced number of iterations
             rss_data.add_item(
                 RssItem::new()
                     .title(&item_content)
@@ -288,7 +300,7 @@ mod tests {
             .description("A test RSS feed");
 
         let long_general_field = "a".repeat(MAX_GENERAL_LENGTH + 1);
-        rss_data.category = long_general_field.clone();
+        rss_data.category.clone_from(&long_general_field);
 
         assert!(rss_data.validate().is_err());
 

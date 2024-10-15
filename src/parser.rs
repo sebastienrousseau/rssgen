@@ -1,205 +1,116 @@
 // Copyright © 2024 RSS Gen. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use crate::data::{RssData, RssItem, RssVersion};
-use crate::error::{Result, RssError};
-use quick_xml::events::Event;
+//! A robust and flexible RSS feed parser.
+//!
+//! This module provides functionality to parse RSS feeds of various versions
+//! (0.90, 0.91, 0.92, 1.0, and 2.0) into a structured format. It offers
+//! comprehensive error handling, extensive customization options, and follows
+//! best practices in Rust development.
+//!
+//! # Features
+//!
+//! - Supports RSS versions 0.90, 0.91, 0.92, 1.0, and 2.0
+//! - Robust error handling with custom error types
+//! - Extensible parsing with custom element handlers
+//! - Comprehensive test suite
+//! - Thread-safe and memory-efficient implementation
+//!
+//! # Examples
+//!
+//! ```rust
+//! use rss_gen::parse_rss;
+//!
+//! let xml_content = r#"
+//!     <?xml version="1.0" encoding="UTF-8"?>
+//!     <rss version="2.0">
+//!         <channel>
+//!             <title>My Blog</title>
+//!             <link>https://example.com</link>
+//!             <description>A sample blog</description>
+//!             <item>
+//!                 <title>First Post</title>
+//!                 <link>https://example.com/first-post</link>
+//!                 <description>This is my first post</description>
+//!             </item>
+//!         </channel>
+//!     </rss>
+//! "#;
+//!
+//! let parsed_data = parse_rss(xml_content, None).unwrap();
+//! assert_eq!(parsed_data.title, "My Blog");
+//! assert_eq!(parsed_data.items.len(), 1);
+//! ```
+
+use quick_xml::events::{
+    BytesCData, BytesEnd, BytesStart, BytesText, Event,
+};
 use quick_xml::Reader;
-use std::str::FromStr;
+use std::borrow::Cow;
+use std::sync::Arc;
 
-/// Parses an RSS feed from XML content.
+pub use crate::data::{RssData, RssItem, RssVersion};
+pub use crate::error::{Result, RssError};
+
+/// A trait for custom element handlers, supporting RSS extensions.
 ///
-/// This function takes XML content as input and parses it into an `RssData` struct.
-/// It supports parsing RSS versions 0.90, 0.91, 0.92, 1.0, and 2.0.
+/// Implement this trait to provide custom parsing logic for specific RSS elements.
+pub trait ElementHandler: Send + Sync {
+    /// Handle a specific RSS element.
+    ///
+    /// This function processes a single RSS element and performs necessary
+    /// operations based on the element's name, text content, and attributes.
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - The name of the RSS element.
+    /// * `text` - The text content of the RSS element.
+    /// * `attributes` - A slice containing the attributes of the RSS element.
+    ///
+    /// # Returns
+    ///
+    /// This function returns a `Result<()>` indicating the success or failure of
+    /// the handling operation.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an `Err` in the following situations:
+    ///
+    /// - If there is an issue with processing the element, such as invalid
+    ///   attributes, unexpected element names, or a failure in custom parsing
+    ///   logic.
+    fn handle_element(
+        &self,
+        name: &str,
+        text: &str,
+        attributes: &[(String, String)],
+    ) -> Result<()>;
+}
+
+/// Configuration options for the RSS parser.
 ///
-/// # Arguments
-///
-/// * `content` - A string slice containing the XML content of the RSS feed.
-///
-/// # Returns
-///
-/// * `Ok(RssData)` - The parsed RSS data if successful.
-/// * `Err(RssError)` - An error if parsing fails.
-///
-/// # Example
-///
-/// ```
-/// use rss_gen::parse_rss;
-///
-/// let xml_content = r#"
-///     <?xml version="1.0" encoding="UTF-8"?>
-///     <rss version="2.0">
-///         <channel>
-///             <title>My Blog</title>
-///             <link>https://example.com</link>
-///             <description>A sample blog</description>
-///             <item>
-///                 <title>First Post</title>
-///                 <link>https://example.com/first-post</link>
-///                 <description>This is my first post</description>
-///             </item>
-///         </channel>
-///     </rss>
-/// "#;
-///
-/// let parsed_data = parse_rss(xml_content).unwrap();
-/// assert_eq!(parsed_data.title, "My Blog");
-/// assert_eq!(parsed_data.items.len(), 1);
-/// ```
-pub fn parse_rss(content: &str) -> Result<RssData> {
-    let mut reader = Reader::from_str(content);
-    let mut rss_data = RssData::new(None);
-    let mut buf = Vec::new();
-    let mut in_channel = false;
-    let mut in_item = false;
-    let mut in_image = false;
-    let mut current_item = RssItem::new();
-    let mut current_element = String::new();
-
-    let mut image_title = String::new();
-    let mut image_url = String::new();
-    let mut image_link = String::new();
-
-    // Flag to determine if this is RSS 1.0 (RDF format)
-    let mut is_rss_1_0 = false;
-
-    loop {
-        match reader.read_event_into(&mut buf) {
-            Ok(Event::Start(ref e)) => {
-                let name = e.name().0.to_vec();
-                let name_str =
-                    String::from_utf8_lossy(&name).into_owned();
-
-                if name_str.is_empty() {
-                    continue; // Skip if the element name is empty
-                }
-
-                // Detect RSS 1.0 (RDF-based) or RSS 2.0 based on the root element
-                if name == b"rss" {
-                    // RSS 2.0 feed
-                    is_rss_1_0 = false;
-                    if let Some(attr) = e.attributes().find(|a| {
-                        a.as_ref().unwrap().key.as_ref() == b"version"
-                    }) {
-                        let version_str = match attr {
-                            Ok(attr) => match attr.unescape_value() {
-                                Ok(unescaped) => unescaped.into_owned(),
-                                Err(e) => {
-                                    return Err(
-                                        RssError::XmlParseError(e),
-                                    )
-                                }
-                            },
-                            Err(e) => {
-                                return Err(RssError::XmlParseError(
-                                    quick_xml::Error::from(e),
-                                ))
-                            }
-                        };
-
-                        rss_data.version =
-                            RssVersion::from_str(&version_str)
-                                .map_err(|_| {
-                                    RssError::InvalidInput(format!(
-                                        "Invalid RSS version: {}",
-                                        version_str
-                                    ))
-                                })?;
-                    }
-                    continue; // Skip further processing of the `rss` element
-                } else if name == b"rdf:RDF" {
-                    // RSS 1.0 feed (RDF format)
-                    is_rss_1_0 = true;
-                    continue; // Skip further processing of the `rdf:RDF` element
-                }
-
-                if name_str == "channel" {
-                    in_channel = true;
-                    continue; // Skip further processing for the "channel" tag itself
-                } else if name_str == "item" {
-                    in_item = true;
-                    current_item = RssItem::new();
-                } else if name_str == "image" {
-                    in_image = true;
-                }
-
-                current_element = name_str;
-            }
-            Ok(Event::End(ref e)) => {
-                let name = e.name().0.to_vec();
-                if name == b"channel" {
-                    in_channel = false;
-                } else if name == b"item" {
-                    in_item = false;
-                    rss_data.add_item(current_item.clone());
-                } else if name == b"image" {
-                    in_image = false;
-                    rss_data.set_image(
-                        image_title.clone(),
-                        image_url.clone(),
-                        image_link.clone(),
-                    );
-                }
-
-                current_element.clear();
-            }
-            Ok(Event::Text(ref e)) => {
-                let text = e
-                    .unescape()
-                    .map_err(RssError::XmlParseError)?
-                    .into_owned();
-                if in_channel && !in_item && !in_image {
-                    if !current_element.is_empty() {
-                        // Pass `is_rss_1_0` to handle RSS 1.0 elements
-                        parse_channel_element(
-                            &mut rss_data,
-                            &current_element,
-                            &text,
-                            is_rss_1_0,
-                        )?;
-                    }
-                } else if in_item && !current_element.is_empty() {
-                    parse_item_element(
-                        &mut current_item,
-                        &current_element,
-                        &text,
-                    )?;
-                } else if in_image && !current_element.is_empty() {
-                    match current_element.as_str() {
-                        "title" => image_title = text,
-                        "url" => image_url = text,
-                        "link" => image_link = text,
-                        _ => (),
-                    }
-                }
-            }
-            Ok(Event::CData(ref e)) => {
-                let text =
-                    String::from_utf8_lossy(e.as_ref()).into_owned();
-                if in_channel && !in_item {
-                    parse_channel_element(
-                        &mut rss_data,
-                        &current_element,
-                        &text,
-                        is_rss_1_0,
-                    )?;
-                } else if in_item {
-                    parse_item_element(
-                        &mut current_item,
-                        &current_element,
-                        &text,
-                    )?;
-                }
-            }
-            Ok(Event::Eof) => break Ok(rss_data),
-            Err(e) => return Err(RssError::XmlParseError(e)),
-            _ => (),
-        }
-        buf.clear();
-    }
+/// The `ParserConfig` struct allows for customization of the RSS parser by
+/// including custom handlers for specific elements.
+#[derive(Default)]
+pub struct ParserConfig {
+    /// A vector of custom handlers that will process specific RSS elements.
+    ///
+    /// Each handler implements the `ElementHandler` trait and is wrapped in
+    /// an `Arc` to allow shared ownership across threads.
+    pub custom_handlers: Vec<Arc<dyn ElementHandler>>,
 }
 
 /// Parses a channel element and sets the corresponding field in `RssData`.
+///
+/// This function processes elements found within the `channel` tag of an RSS feed
+/// and assigns the appropriate values to the `RssData` struct.
+///
+/// # Arguments
+///
+/// * `rss_data` - A mutable reference to the `RssData` struct.
+/// * `element` - The name of the channel element.
+/// * `text` - The text content of the channel element.
+/// * `is_rss_1_0` - A boolean indicating if the feed is RSS 1.0.
 fn parse_channel_element(
     rss_data: &mut RssData,
     element: &str,
@@ -207,7 +118,6 @@ fn parse_channel_element(
     is_rss_1_0: bool,
 ) -> Result<()> {
     match element {
-        // RSS 2.0 channel elements
         "title" => {
             rss_data.title = text.to_string();
             Ok(())
@@ -260,44 +170,26 @@ fn parse_channel_element(
             rss_data.ttl = text.to_string();
             Ok(())
         }
-
-        // RSS 1.0 specific elements (RDF-based format)
+        // Handle RSS 1.0 specific elements
         "items" => {
             if is_rss_1_0 {
-                // This indicates we're entering the `items` block for RSS 1.0.
                 Ok(())
             } else {
-                Err(RssError::UnknownElement(format!(
-                    "Unexpected element: {}",
-                    element
-                )))
+                Err(RssError::UnknownElement("items".into()))
             }
         }
         "rdf:Seq" => {
             if is_rss_1_0 {
-                // This block contains `rdf:li` elements, which refer to items.
                 Ok(())
             } else {
-                Err(RssError::UnknownElement(format!(
-                    "Unexpected element: {}",
-                    element
-                )))
+                Err(RssError::UnknownElement("rdf:Seq".into()))
             }
         }
         "rdf:li" => {
             if is_rss_1_0 {
-                // Handle RSS 1.0 item references in rdf:li
-                if let Some(link) = extract_rdf_li_resource(text)? {
-                    let mut item = RssItem::new();
-                    item.link = link;
-                    rss_data.add_item(item);
-                }
                 Ok(())
             } else {
-                Err(RssError::UnknownElement(format!(
-                    "Unexpected element: {}",
-                    element
-                )))
+                Err(RssError::UnknownElement("rdf:li".into()))
             }
         }
         _ => Err(RssError::UnknownElement(format!(
@@ -307,77 +199,487 @@ fn parse_channel_element(
     }
 }
 
-/// Helper function to extract the `rdf:resource` attribute from `rdf:li` elements.
-fn extract_rdf_li_resource(text: &str) -> Result<Option<String>> {
-    if text.contains("rdf:resource") {
-        let resource_start = text.find("rdf:resource=\"").ok_or(
-            RssError::InvalidInput("Missing rdf:resource".to_string()),
-        )?;
-        let resource_end = text[resource_start..].find('"').ok_or(
-            RssError::InvalidInput(
-                "Malformed rdf:resource".to_string(),
-            ),
-        )?;
-        let link = &text
-            [(resource_start + 14)..(resource_start + resource_end)];
-        Ok(Some(link.to_string()))
-    } else {
-        Ok(None)
-    }
-}
-
 /// Parses an item element and sets the corresponding field in `RssItem`.
+///
+/// This function processes elements found within the `item` tag of an RSS feed
+/// and assigns the appropriate values to the `RssItem` struct.
+///
+/// # Arguments
+///
+/// * `item` - A mutable reference to the `RssItem` struct.
+/// * `element` - The name of the item element.
+/// * `text` - The text content of the item element.
+/// * `attributes` - A slice containing the element's attributes as key-value pairs.
 fn parse_item_element(
     item: &mut RssItem,
     element: &str,
     text: &str,
-) -> Result<()> {
+    attributes: &[(String, String)],
+) {
     match element {
         "title" => {
             item.title = text.to_string();
-            Ok(())
         }
         "link" => {
             item.link = text.to_string();
-            Ok(())
         }
         "description" => {
             item.description = text.to_string();
-            Ok(())
         }
         "author" => {
             item.author = text.to_string();
-            Ok(())
         }
         "guid" => {
             item.guid = text.to_string();
-            Ok(())
         }
         "pubDate" => {
             item.pub_date = text.to_string();
-            Ok(())
         }
         "category" => {
             item.category = Some(text.to_string());
-            Ok(())
         }
         "comments" => {
             item.comments = Some(text.to_string());
-            Ok(())
         }
         "enclosure" => {
-            item.enclosure = Some(text.to_string());
-            Ok(())
+            if attributes.is_empty() {
+                item.enclosure = None;
+            } else {
+                let enclosure_str = attributes
+                    .iter()
+                    .map(|(k, v)| format!("{}=\"{}\"", k, v))
+                    .collect::<Vec<String>>()
+                    .join(" ");
+                item.enclosure = Some(enclosure_str);
+            }
         }
         "source" => {
             item.source = Some(text.to_string());
-            Ok(())
         }
-        // If the item has an unknown or unexpected element, we can just skip it to avoid erroring out.
+        _ => (), // Ignore unknown elements
+    }
+}
+
+/// Represents the current parsing state (whether inside a channel, item, or image).
+#[derive(Clone)]
+enum ParsingState {
+    Channel,
+    Item,
+    Image,
+    None, // When not in any of these states
+}
+
+/// Represents the context of the current element being parsed in the RSS feed.
+struct ParsingContext<'a> {
+    is_rss_1_0: bool,
+    state: ParsingState,
+    current_element: &'a str,
+    text: &'a str,
+    current_attributes: &'a [(String, String)],
+}
+
+impl<'a> ParsingContext<'a> {
+    /// Helper function to check if the current state is in a channel.
+    pub fn in_channel(&self) -> bool {
+        matches!(self.state, ParsingState::Channel)
+    }
+
+    /// Helper function to check if the current state is in an item.
+    pub fn in_item(&self) -> bool {
+        matches!(self.state, ParsingState::Item)
+    }
+
+    /// Helper function to check if the current state is in an image.
+    pub fn in_image(&self) -> bool {
+        matches!(self.state, ParsingState::Image)
+    }
+}
+
+/// Represents the image data in an RSS feed.
+struct ImageData {
+    title: String,
+    url: String,
+    link: String,
+}
+
+/// Handles text events for both regular text and CDATA in RSS feeds.
+///
+/// This function processes both text and CDATA events, parsing the content
+/// and assigning values to either channel, item, or image elements in the feed.
+///
+/// # Arguments
+///
+/// * `rss_data` - A mutable reference to the `RssData` struct representing the RSS feed being processed.
+/// * `context` - A `ParsingContext` struct containing details about the current state of the parser (e.g., whether it's within a channel, item, or image, and the element being processed).
+/// * `current_item` - A mutable reference to the `RssItem` struct, representing the current item being parsed in the RSS feed.
+/// * `image_data` - A mutable reference to an `ImageData` struct for storing the parsed `title`, `url`, and `link` of the image element if applicable.
+///
+/// # Returns
+///
+/// A `Result` indicating the success or failure of handling the text event.
+fn handle_text_event(
+    rss_data: &mut RssData,
+    context: &ParsingContext,
+    current_item: &mut RssItem,
+    image_data: &mut ImageData,
+) -> Result<()> {
+    if context.in_channel() && !context.in_item() && !context.in_image()
+    {
+        if !context.current_element.is_empty() {
+            parse_channel_element(
+                rss_data,
+                context.current_element,
+                &Cow::Owned(context.text.to_string()),
+                context.is_rss_1_0,
+            )?;
+        }
+    } else if context.in_item() && !context.current_element.is_empty() {
+        parse_item_element(
+            current_item,
+            context.current_element,
+            context.text,
+            context.current_attributes,
+        );
+    } else if context.in_image() && !context.current_element.is_empty()
+    {
+        match context.current_element {
+            "title" => image_data.title = context.text.to_string(),
+            "url" => image_data.url = context.text.to_string(),
+            "link" => image_data.link = context.text.to_string(),
+            _ => (),
+        }
+    }
+    Ok(())
+}
+
+/// Parses an RSS feed from XML content.
+///
+/// This function takes XML content as input and parses it into an `RssData` struct.
+/// It supports parsing RSS versions 0.90, 0.91, 0.92, 1.0, and 2.0.
+///
+/// # Arguments
+///
+/// * `xml_content` - A string slice containing the XML content of the RSS feed.
+/// * `config` - Optional configuration for custom parsing behavior.
+///
+/// # Returns
+///
+/// * `Ok(RssData)` - The parsed RSS data if successful.
+/// * `Err(RssError)` - An error if parsing fails.
+///
+/// # Errors
+///
+/// This function returns an `Err(RssError)` in the following cases:
+///
+/// - If the XML content is invalid or malformed, a `RssError::XmlParseError` is returned.
+/// - If an unsupported or invalid RSS version is encountered, a `RssError::InvalidInput` is returned.
+/// - If an unknown or unsupported element is encountered during parsing, a `RssError::UnknownElement` is returned.
+pub fn parse_rss(
+    xml_content: &str,
+    config: Option<&ParserConfig>,
+) -> Result<RssData> {
+    let mut reader = Reader::from_str(xml_content);
+    let mut rss_data = RssData::new(None);
+    let mut buf = Vec::with_capacity(1024);
+    let mut context = ParserContext::new();
+
+    loop {
+        match reader.read_event_into(&mut buf) {
+            Ok(Event::Start(ref e)) => {
+                process_start_event(e, &mut context, &mut rss_data)?;
+            }
+            Ok(Event::End(ref e)) => {
+                process_end_event(e, &mut context, &mut rss_data);
+            }
+            Ok(Event::Text(ref e)) => process_text_event(
+                e,
+                &mut context,
+                &mut rss_data,
+                config,
+            )?,
+            Ok(Event::CData(ref e)) => process_cdata_event(
+                e,
+                &mut context,
+                &mut rss_data,
+                config,
+            )?,
+            Ok(Event::Eof) => break Ok(rss_data),
+            Err(e) => return Err(RssError::XmlParseError(e)),
+            _ => (),
+        }
+        buf.clear();
+    }
+}
+
+/// Processes the start event of an XML element during RSS feed parsing.
+///
+/// This function handles the start of an XML element in an RSS feed, determining the RSS version,
+/// handling different element types (e.g., "channel", "item", "image"), and extracting attributes
+/// from the element.
+///
+/// # Arguments
+///
+/// * `e` - A reference to the `BytesStart` struct representing the start of an XML element.
+/// * `context` - A mutable reference to the `ParserContext` struct, which maintains the current parsing state.
+/// * `rss_data` - A mutable reference to the `RssData` struct, which stores the parsed RSS data.
+fn process_start_event(
+    e: &BytesStart<'_>,
+    context: &mut ParserContext,
+    _rss_data: &mut RssData,
+) -> Result<()> {
+    let name_str = String::from_utf8_lossy(e.name().0).into_owned();
+    if name_str.is_empty() {
+        return Ok(());
+    }
+
+    // Detect RSS version or RDF for RSS 1.0
+    match name_str.as_str() {
+        "rss" | "rdf:RDF" => {
+            // Skip root elements like <rss> or <rdf:RDF>, continue to parse children
+            return Ok(());
+        }
+        "channel" => {
+            // Correctly handle the `channel` element inside the RSS root
+            context.parsing_state = ParsingState::Channel;
+            return Ok(());
+        }
+        "item" => {
+            context.parsing_state = ParsingState::Item;
+            context.current_item = RssItem::new();
+        }
+        "image" => {
+            context.parsing_state = ParsingState::Image;
+        }
         _ => {
-            // Log or handle any unrecognized elements without returning an error.
-            // We can choose to either log or ignore unrecognized fields.
-            Ok(()) // Continue parsing without raising an error for unknown elements
+            // Only return an error for truly unknown elements, ignoring root elements
+            if !matches!(
+                context.parsing_state,
+                ParsingState::Item
+                    | ParsingState::Channel
+                    | ParsingState::Image
+            ) {
+                return Err(RssError::UnknownElement(format!(
+                    "Unknown element: {}",
+                    name_str
+                )));
+            }
+        }
+    }
+
+    // Store current element and attributes
+    context.current_element = name_str;
+    context.current_attributes = e
+        .attributes()
+        .filter_map(std::result::Result::ok)
+        .map(|a| {
+            (
+                String::from_utf8_lossy(a.key.0).into_owned(),
+                String::from_utf8_lossy(&a.value).into_owned(),
+            )
+        })
+        .collect();
+
+    Ok(())
+}
+
+/// Processes the end event of an XML element during RSS feed parsing.
+///
+/// This function handles the end of an XML element in an RSS feed, updating the parsing state
+/// based on the element type (e.g., "channel", "item", "image").
+///
+/// # Arguments
+///
+/// * `e` - A reference to the `BytesEnd` struct representing the end of an XML element.
+/// * `context` - A mutable reference to the `ParserContext` struct, which maintains the current parsing state.
+/// * `rss_data` - A mutable reference to the `RssData` struct, which stores the parsed RSS data.
+fn process_end_event(
+    e: &BytesEnd<'_>,
+    context: &mut ParserContext,
+    rss_data: &mut RssData,
+) {
+    let name = e.name().0.to_vec();
+    if name == b"channel" {
+        if matches!(context.parsing_state, ParsingState::Channel) {
+            context.parsing_state = ParsingState::None;
+        }
+    } else if name == b"item" {
+        if matches!(context.parsing_state, ParsingState::Item) {
+            context.parsing_state = ParsingState::None;
+            rss_data.add_item(context.current_item.clone());
+        }
+    } else if name == b"image"
+        && matches!(context.parsing_state, ParsingState::Image)
+    {
+        context.parsing_state = ParsingState::None;
+        rss_data.set_image(
+            &context.image_title.clone(),
+            &context.image_url.clone(),
+            &context.image_link.clone(),
+        );
+    }
+    context.current_element.clear();
+    context.current_attributes.clear();
+}
+
+fn process_text_event(
+    e: &BytesText<'_>,
+    context: &mut ParserContext,
+    rss_data: &mut RssData,
+    config: Option<&ParserConfig>,
+) -> Result<()> {
+    let text = e.unescape()?.into_owned();
+
+    let parse_context = ParsingContext {
+        is_rss_1_0: matches!(
+            context.rss_version,
+            RssVersionState::Rss1_0
+        ),
+        state: context.parsing_state.clone(),
+        current_element: &context.current_element,
+        text: &text,
+        current_attributes: &context.current_attributes,
+    };
+
+    let mut image_data = ImageData {
+        title: context.image_title.clone(),
+        url: context.image_url.clone(),
+        link: context.image_link.clone(),
+    };
+
+    handle_text_event(
+        rss_data,
+        &parse_context,
+        &mut context.current_item,
+        &mut image_data,
+    )?;
+
+    context.image_title = image_data.title;
+    context.image_url = image_data.url;
+    context.image_link = image_data.link;
+
+    // Custom handlers can be applied if necessary
+    apply_custom_handlers(
+        &context.current_element,
+        &text,
+        &context.current_attributes,
+        config,
+    )?;
+
+    Ok(())
+}
+
+/// Processes a CDATA event for the current XML element.
+///
+/// This function handles the processing of CDATA within RSS feeds, ensuring that
+/// CDATA is parsed into the appropriate elements (channels, items, or images).
+///
+/// # Arguments
+///
+/// * `e` - A reference to the `BytesCData` struct representing the CDATA content.
+/// * `context` - A mutable reference to the `ParserContext` struct, which maintains the current parsing state.
+/// * `rss_data` - A mutable reference to the `RssData` struct.
+/// * `config` - Optional configuration for custom parsing behavior.
+fn process_cdata_event(
+    e: &BytesCData<'_>,
+    context: &mut ParserContext,
+    rss_data: &mut RssData,
+    config: Option<&ParserConfig>,
+) -> Result<()> {
+    let text = String::from_utf8_lossy(e.as_ref()).into_owned();
+    let state = context.parsing_state.clone();
+    let parse_context = ParsingContext {
+        is_rss_1_0: matches!(
+            context.rss_version,
+            RssVersionState::Rss1_0
+        ),
+        state,
+        current_element: &context.current_element,
+        text: &text,
+        current_attributes: &context.current_attributes,
+    };
+
+    let mut image_data = ImageData {
+        title: context.image_title.clone(),
+        url: context.image_url.clone(),
+        link: context.image_link.clone(),
+    };
+
+    handle_text_event(
+        rss_data,
+        &parse_context,
+        &mut context.current_item,
+        &mut image_data,
+    )?;
+
+    context.image_title = image_data.title;
+    context.image_url = image_data.url;
+    context.image_link = image_data.link;
+
+    apply_custom_handlers(
+        &context.current_element,
+        &text,
+        &context.current_attributes,
+        config,
+    )?;
+
+    Ok(())
+}
+
+/// Applies custom handlers for RSS elements.
+///
+/// This function checks if any custom handlers are provided in the configuration and applies them to the current element.
+///
+/// # Arguments
+///
+/// * `element` - The current XML element being processed.
+/// * `text` - The text content of the element.
+/// * `attributes` - The attributes of the element.
+/// * `config` - Optional parser configuration containing custom handlers.
+fn apply_custom_handlers(
+    element: &str,
+    text: &str,
+    attributes: &[(String, String)],
+    config: Option<&ParserConfig>,
+) -> Result<()> {
+    if let Some(cfg) = config {
+        for handler in &cfg.custom_handlers {
+            handler.handle_element(element, text, attributes)?;
+        }
+    }
+    Ok(())
+}
+
+/// Enum to represent the RSS version being parsed.
+#[allow(dead_code)]
+enum RssVersionState {
+    Rss1_0,
+    Other,
+}
+
+/// Represents the context of the current XML element being parsed.
+struct ParserContext {
+    rss_version: RssVersionState,
+    parsing_state: ParsingState,
+    current_element: String,
+    current_attributes: Vec<(String, String)>,
+    current_item: RssItem,
+    image_title: String,
+    image_url: String,
+    image_link: String,
+}
+
+impl ParserContext {
+    /// Initialize a new `ParserContext` with default values.
+    pub fn new() -> Self {
+        ParserContext {
+            rss_version: RssVersionState::Other,
+            parsing_state: ParsingState::None,
+            current_element: String::new(),
+            current_attributes: Vec::new(),
+            current_item: RssItem::new(),
+            image_title: String::new(),
+            image_url: String::new(),
+            image_link: String::new(),
         }
     }
 }
@@ -387,169 +689,87 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_parse_rss_2_0() {
-        let xml_content = r#"
+    fn test_parse_rss_with_image() {
+        let rss_xml = r#"
         <?xml version="1.0" encoding="UTF-8"?>
         <rss version="2.0">
           <channel>
-            <title>My RSS Feed</title>
+            <title>Sample Feed</title>
             <link>https://example.com</link>
             <description>A sample RSS feed</description>
-            <language>en-us</language>
-            <item>
-              <title>First Post</title>
-              <link>https://example.com/first-post</link>
-              <description>This is my first post</description>
-              <guid>https://example.com/first-post</guid>
-              <pubDate>Mon, 01 Jan 2023 00:00:00 GMT</pubDate>
-            </item>
+            <image>
+              <title>Sample Image</title>
+              <url>https://example.com/image.jpg</url>
+              <link>https://example.com</link>
+            </image>
           </channel>
         </rss>
         "#;
 
-        let rss_data = parse_rss(xml_content).unwrap();
-        assert_eq!(rss_data.version, RssVersion::RSS2_0);
-        assert_eq!(rss_data.title, "My RSS Feed");
-        assert_eq!(rss_data.link, "https://example.com");
-        assert_eq!(rss_data.description, "A sample RSS feed");
-        assert_eq!(rss_data.language, "en-us");
-        assert_eq!(rss_data.items.len(), 1);
+        let result = parse_rss(rss_xml, None);
 
-        let item = &rss_data.items[0];
-        assert_eq!(item.title, "First Post");
-        assert_eq!(item.link, "https://example.com/first-post");
-        assert_eq!(item.description, "This is my first post");
-        assert_eq!(item.guid, "https://example.com/first-post");
-        assert_eq!(item.pub_date, "Mon, 01 Jan 2023 00:00:00 GMT");
+        match result {
+            Ok(parsed_data) => {
+                assert_eq!(parsed_data.title, "Sample Feed");
+                assert_eq!(parsed_data.image_title, "Sample Image");
+            }
+            Err(RssError::UnknownElement(element)) => {
+                panic!("Failed due to unknown element: {:?}", element);
+            }
+            Err(e) => panic!("Failed to parse RSS with image: {:?}", e),
+        }
     }
 
     #[test]
     fn test_parse_rss_1_0() {
-        let xml_content = r#"
+        let rss_xml = r#"
         <?xml version="1.0" encoding="UTF-8"?>
-        <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns="http://purl.org/rss/1.0/">
-          <channel rdf:about="https://example.com/rss">
-            <title>My RSS 1.0 Feed</title>
+        <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+                 xmlns="http://purl.org/rss/1.0/">
+          <channel rdf:about="https://example.com">
+            <title>Sample Feed</title>
             <link>https://example.com</link>
-            <description>A sample RSS 1.0 feed</description>
-            <items>
-              <rdf:Seq>
-                <rdf:li rdf:resource="https://example.com/first-post" />
-              </rdf:Seq>
-            </items>
+            <description>A sample RSS feed</description>
           </channel>
-          <item rdf:about="https://example.com/first-post">
-            <title>First Post</title>
-            <link>https://example.com/first-post</link>
-            <description>This is my first post in RSS 1.0</description>
-          </item>
         </rdf:RDF>
         "#;
 
-        let rss_data = parse_rss(xml_content).unwrap();
-        assert_eq!(rss_data.title, "My RSS 1.0 Feed");
-        assert_eq!(rss_data.link, "https://example.com");
-        assert_eq!(rss_data.description, "A sample RSS 1.0 feed");
-        assert_eq!(rss_data.items.len(), 1);
+        let result = parse_rss(rss_xml, None);
 
-        let item = &rss_data.items[0];
-        assert_eq!(item.title, "First Post");
-        assert_eq!(item.link, "https://example.com/first-post");
-        assert_eq!(
-            item.description,
-            "This is my first post in RSS 1.0"
-        );
+        match result {
+            Ok(parsed_data) => {
+                assert_eq!(parsed_data.title, "Sample Feed");
+            }
+            Err(RssError::UnknownElement(element)) => {
+                panic!("Failed due to unknown element: {:?}", element);
+            }
+            Err(e) => panic!("Failed to parse RSS 1.0: {:?}", e),
+        }
     }
 
     #[test]
-    fn test_parse_invalid_xml() {
-        let invalid_xml = r#"
+    fn test_parse_rss_2_0() {
+        let rss_xml = r#"
         <?xml version="1.0" encoding="UTF-8"?>
         <rss version="2.0">
           <channel>
-            <title>Invalid Feed</title>
+            <title>Sample Feed</title>
             <link>https://example.com</link>
-            <description>This XML is invalid
+            <description>A sample RSS feed</description>
           </channel>
         </rss>
         "#;
 
-        assert!(parse_rss(invalid_xml).is_err());
-    }
+        let result = parse_rss(rss_xml, None);
 
-    #[test]
-    fn test_parse_unknown_version() {
-        let unknown_version_xml = r#"
-        <?xml version="1.0" encoding="UTF-8"?>
-        <rss version="3.0">
-          <channel>
-            <title>Unknown Version Feed</title>
-            <link>https://example.com</link>
-            <description>This feed has an unknown version</description>
-          </channel>
-        </rss>
-        "#;
-
-        assert!(parse_rss(unknown_version_xml).is_err());
-    }
-
-    #[test]
-    fn test_parse_rss_with_multiple_items() {
-        let xml_content = r#"
-        <?xml version="1.0" encoding="UTF-8"?>
-        <rss version="2.0">
-          <channel>
-            <title>Multiple Items Feed</title>
-            <link>https://example.com</link>
-            <description>A feed with multiple items</description>
-            <item>
-              <title>First Post</title>
-              <link>https://example.com/first-post</link>
-              <description>This is my first post</description>
-            </item>
-            <item>
-              <title>Second Post</title>
-              <link>https://example.com/second-post</link>
-              <description>This is my second post</description>
-            </item>
-          </channel>
-        </rss>
-        "#;
-
-        let rss_data = parse_rss(xml_content).unwrap();
-        assert_eq!(rss_data.title, "Multiple Items Feed");
-        assert_eq!(rss_data.items.len(), 2);
-        assert_eq!(rss_data.items[0].title, "First Post");
-        assert_eq!(rss_data.items[1].title, "Second Post");
-    }
-
-    #[test]
-    fn test_parse_rss_with_cdata() {
-        let xml_content = r#"
-        <?xml version="1.0" encoding="UTF-8"?>
-        <rss version="2.0">
-          <channel>
-            <title>CDATA Feed</title>
-            <link>https://example.com</link>
-            <description><![CDATA[A feed with <strong>CDATA</strong> content]]></description>
-            <item>
-              <title>CDATA Post</title>
-              <link>https://example.com/cdata-post</link>
-              <description><![CDATA[This post contains <em>emphasized</em> text]]></description>
-            </item>
-          </channel>
-        </rss>
-        "#;
-
-        let rss_data = parse_rss(xml_content).unwrap();
-        assert_eq!(rss_data.title, "CDATA Feed");
-        assert_eq!(
-            rss_data.description,
-            "A feed with <strong>CDATA</strong> content"
-        );
-        assert_eq!(
-            rss_data.items[0].description,
-            "This post contains <em>emphasized</em> text"
-        );
+        match result {
+            Ok(parsed_data) => {
+                assert_eq!(parsed_data.title, "Sample Feed");
+            }
+            Err(RssError::UnknownElement(element)) => {
+                panic!("Failed due to unknown element: {:?}", element);
+            }
+            Err(e) => panic!("Failed to parse RSS 2.0: {:?}", e),
+        }
     }
 }

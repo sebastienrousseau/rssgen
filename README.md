@@ -84,7 +84,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         </rss>
     "#;
 
-    match parse_rss(rss_content) {
+    match parse_rss(rss_content, None) {
         Ok(parsed_data) => println!("Parsed RSS data: {:?}", parsed_data),
         Err(e) => eprintln!("Error parsing RSS feed: {}", e),
     }

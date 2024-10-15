@@ -105,7 +105,7 @@ fn parse_rss_example() -> Result<(), Box<dyn Error>> {
     "#;
 
     // Parse the RSS content
-    let parsed_data = parse_rss(xml_content).map_err(|e| {
+    let parsed_data = parse_rss(xml_content, None).map_err(|e| {
         Box::new(ExampleError {
             message: format!("Failed to parse RSS feed: {}", e),
         }) as Box<dyn Error>
@@ -164,7 +164,7 @@ fn parse_rss_0_90_example() -> Result<(), Box<dyn Error>> {
     </rdf:RDF>
     "#;
 
-    let parsed_data = parse_rss(rss_0_90_content)?;
+    let parsed_data = parse_rss(rss_0_90_content, None)?;
     println!("Parsed RSS 0.90 feed:");
     println!("Title: {}", parsed_data.title);
     println!("Link: {}", parsed_data.link);
@@ -194,7 +194,7 @@ fn parse_rss_0_91_example() -> Result<(), Box<dyn Error>> {
     </rss>
     "#;
 
-    let parsed_data = parse_rss(rss_0_91_content)?;
+    let parsed_data = parse_rss(rss_0_91_content, None)?;
     println!("Parsed RSS 0.91 feed:");
     println!("Title: {}", parsed_data.title);
     println!("Link: {}", parsed_data.link);
@@ -230,7 +230,7 @@ fn parse_rss_0_92_example() -> Result<(), Box<dyn Error>> {
     </rss>
     "#;
 
-    let parsed_data = parse_rss(rss_0_92_content)?;
+    let parsed_data = parse_rss(rss_0_92_content, None)?;
     println!("Parsed RSS 0.92 feed:");
     println!("Title: {}", parsed_data.title);
     println!("Link: {}", parsed_data.link);
@@ -274,7 +274,7 @@ fn parse_rss_1_0_example() -> Result<(), Box<dyn Error>> {
     </rdf:RDF>
     "#;
 
-    let parsed_data = parse_rss(rss_1_0_content)?;
+    let parsed_data = parse_rss(rss_1_0_content, None)?;
     println!("Parsed RSS 1.0 feed:");
     println!("Title: {}", parsed_data.title);
     println!("Link: {}", parsed_data.link);
@@ -298,7 +298,7 @@ fn parse_rss_2_0_example() -> Result<(), Box<dyn Error>> {
                 <title>Normalizing XML, Part 2</title>
                 <link>http://www.xml.com/pub/a/2002/12/04/normalizing.html</link>
                 <description>In this second and final look at applying relational normalization
-                    techniques to W3C XML Schema data modeling, Will Provost discusses when not to
+                    techniques to W3C XML Schema data modelling, Will Provost discusses when not to
                     normalize, the scope of uniqueness and the fourth and fifth normal forms.</description>
                 <dc:creator>Will Provost</dc:creator>
                 <dc:date>2002-12-04</dc:date>
@@ -307,7 +307,7 @@ fn parse_rss_2_0_example() -> Result<(), Box<dyn Error>> {
     </rss>
     "#;
 
-    let parsed_data = parse_rss(rss_2_0_content)?;
+    let parsed_data = parse_rss(rss_2_0_content, None)?;
     println!("Parsed RSS 2.0 feed:");
     println!("Title: {}", parsed_data.title);
     println!("Link: {}", parsed_data.link);

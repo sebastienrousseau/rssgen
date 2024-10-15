@@ -687,6 +687,108 @@ impl ParserContext {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Arc;
+    use quick_xml::events::BytesText;
+    use quick_xml::events::BytesCData;
+    use quick_xml::events::BytesStart;
+
+    struct MockElementHandler;
+
+    impl ElementHandler for MockElementHandler {
+        fn handle_element(
+            &self,
+            name: &str,
+            text: &str,
+            _attributes: &[(String, String)],
+        ) -> Result<()> {
+            if name == "customElement" && text == "Custom content" {
+                Ok(())
+            } else {
+                Err(RssError::UnknownElement(name.into()))
+            }
+        }
+    }
+
+    #[test]
+    fn test_parser_config_with_custom_handler() {
+        let handler = Arc::new(MockElementHandler);
+        let config = ParserConfig {
+            custom_handlers: vec![handler],
+        };
+
+        assert_eq!(config.custom_handlers.len(), 1);
+        assert!(config.custom_handlers[0]
+            .handle_element("customElement", "Custom content", &[])
+            .is_ok());
+    }
+
+    #[test]
+    fn test_parser_config_no_custom_handlers() {
+        let config = ParserConfig::default();
+        assert!(config.custom_handlers.is_empty());
+    }
+
+    #[test]
+    fn test_process_start_event_empty_name() {
+        let e = BytesStart::new("");
+        let mut context = ParserContext::new();
+        let mut rss_data = RssData::default();
+
+        let result = process_start_event(&e, &mut context, &mut rss_data);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_process_start_event_non_empty_name() {
+        let e = BytesStart::new("item");
+        let mut context = ParserContext::new();
+        let mut rss_data = RssData::default();
+
+        let result = process_start_event(&e, &mut context, &mut rss_data);
+        assert!(result.is_ok());
+        assert_eq!(context.current_element, "item");
+    }
+
+    #[test]
+    fn test_process_text_event() {
+        let e = BytesText::from_escaped("Sample Text");
+        let mut context = ParserContext::new();
+        let mut rss_data = RssData::default();
+
+        let result = process_text_event(&e, &mut context, &mut rss_data, None);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_process_cdata_event() {
+        let e = BytesCData::new("Sample CDATA");
+        let mut context = ParserContext::new();
+        let mut rss_data = RssData::default();
+
+        let result = process_cdata_event(&e, &mut context, &mut rss_data, None);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_parse_channel_rdf_li_rss_1_0() {
+        let mut rss_data = RssData::default();
+        let result = parse_channel_element(&mut rss_data, "rdf:li", "", true);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_parse_channel_rdf_li_non_rss_1_0() {
+        let mut rss_data = RssData::default();
+        let result = parse_channel_element(&mut rss_data, "rdf:li", "", false);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_channel_unknown_element() {
+        let mut rss_data = RssData::default();
+        let result = parse_channel_element(&mut rss_data, "unknownElement", "", false);
+        assert!(result.is_err());
+    }
 
     #[test]
     fn test_parse_rss_with_image() {

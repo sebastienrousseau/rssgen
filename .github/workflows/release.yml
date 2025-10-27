@@ -71,7 +71,7 @@ jobs:
           tar -czf ../../package/${{ matrix.target }}.tar.gz *
         shell: pwsh
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: ${{ matrix.target }}
           path: target/package/${{ matrix.target }}.tar.gz

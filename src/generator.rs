@@ -25,12 +25,23 @@ const XML_ENCODING: &str = "utf-8";
 /// A `String` with invalid XML characters removed and special characters escaped.
 #[must_use]
 pub fn sanitize_content(content: &str) -> String {
-    content
+    let filtered: String = content
         .chars()
         .filter(|&c| {
             !(c.is_control() && c != '\n' && c != '\r' && c != '\t') // Keep valid control characters like newlines and tabs
         })
-        .collect::<String>()
+        .collect();
+
+    // First unescape any existing XML entities to avoid double-encoding,
+    // then re-escape everything. This makes the function idempotent.
+    let unescaped = filtered
+        .replace("&#x27;", "'")
+        .replace("&quot;", "\"")
+        .replace("&gt;", ">")
+        .replace("&lt;", "<")
+        .replace("&amp;", "&");
+
+    unescaped
         .replace('&', "&amp;")
         .replace('<', "&lt;")
         .replace('>', "&gt;")
@@ -357,14 +368,11 @@ mod tests {
                 Ok(Event::Start(ref e))
                     if e.name().as_ref() == element.as_bytes() =>
                 {
-                    match reader.read_event() {
-                        Ok(Event::Text(e)) => {
-                            let unescaped = e.unescape().unwrap();
-                            assert_eq!(unescaped, expected);
-                            found = true;
-                            break;
-                        }
-                        _ => continue,
+                    if let Ok(Event::Text(e)) = reader.read_event() {
+                        let unescaped = e.unescape().unwrap();
+                        assert_eq!(unescaped, expected);
+                        found = true;
+                        break;
                     }
                 }
                 Ok(Event::Eof) => break,

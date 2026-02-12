@@ -278,7 +278,7 @@ struct ParsingContext<'a> {
     current_attributes: &'a [(String, String)],
 }
 
-impl<'a> ParsingContext<'a> {
+impl ParsingContext<'_> {
     /// Helper function to check if the current state is in a channel.
     pub fn in_channel(&self) -> bool {
         matches!(self.state, ParsingState::Channel)
@@ -687,10 +687,10 @@ impl ParserContext {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::Arc;
-    use quick_xml::events::BytesText;
     use quick_xml::events::BytesCData;
     use quick_xml::events::BytesStart;
+    use quick_xml::events::BytesText;
+    use std::sync::Arc;
 
     struct MockElementHandler;
 
@@ -734,7 +734,8 @@ mod tests {
         let mut context = ParserContext::new();
         let mut rss_data = RssData::default();
 
-        let result = process_start_event(&e, &mut context, &mut rss_data);
+        let result =
+            process_start_event(&e, &mut context, &mut rss_data);
         assert!(result.is_ok());
     }
 
@@ -744,7 +745,8 @@ mod tests {
         let mut context = ParserContext::new();
         let mut rss_data = RssData::default();
 
-        let result = process_start_event(&e, &mut context, &mut rss_data);
+        let result =
+            process_start_event(&e, &mut context, &mut rss_data);
         assert!(result.is_ok());
         assert_eq!(context.current_element, "item");
     }
@@ -755,7 +757,8 @@ mod tests {
         let mut context = ParserContext::new();
         let mut rss_data = RssData::default();
 
-        let result = process_text_event(&e, &mut context, &mut rss_data, None);
+        let result =
+            process_text_event(&e, &mut context, &mut rss_data, None);
         assert!(result.is_ok());
     }
 
@@ -765,28 +768,36 @@ mod tests {
         let mut context = ParserContext::new();
         let mut rss_data = RssData::default();
 
-        let result = process_cdata_event(&e, &mut context, &mut rss_data, None);
+        let result =
+            process_cdata_event(&e, &mut context, &mut rss_data, None);
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_parse_channel_rdf_li_rss_1_0() {
         let mut rss_data = RssData::default();
-        let result = parse_channel_element(&mut rss_data, "rdf:li", "", true);
+        let result =
+            parse_channel_element(&mut rss_data, "rdf:li", "", true);
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_parse_channel_rdf_li_non_rss_1_0() {
         let mut rss_data = RssData::default();
-        let result = parse_channel_element(&mut rss_data, "rdf:li", "", false);
+        let result =
+            parse_channel_element(&mut rss_data, "rdf:li", "", false);
         assert!(result.is_err());
     }
 
     #[test]
     fn test_parse_channel_unknown_element() {
         let mut rss_data = RssData::default();
-        let result = parse_channel_element(&mut rss_data, "unknownElement", "", false);
+        let result = parse_channel_element(
+            &mut rss_data,
+            "unknownElement",
+            "",
+            false,
+        );
         assert!(result.is_err());
     }
 

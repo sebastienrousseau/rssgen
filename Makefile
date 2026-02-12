@@ -4,6 +4,42 @@
 .PHONY: all
 all: help ## Display this help.
 
+# Run complete CI validation pipeline locally
+.PHONY: ci
+ci: ## Run full CI pipeline locally (format, lint, test, docs, audit, msrv)
+	@echo "🦀 Running complete CI pipeline locally..."
+	@echo "📋 Setting strict compiler flags..."
+	@export RUSTFLAGS='-D warnings' && \
+	echo "🎨 Checking formatting..." && \
+	cargo fmt --all -- --check && \
+	echo "📎 Running clippy (all features)..." && \
+	cargo clippy --workspace --all-features --all-targets --no-deps -- -D warnings && \
+	echo "📎 Running clippy (no default features)..." && \
+	cargo clippy --workspace --no-default-features --all-targets --no-deps -- -D warnings && \
+	echo "📚 Building documentation..." && \
+	RUSTDOCFLAGS='-D warnings' cargo doc --workspace --all-features --no-deps --document-private-items && \
+	echo "🧪 Running tests (all features)..." && \
+	cargo test --workspace --all-features --verbose && \
+	echo "🧪 Running tests (no default features)..." && \
+	cargo test --workspace --no-default-features --verbose && \
+	echo "🧪 Running tests (default features)..." && \
+	cargo test --workspace --verbose && \
+	echo "📊 Running doctests..." && \
+	cargo test --workspace --all-features --doc && \
+	echo "🔒 Running security audit..." && \
+	cargo deny check && \
+	echo "✅ All CI checks passed locally!"
+
+# Quick CI check (subset of full CI for faster feedback)
+.PHONY: ci-quick
+ci-quick: ## Run quick CI checks (format, clippy, test)
+	@echo "⚡ Running quick CI checks..."
+	@export RUSTFLAGS='-D warnings' && \
+	cargo fmt --all -- --check && \
+	cargo clippy --workspace --all-features --all-targets --no-deps -- -D warnings && \
+	cargo test --workspace --all-features && \
+	echo "✅ Quick CI checks passed!"
+
 # Build the project including all workspace members.
 .PHONY: build
 build: ## Build the project.

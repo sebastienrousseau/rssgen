@@ -11,7 +11,7 @@
 )]
 #![crate_name = "rss_gen"]
 #![crate_type = "lib"]
-#![warn(missing_docs)]
+#![deny(missing_docs)]
 #![forbid(unsafe_code)]
 #![deny(clippy::all)]
 #![deny(clippy::cargo)]

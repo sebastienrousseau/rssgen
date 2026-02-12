@@ -83,7 +83,7 @@ impl<'a> RssFeedValidator<'a> {
         for (index, item) in self.rss_data.items.iter().enumerate() {
             Self::validate_url(
                 &item.link,
-                &format!("item[{}] link", index),
+                &format!("item[{index}] link"),
                 errors,
             );
         }
@@ -134,8 +134,8 @@ impl<'a> RssFeedValidator<'a> {
         for (index, item) in self.rss_data.items.iter().enumerate() {
             if let Err(e) = item.validate() {
                 errors.push(ValidationError {
-                    field: format!("item[{}]", index),
-                    message: format!("Item validation failed: {}", e),
+                    field: format!("item[{index}]"),
+                    message: format!("Item validation failed: {e}"),
                 });
             }
         }
@@ -153,7 +153,7 @@ impl<'a> RssFeedValidator<'a> {
         for (index, item) in self.rss_data.items.iter().enumerate() {
             Self::validate_date(
                 &item.pub_date,
-                &format!("item[{}].pubDate", index),
+                &format!("item[{index}].pubDate"),
                 errors,
             );
         }
@@ -169,7 +169,7 @@ impl<'a> RssFeedValidator<'a> {
             if let Err(e) = Self::parse_date(date_str) {
                 errors.push(ValidationError {
                     field: field.to_string(),
-                    message: format!("Invalid date format: {}", e),
+                    message: format!("Invalid date format: {e}"),
                 });
             }
         }
@@ -193,8 +193,7 @@ impl<'a> RssFeedValidator<'a> {
         let date_without_gmt =
             date_str.strip_suffix(" GMT").ok_or_else(|| {
                 RssError::DateParseError(format!(
-                    "Invalid date format (missing GMT): {}",
-                    date_str
+                    "Invalid date format (missing GMT): {date_str}"
                 ))
             })?;
 
@@ -204,8 +203,7 @@ impl<'a> RssFeedValidator<'a> {
         )
         .map_err(|_| {
             RssError::DateParseError(format!(
-                "Failed to parse date: {}",
-                date_str
+                "Failed to parse date: {date_str}"
             ))
         })?;
 
@@ -272,8 +270,7 @@ impl<'a> RssFeedValidator<'a> {
             errors.push(ValidationError {
                 field: field.to_string(),
                 message: format!(
-                    "URL exceeds maximum length of {} characters",
-                    MAX_URL_LENGTH
+                    "URL exceeds maximum length of {MAX_URL_LENGTH} characters"
                 ),
             });
             return;
@@ -286,17 +283,14 @@ impl<'a> RssFeedValidator<'a> {
                 {
                     errors.push(ValidationError {
                         field: field.to_string(),
-                        message: format!("Invalid URL scheme in {}: {}. Only HTTP and HTTPS are allowed.", field, url),
+                        message: format!("Invalid URL scheme in {field}: {url}. Only HTTP and HTTPS are allowed."),
                     });
                 }
             }
             Err(_) => {
                 errors.push(ValidationError {
                     field: field.to_string(),
-                    message: format!(
-                        "Invalid URL in {}: {}",
-                        field, url
-                    ),
+                    message: format!("Invalid URL in {field}: {url}"),
                 });
             }
         }
@@ -536,8 +530,7 @@ mod tests {
             validator.validate_version_specific(&mut errors);
             assert!(
                 errors.is_empty(),
-                "Unexpected errors for version {:?}",
-                version
+                "Unexpected errors for version {version:?}"
             );
         }
     }

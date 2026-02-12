@@ -8,7 +8,7 @@ name = "rss-gen"                            # The name of the library
 version = "0.0.4"                           # Current version of the crate
 authors = ["RSS Generator Contributors"]    # Library contributors
 edition = "2021"                            # Rust edition being used
-rust-version = "1.56.0"                     # Minimum supported Rust version
+rust-version = "1.68.0"                     # Minimum supported Rust version
 license = "MIT OR Apache-2.0"               # Dual licensing strategy
 description = """
 A Rust library for generating, serializing, and deserializing RSS feeds for various RSS versions.
@@ -51,7 +51,7 @@ exclude = [
 # List of external crates used in this project
 dtt = "0.0"
 log = "0.4"
-quick-xml = { version = "0.37", features = ["serialize"] }
+quick-xml = { version = "0.39", features = ["serialize"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "2.0"
@@ -64,7 +64,7 @@ version_check = "0.9"
 
 [dev-dependencies]
 # Dependencies for development and testing
-criterion = "0.5"
+criterion = "0.8"
 lazy_static = "1.5"
 proptest = "1.4"
 quickcheck = "1.0"

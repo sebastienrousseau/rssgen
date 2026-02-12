@@ -193,8 +193,7 @@ fn parse_channel_element(
             }
         }
         _ => Err(RssError::UnknownElement(format!(
-            "Unknown channel element: {}",
-            element
+            "Unknown channel element: {element}"
         ))),
     }
 }
@@ -247,7 +246,7 @@ fn parse_item_element(
             } else {
                 let enclosure_str = attributes
                     .iter()
-                    .map(|(k, v)| format!("{}=\"{}\"", k, v))
+                    .map(|(k, v)| format!("{k}=\"{v}\""))
                     .collect::<Vec<String>>()
                     .join(" ");
                 item.enclosure = Some(enclosure_str);
@@ -459,8 +458,7 @@ fn process_start_event(
                     | ParsingState::Image
             ) {
                 return Err(RssError::UnknownElement(format!(
-                    "Unknown element: {}",
-                    name_str
+                    "Unknown element: {name_str}"
                 )));
             }
         }
@@ -527,7 +525,12 @@ fn process_text_event(
     rss_data: &mut RssData,
     config: Option<&ParserConfig>,
 ) -> Result<()> {
-    let text = e.unescape()?.into_owned();
+    let decoded = e
+        .decode()
+        .map_err(|err| RssError::Custom(err.to_string()))?;
+    let text = quick_xml::escape::unescape(&decoded)
+        .map_err(|err| RssError::Custom(err.to_string()))?
+        .into_owned();
 
     let parse_context = ParsingContext {
         is_rss_1_0: matches!(
@@ -827,9 +830,9 @@ mod tests {
                 assert_eq!(parsed_data.image_title, "Sample Image");
             }
             Err(RssError::UnknownElement(element)) => {
-                panic!("Failed due to unknown element: {:?}", element);
+                panic!("Failed due to unknown element: {element:?}");
             }
-            Err(e) => panic!("Failed to parse RSS with image: {:?}", e),
+            Err(e) => panic!("Failed to parse RSS with image: {e:?}"),
         }
     }
 
@@ -854,9 +857,9 @@ mod tests {
                 assert_eq!(parsed_data.title, "Sample Feed");
             }
             Err(RssError::UnknownElement(element)) => {
-                panic!("Failed due to unknown element: {:?}", element);
+                panic!("Failed due to unknown element: {element:?}");
             }
-            Err(e) => panic!("Failed to parse RSS 1.0: {:?}", e),
+            Err(e) => panic!("Failed to parse RSS 1.0: {e:?}"),
         }
     }
 
@@ -880,9 +883,9 @@ mod tests {
                 assert_eq!(parsed_data.title, "Sample Feed");
             }
             Err(RssError::UnknownElement(element)) => {
-                panic!("Failed due to unknown element: {:?}", element);
+                panic!("Failed due to unknown element: {element:?}");
             }
-            Err(e) => panic!("Failed to parse RSS 2.0: {:?}", e),
+            Err(e) => panic!("Failed to parse RSS 2.0: {e:?}"),
         }
     }
 

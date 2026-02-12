@@ -21,7 +21,7 @@ jobs:
     steps:
       # Checkout the repository
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       # Setup Rust nightly
       - name: Install Rust
@@ -33,7 +33,7 @@ jobs:
 
       # Configure cache for Cargo
       - name: Cache Cargo registry, index
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         id: cache-cargo
         with:
           path: |

@@ -28,6 +28,7 @@ use url::Url;
     Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize,
 )]
 #[non_exhaustive]
+#[derive(Default)]
 pub enum RssVersion {
     /// RSS version 0.90
     RSS0_90,
@@ -38,6 +39,7 @@ pub enum RssVersion {
     /// RSS version 1.0
     RSS1_0,
     /// RSS version 2.0
+    #[default]
     RSS2_0,
 }
 
@@ -56,12 +58,6 @@ impl RssVersion {
             Self::RSS1_0 => "1.0",
             Self::RSS2_0 => "2.0",
         }
-    }
-}
-
-impl Default for RssVersion {
-    fn default() -> Self {
-        Self::RSS2_0
     }
 }
 
@@ -263,7 +259,7 @@ impl RssData {
 
         if total_size > MAX_FEED_SIZE {
             return Err(RssError::InvalidInput(
-                format!("Total feed size exceeds maximum allowed size of {} bytes", MAX_FEED_SIZE)
+                format!("Total feed size exceeds maximum allowed size of {MAX_FEED_SIZE} bytes")
             ));
         }
 
@@ -345,7 +341,7 @@ impl RssData {
         if self.link.is_empty() {
             errors.push("Link is missing".to_string());
         } else if let Err(e) = validate_url(&self.link) {
-            errors.push(format!("Invalid link: {}", e));
+            errors.push(format!("Invalid link: {e}"));
         }
 
         if self.description.is_empty() {
@@ -355,14 +351,13 @@ impl RssData {
         // Check category length
         if self.category.len() > MAX_GENERAL_LENGTH {
             return Err(RssError::InvalidInput(format!(
-            "Category exceeds maximum allowed length of {} characters",
-            MAX_GENERAL_LENGTH
+            "Category exceeds maximum allowed length of {MAX_GENERAL_LENGTH} characters"
         )));
         }
 
         if !self.pub_date.is_empty() {
             if let Err(e) = parse_date(&self.pub_date) {
-                errors.push(format!("Invalid publication date: {}", e));
+                errors.push(format!("Invalid publication date: {e}"));
             }
         }
 
@@ -673,7 +668,7 @@ impl RssItem {
         if self.link.is_empty() {
             errors.push("Link is missing".to_string());
         } else if let Err(e) = validate_url(&self.link) {
-            errors.push(format!("Invalid link: {}", e));
+            errors.push(format!("Invalid link: {e}"));
         }
 
         if self.description.is_empty() {
@@ -958,7 +953,7 @@ mod tests {
         assert!(result.is_err());
         if let Err(RssError::ValidationErrors(errors)) = result {
             assert!(errors.iter().any(|e| e.contains("Invalid link")),
-                "Expected an error containing 'Invalid link', but got: {:?}", errors);
+                "Expected an error containing 'Invalid link', but got: {errors:?}");
         } else {
             panic!("Expected ValidationErrors");
         }

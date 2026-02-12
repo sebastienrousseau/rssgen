@@ -174,7 +174,7 @@ impl RssError {
     /// This method logs the error at the error level. It uses the `log` crate,
     /// so the application using this library should configure a logger.
     pub fn log(&self) {
-        log::error!("RSS Error occurred: {}", self);
+        log::error!("RSS Error occurred: {self}");
     }
 
     /// Converts the `RssError` into an appropriate HTTP status code.
@@ -368,7 +368,7 @@ mod tests {
         let rss_error = RssError::MissingField("title".to_string());
 
         assert_eq!(
-            format!("{}", rss_error),
+            format!("{rss_error}"),
             "A required field is missing: title"
         );
     }
@@ -379,7 +379,7 @@ mod tests {
             RssError::DateParseError("Invalid date format".to_string());
 
         assert_eq!(
-            format!("{}", rss_error),
+            format!("{rss_error}"),
             "Date parse error: Invalid date format"
         );
     }
@@ -390,7 +390,7 @@ mod tests {
             RssError::InvalidUrl("https://invalid-url".to_string());
 
         assert_eq!(
-            format!("{}", rss_error),
+            format!("{rss_error}"),
             "Invalid URL provided: https://invalid-url"
         );
     }
@@ -401,7 +401,7 @@ mod tests {
             RssError::UnknownElement("unknown-element".to_string());
 
         assert_eq!(
-            format!("{}", rss_error),
+            format!("{rss_error}"),
             "Unknown XML element found: unknown-element"
         );
     }
@@ -416,7 +416,7 @@ mod tests {
             RssError::ValidationErrors(validation_errors.clone());
 
         assert_eq!(
-            format!("{}", rss_error),
+            format!("{rss_error}"),
             format!("Validation errors: {:?}", validation_errors)
         );
     }

@@ -1,10 +1,11 @@
 #![allow(missing_docs)]
 use criterion::{
-    black_box, criterion_group, criterion_main, AxisScale, Criterion,
+    criterion_group, criterion_main, AxisScale, Criterion,
     PlotConfiguration,
 };
 use rss_gen::{generate_rss, parse_rss, RssData, RssItem, RssVersion};
 use std::alloc::{GlobalAlloc, Layout, System};
+use std::hint::black_box;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 

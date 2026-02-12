@@ -70,7 +70,8 @@ pub fn write_element<W: std::io::Write>(
     content: &str,
 ) -> Result<()> {
     writer.write_event(Event::Start(BytesStart::new(name)))?;
-    writer.write_event(Event::Text(BytesText::new(content)))?;
+    writer
+        .write_event(Event::Text(BytesText::from_escaped(content)))?;
     writer.write_event(Event::End(BytesEnd::new(name)))?;
     Ok(())
 }
@@ -356,39 +357,25 @@ fn write_atom_link_element<W: std::io::Write>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use quick_xml::events::Event;
-    use quick_xml::Reader;
 
     fn assert_xml_element(xml: &str, element: &str, expected: &str) {
-        let mut reader = Reader::from_str(xml);
-        let mut found = false;
+        let open_tag = format!("<{element}>");
+        let close_tag = format!("</{element}>");
 
-        loop {
-            match reader.read_event() {
-                Ok(Event::Start(ref e))
-                    if e.name().as_ref() == element.as_bytes() =>
-                {
-                    if let Ok(Event::Text(e)) = reader.read_event() {
-                        let unescaped = e.unescape().unwrap();
-                        assert_eq!(unescaped, expected);
-                        found = true;
-                        break;
-                    }
-                }
-                Ok(Event::Eof) => break,
-                Err(e) => panic!(
-                    "Error at position {}: {:?}",
-                    reader.buffer_position(),
-                    e
-                ),
-                _ => (),
+        if let Some(start) = xml.find(&open_tag) {
+            let content_start = start + open_tag.len();
+            if let Some(end) = xml[content_start..].find(&close_tag) {
+                let content = &xml[content_start..content_start + end];
+                assert_eq!(
+                    content, expected,
+                    "Element '{element}' content mismatch"
+                );
+            } else {
+                panic!("Closing tag '{close_tag}' not found in XML");
             }
+        } else {
+            panic!("Element '{element}' not found in XML");
         }
-        assert!(
-            found,
-            "Element '{}' not found or doesn't match expected content",
-            element
-        );
     }
 
     #[test]
@@ -444,7 +431,7 @@ mod tests {
 
         // Add this to print the error if the result is not ok
         if let Err(ref e) = result {
-            eprintln!("Error generating RSS: {:?}", e);
+            eprintln!("Error generating RSS: {e:?}");
         }
 
         assert!(result.is_ok());
@@ -533,13 +520,12 @@ mod tests {
         for i in 1..=3 {
             rss_data.add_item(
                 RssItem::new()
-                    .title(format!("Item {}", i))
-                    .link(format!("https://example.com/item{}", i))
-                    .description(format!("Description for item {}", i))
-                    .guid(format!("https://example.com/item{}", i))
+                    .title(format!("Item {i}"))
+                    .link(format!("https://example.com/item{i}"))
+                    .description(format!("Description for item {i}"))
+                    .guid(format!("https://example.com/item{i}"))
                     .pub_date(format!(
-                        "Mon, 0{} Jan 2023 00:00:00 GMT",
-                        i
+                        "Mon, 0{i} Jan 2023 00:00:00 GMT"
                     )),
             );
         }
@@ -551,23 +537,20 @@ mod tests {
         assert_xml_element(&rss_feed, "title", "Multiple Items Feed");
 
         for i in 1..=3 {
-            assert!(rss_feed
-                .contains(&format!("<title>Item {}</title>", i)));
+            assert!(
+                rss_feed.contains(&format!("<title>Item {i}</title>"))
+            );
             assert!(rss_feed.contains(&format!(
-                "<link>https://example.com/item{}</link>",
-                i
+                "<link>https://example.com/item{i}</link>"
             )));
             assert!(rss_feed.contains(&format!(
-                "<description>Description for item {}</description>",
-                i
+                "<description>Description for item {i}</description>"
             )));
             assert!(rss_feed.contains(&format!(
-                "<guid>https://example.com/item{}</guid>",
-                i
+                "<guid>https://example.com/item{i}</guid>"
             )));
             assert!(rss_feed.contains(&format!(
-                "<pubDate>Mon, 0{} Jan 2023 00:00:00 GMT</pubDate>",
-                i
+                "<pubDate>Mon, 0{i} Jan 2023 00:00:00 GMT</pubDate>"
             )));
         }
     }
@@ -650,12 +633,9 @@ mod tests {
 
         for version in versions {
             let rss_data = RssData::new(Some(version))
-                .title(format!("RSS {} Feed", version))
+                .title(format!("RSS {version} Feed"))
                 .link("https://example.com")
-                .description(format!(
-                    "RSS {} feed description",
-                    version
-                ));
+                .description(format!("RSS {version} feed description"));
 
             let result = generate_rss(&rss_data);
             assert!(result.is_ok());
@@ -671,7 +651,7 @@ mod tests {
             assert_xml_element(
                 &rss_feed,
                 "title",
-                &format!("RSS {} Feed", version),
+                &format!("RSS {version} Feed"),
             );
             assert_xml_element(
                 &rss_feed,
@@ -681,7 +661,7 @@ mod tests {
             assert_xml_element(
                 &rss_feed,
                 "description",
-                &format!("RSS {} feed description", version),
+                &format!("RSS {version} feed description"),
             );
         }
     }

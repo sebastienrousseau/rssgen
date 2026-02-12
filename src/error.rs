@@ -420,4 +420,22 @@ mod tests {
             format!("Validation errors: {:?}", validation_errors)
         );
     }
+
+    #[test]
+    fn test_error_log() {
+        let error = RssError::missing_field("title");
+        // log() writes to the log crate; just verify it doesn't panic
+        error.log();
+
+        let error = RssError::custom("something went wrong");
+        error.log();
+    }
+
+    #[test]
+    fn test_custom_error_http_status() {
+        assert_eq!(
+            RssError::Custom("err".to_string()).to_http_status(),
+            500
+        );
+    }
 }

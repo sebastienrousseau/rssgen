@@ -600,6 +600,29 @@ mod tests {
     }
 
     #[test]
+    fn test_sanitize_content_idempotent() {
+        // Test that pre-escaped entities are handled correctly (unescape then re-escape)
+        let input = "&amp; &lt; &gt; &quot; &#x27;";
+        let result = sanitize_content(input);
+        assert_eq!(result, "&amp; &lt; &gt; &quot; &#x27;");
+
+        // Applying sanitize_content again should produce the same result
+        let result2 = sanitize_content(&result);
+        assert_eq!(result2, result);
+    }
+
+    #[test]
+    fn test_sanitize_content_mixed_escaped_and_raw() {
+        // Mix of already-escaped and raw special chars
+        let input = "Hello &amp; <world> &quot;test&quot;";
+        let result = sanitize_content(input);
+        assert_eq!(
+            result,
+            "Hello &amp; &lt;world&gt; &quot;test&quot;"
+        );
+    }
+
+    #[test]
     fn test_generate_rss_with_author() {
         let mut rss_data = RssData::new(None)
             .title("Feed with Author")

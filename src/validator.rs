@@ -604,4 +604,95 @@ mod tests {
         assert!(!errors.is_empty());
         assert!(errors[0].message.contains("Title is missing"));
     }
+
+    #[test]
+    fn test_validate_items_with_invalid_item() {
+        let mut rss_data = RssData::new(Some(RssVersion::RSS2_0))
+            .title("Test Feed")
+            .link("https://example.com")
+            .description("A test feed")
+            .atom_link("https://example.com/feed.xml")
+            .generator("Test");
+
+        // Add an item missing required fields (title, link, description)
+        rss_data.add_item(RssItem::new().guid("guid1"));
+
+        let validator = RssFeedValidator::new(&rss_data);
+        let mut errors = Vec::new();
+        validator.validate_items(&mut errors);
+
+        assert!(!errors.is_empty(), "Expected item validation errors");
+        assert!(errors[0].field.contains("item[0]"));
+        assert!(errors[0].message.contains("Item validation failed"));
+    }
+
+    #[test]
+    fn test_validate_dates_with_invalid_item_date() {
+        let mut rss_data = RssData::new(Some(RssVersion::RSS2_0))
+            .title("Test Feed")
+            .link("https://example.com")
+            .description("A test feed")
+            .atom_link("https://example.com/feed.xml")
+            .pub_date("Mon, 01 Jan 2024 00:00:00 GMT")
+            .generator("Test");
+
+        rss_data.add_item(
+            RssItem::new()
+                .title("Item")
+                .link("https://example.com/item")
+                .description("Desc")
+                .guid("guid1")
+                .pub_date("not a valid date"),
+        );
+
+        let validator = RssFeedValidator::new(&rss_data);
+        let mut errors = Vec::new();
+        validator.validate_dates(&mut errors);
+
+        assert!(!errors.is_empty(), "Expected date validation errors");
+        assert!(errors
+            .iter()
+            .any(|e| e.field.contains("item[0].pubDate")));
+    }
+
+    #[test]
+    fn test_validate_url_exceeds_max_length() {
+        let mut errors = Vec::new();
+        let long_url = format!(
+            "https://example.com/{}",
+            "a".repeat(MAX_URL_LENGTH)
+        );
+
+        RssFeedValidator::validate_url(&long_url, "test", &mut errors);
+
+        assert_eq!(errors.len(), 1);
+        assert!(errors[0]
+            .message
+            .contains("URL exceeds maximum length"));
+    }
+
+    #[test]
+    fn test_validate_structure_with_invalid_item_link() {
+        let mut rss_data = RssData::new(Some(RssVersion::RSS2_0))
+            .title("Test Feed")
+            .link("https://example.com")
+            .description("A test feed")
+            .atom_link("https://example.com/feed.xml");
+
+        rss_data.add_item(
+            RssItem::new()
+                .title("Item")
+                .link("not-a-valid-url")
+                .description("Desc")
+                .guid("guid1"),
+        );
+
+        let validator = RssFeedValidator::new(&rss_data);
+        let mut errors = Vec::new();
+        validator.validate_structure(&mut errors);
+
+        assert!(errors
+            .iter()
+            .any(|e| e.field.contains("item[0] link")));
+    }
 }

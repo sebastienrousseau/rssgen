@@ -1142,4 +1142,195 @@ mod tests {
             Some("https://example.com".to_string())
         );
     }
+
+    #[test]
+    fn test_process_text_event_in_channel() {
+        let e = BytesText::from_escaped("Channel Title");
+        let mut context = ParserContext::new();
+        context.parsing_state = ParsingState::Channel;
+        context.current_element = "title".to_string();
+        let mut rss_data = RssData::default();
+
+        let result =
+            process_text_event(&e, &mut context, &mut rss_data, None);
+        assert!(result.is_ok());
+        assert_eq!(rss_data.title, "Channel Title");
+    }
+
+    #[test]
+    fn test_process_text_event_in_item() {
+        let e = BytesText::from_escaped("Item Title");
+        let mut context = ParserContext::new();
+        context.parsing_state = ParsingState::Item;
+        context.current_element = "title".to_string();
+        let mut rss_data = RssData::default();
+
+        let result =
+            process_text_event(&e, &mut context, &mut rss_data, None);
+        assert!(result.is_ok());
+        assert_eq!(context.current_item.title, "Item Title");
+    }
+
+    #[test]
+    fn test_process_cdata_event_in_channel() {
+        let e = BytesCData::new("CDATA Description");
+        let mut context = ParserContext::new();
+        context.parsing_state = ParsingState::Channel;
+        context.current_element = "description".to_string();
+        let mut rss_data = RssData::default();
+
+        let result =
+            process_cdata_event(&e, &mut context, &mut rss_data, None);
+        assert!(result.is_ok());
+        assert_eq!(rss_data.description, "CDATA Description");
+    }
+
+    #[test]
+    fn test_process_cdata_event_in_item() {
+        let e = BytesCData::new("CDATA Item Desc");
+        let mut context = ParserContext::new();
+        context.parsing_state = ParsingState::Item;
+        context.current_element = "description".to_string();
+        let mut rss_data = RssData::default();
+
+        let result =
+            process_cdata_event(&e, &mut context, &mut rss_data, None);
+        assert!(result.is_ok());
+        assert_eq!(context.current_item.description, "CDATA Item Desc");
+    }
+
+    #[test]
+    fn test_process_text_event_with_custom_handler() {
+        let handler = Arc::new(MockElementHandler);
+        let config = ParserConfig {
+            custom_handlers: vec![handler],
+        };
+
+        let e = BytesText::from_escaped("Custom content");
+        let mut context = ParserContext::new();
+        // Use None state so handle_text_event skips channel/item/image parsing
+        // and apply_custom_handlers is invoked with the element and text
+        context.current_element = "customElement".to_string();
+        let mut rss_data = RssData::default();
+
+        let result = process_text_event(
+            &e,
+            &mut context,
+            &mut rss_data,
+            Some(&config),
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_parse_rss_with_cdata() {
+        let rss_xml = r#"
+        <?xml version="1.0" encoding="UTF-8"?>
+        <rss version="2.0">
+          <channel>
+            <title>CDATA Feed</title>
+            <link>https://example.com</link>
+            <description><![CDATA[A feed with <b>CDATA</b> content]]></description>
+            <item>
+              <title><![CDATA[CDATA Item]]></title>
+              <link>https://example.com/item1</link>
+              <description><![CDATA[Item with <em>HTML</em>]]></description>
+            </item>
+          </channel>
+        </rss>
+        "#;
+
+        let result = parse_rss(rss_xml, None);
+        assert!(result.is_ok());
+        let data = result.unwrap();
+        assert_eq!(data.title, "CDATA Feed");
+        assert!(data.description.contains("CDATA"));
+        assert_eq!(data.items.len(), 1);
+        assert_eq!(data.items[0].title, "CDATA Item");
+    }
+
+    #[test]
+    fn test_process_text_event_with_escaped_entities() {
+        let e = BytesText::from_escaped("&amp; &lt; &gt;");
+        let mut context = ParserContext::new();
+        context.parsing_state = ParsingState::Channel;
+        context.current_element = "title".to_string();
+        let mut rss_data = RssData::default();
+
+        let result =
+            process_text_event(&e, &mut context, &mut rss_data, None);
+        assert!(result.is_ok());
+        // BytesText::from_escaped + unescape should decode entities
+        assert_eq!(rss_data.title, "& < >");
+    }
+
+    #[test]
+    fn test_process_start_event_unknown_element_outside_context() {
+        let e = BytesStart::new("unknownRoot");
+        let mut context = ParserContext::new();
+        // State is None, so unknown element triggers error
+        context.parsing_state = ParsingState::None;
+        let mut rss_data = RssData::default();
+
+        let result =
+            process_start_event(&e, &mut context, &mut rss_data);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_rss_with_all_channel_fields() {
+        let rss_xml = r#"
+        <?xml version="1.0" encoding="UTF-8"?>
+        <rss version="2.0">
+          <channel>
+            <title>Full Channel</title>
+            <link>https://example.com</link>
+            <description>A complete channel</description>
+            <language>en-US</language>
+            <copyright>2024</copyright>
+            <managingEditor>editor@example.com</managingEditor>
+            <webMaster>webmaster@example.com</webMaster>
+            <pubDate>Mon, 01 Jan 2024 00:00:00 GMT</pubDate>
+            <lastBuildDate>Mon, 01 Jan 2024 00:00:00 GMT</lastBuildDate>
+            <category>Technology</category>
+            <generator>Test Generator</generator>
+            <docs>https://example.com/docs</docs>
+            <ttl>60</ttl>
+            <item>
+              <title>Item 1</title>
+              <link>https://example.com/item1</link>
+              <description>First item</description>
+              <author>author@example.com</author>
+              <category>Cat1</category>
+              <comments>https://example.com/item1/comments</comments>
+              <source>https://example.com</source>
+            </item>
+          </channel>
+        </rss>
+        "#;
+
+        let result = parse_rss(rss_xml, None);
+        assert!(result.is_ok());
+        let data = result.unwrap();
+        assert_eq!(data.title, "Full Channel");
+        assert_eq!(data.language, "en-US");
+        assert_eq!(data.copyright, "2024");
+        assert_eq!(data.managing_editor, "editor@example.com");
+        assert_eq!(data.webmaster, "webmaster@example.com");
+        assert_eq!(data.category, "Technology");
+        assert_eq!(data.generator, "Test Generator");
+        assert_eq!(data.docs, "https://example.com/docs");
+        assert_eq!(data.ttl, "60");
+        assert_eq!(data.items.len(), 1);
+        assert_eq!(data.items[0].author, "author@example.com");
+        assert_eq!(data.items[0].category, Some("Cat1".to_string()));
+        assert_eq!(
+            data.items[0].comments,
+            Some("https://example.com/item1/comments".to_string())
+        );
+        assert_eq!(
+            data.items[0].source,
+            Some("https://example.com".to_string())
+        );
+    }
 }

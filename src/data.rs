@@ -1371,4 +1371,45 @@ mod tests {
         let item = RssItem::new().set(RssItemField::Title, "");
         assert!(item.title.is_empty());
     }
+
+    #[test]
+    fn test_rss_data_validate_invalid_pub_date() {
+        let rss_data = RssData::new(None)
+            .title("Test Feed")
+            .link("https://example.com")
+            .description("A test feed")
+            .pub_date("not a valid date");
+
+        let result = rss_data.validate();
+        assert!(result.is_err());
+        if let Err(RssError::ValidationErrors(errors)) = result {
+            assert!(
+                errors
+                    .iter()
+                    .any(|e| e.contains("Invalid publication date")),
+                "Expected 'Invalid publication date' error, got: {errors:?}"
+            );
+        } else {
+            panic!("Expected ValidationErrors");
+        }
+    }
+
+    #[test]
+    fn test_rss_item_validate_invalid_link() {
+        let item = RssItem::new()
+            .title("Item")
+            .link("not-a-valid-url")
+            .description("Desc");
+
+        let result = item.validate();
+        assert!(result.is_err());
+        if let Err(RssError::ValidationErrors(errors)) = result {
+            assert!(
+                errors.iter().any(|e| e.contains("Invalid link")),
+                "Expected 'Invalid link' error, got: {errors:?}"
+            );
+        } else {
+            panic!("Expected ValidationErrors");
+        }
+    }
 }

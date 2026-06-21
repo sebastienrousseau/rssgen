@@ -227,7 +227,7 @@ mod tests {
     #[test]
     fn test_xml_write_error() {
         let xml_error = quick_xml::Error::Io(std::sync::Arc::new(
-            io::Error::new(io::ErrorKind::Other, "XML error"),
+            io::Error::other("XML error"),
         ));
         let error = RssError::XmlWriteError(xml_error);
         assert_eq!(
@@ -327,10 +327,7 @@ mod tests {
         );
         assert_eq!(
             RssError::XmlWriteError(quick_xml::Error::Io(
-                std::sync::Arc::new(io::Error::new(
-                    io::ErrorKind::Other,
-                    "XML error"
-                ))
+                std::sync::Arc::new(io::Error::other("XML error"))
             ))
             .to_http_status(),
             500
@@ -442,11 +439,8 @@ mod tests {
     #[test]
     fn test_date_sort_error_constructor() {
         let error = RssError::date_sort_error(3, "dates out of order");
-        match error {
-            DateSortError { index, message } => {
-                assert_eq!(index, 3);
-                assert_eq!(message, "dates out of order");
-            }
-        }
+        let DateSortError { index, message } = error;
+        assert_eq!(index, 3);
+        assert_eq!(message, "dates out of order");
     }
 }

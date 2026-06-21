@@ -8,7 +8,13 @@
 //! This example demonstrates the usage of various macros provided by the RSS Gen library,
 //! including generating RSS feeds and setting RSS fields.
 
-#![allow(missing_docs)]
+#![allow(
+    missing_docs,
+    unreachable_pub,
+    trivial_casts,
+    unused_qualifications,
+    clippy::io_other_error
+)]
 
 use quick_xml::events::{BytesEnd, BytesStart, BytesText, Event};
 use quick_xml::Error as XmlError;

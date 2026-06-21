@@ -9,4 +9,3 @@ build
 Icon?
 src/.DS_Store
 tarpaulin-report.html
-Cargo.lock

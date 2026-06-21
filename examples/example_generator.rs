@@ -8,7 +8,13 @@
 //! This example demonstrates the usage of various components of the RSS Generator library,
 //! including content sanitization, XML element writing, and RSS generation functionality.
 
-#![allow(missing_docs)]
+#![allow(
+    missing_docs,
+    unreachable_pub,
+    trivial_casts,
+    unused_qualifications,
+    clippy::io_other_error
+)]
 
 use quick_xml::Writer;
 use rss_gen::generator::{sanitize_content, write_element};

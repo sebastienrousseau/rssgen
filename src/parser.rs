@@ -687,6 +687,17 @@ impl ParserContext {
     }
 }
 
+impl std::fmt::Debug for ParserConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ParserConfig")
+            .field(
+                "custom_handlers",
+                &format!("[{} handlers]", self.custom_handlers.len()),
+            )
+            .finish()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1467,16 +1478,5 @@ mod tests {
         let data = result.unwrap();
         assert_eq!(data.title, "CDATA Channel Title");
         assert_eq!(data.description, "CDATA Description");
-    }
-}
-
-impl std::fmt::Debug for ParserConfig {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ParserConfig")
-            .field(
-                "custom_handlers",
-                &format!("[{} handlers]", self.custom_handlers.len()),
-            )
-            .finish()
     }
 }

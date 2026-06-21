@@ -234,20 +234,18 @@ impl<'a> RssFeedValidator<'a> {
                     });
                 }
             }
-            RssVersion::RSS1_0 => {
+            RssVersion::RSS1_0
                 if self
                     .rss_data
                     .items
                     .iter()
-                    .any(|item| item.guid.is_empty())
-                {
-                    errors.push(ValidationError {
-                        field: "guid".to_string(),
-                        message:
-                            "All items must have a guid in RSS 1.0"
-                                .to_string(),
-                    });
-                }
+                    .any(|item| item.guid.is_empty()) =>
+            {
+                errors.push(ValidationError {
+                    field: "guid".to_string(),
+                    message: "All items must have a guid in RSS 1.0"
+                        .to_string(),
+                });
             }
             _ => {}
         }

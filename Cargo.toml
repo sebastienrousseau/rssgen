@@ -114,7 +114,11 @@ missing_copy_implementations = "warn"
 missing_docs = "warn"
 unstable_features = "warn"
 unused_extern_crates = "warn"
-unused_results = "warn"
+# `unused_results` is allow-by-default; HashMap::insert and similar
+# return-by-replacement APIs are idiomatically ignored. Promoting it to
+# `warn` combined with CI's `-D warnings` turns every such call into a
+# hard error without a corresponding readability benefit.
+unused_results = "allow"
 
 bare_trait_objects = "allow"
 elided_lifetimes_in_paths = "allow"
@@ -125,7 +129,9 @@ unsafe_code = "allow"
 
 missing_debug_implementations = "forbid"
 non_ascii_idents = "forbid"
-unreachable_pub = "forbid"
+# `deny` (rather than `forbid`) so individual example files can opt out
+# via `#![allow(unreachable_pub)]` for `pub fn main`-style boilerplate.
+unreachable_pub = "deny"
 
 dead_code = "deny"
 deprecated_in_future = "deny"
@@ -135,7 +141,8 @@ future_incompatible = { level = "deny", priority = -1 }
 keyword_idents = { level = "deny", priority = -1 }
 macro_use_extern_crate = "deny"
 meta_variable_misuse = "deny"
-missing_fragment_specifier = "deny"
+# `missing_fragment_specifier` was promoted to a hard error in Rust,
+# so declaring it here triggers `renamed_and_removed_lints`.
 noop_method_call = "deny"
 rust_2018_idioms = { level = "deny", priority = -1 }
 rust_2021_compatibility = { level = "deny", priority = -1 }

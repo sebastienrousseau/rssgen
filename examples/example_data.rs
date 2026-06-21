@@ -7,7 +7,13 @@
 //! including creating and manipulating RSS data, RSS items, validating URLs, parsing dates,
 //! and working with different RSS versions.
 
-#![allow(missing_docs)]
+#![allow(
+    missing_docs,
+    unreachable_pub,
+    trivial_casts,
+    unused_qualifications,
+    clippy::io_other_error
+)]
 
 use rss_gen::data::*;
 use rss_gen::error::Result;

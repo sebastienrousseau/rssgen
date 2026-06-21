@@ -279,17 +279,17 @@ struct ParsingContext<'a> {
 
 impl ParsingContext<'_> {
     /// Helper function to check if the current state is in a channel.
-    pub fn in_channel(&self) -> bool {
+    pub(crate) fn in_channel(&self) -> bool {
         matches!(self.state, ParsingState::Channel)
     }
 
     /// Helper function to check if the current state is in an item.
-    pub fn in_item(&self) -> bool {
+    pub(crate) fn in_item(&self) -> bool {
         matches!(self.state, ParsingState::Item)
     }
 
     /// Helper function to check if the current state is in an image.
-    pub fn in_image(&self) -> bool {
+    pub(crate) fn in_image(&self) -> bool {
         matches!(self.state, ParsingState::Image)
     }
 }
@@ -673,7 +673,7 @@ struct ParserContext {
 
 impl ParserContext {
     /// Initialize a new `ParserContext` with default values.
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         ParserContext {
             rss_version: RssVersionState::Other,
             parsing_state: ParsingState::None,
@@ -1332,5 +1332,151 @@ mod tests {
             data.items[0].source,
             Some("https://example.com".to_string())
         );
+    }
+
+    #[test]
+    fn test_parse_rss_malformed_xml() {
+        let xml = "<rss><channel><title>Test</unclosed";
+        let result = parse_rss(xml, None);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_rss_with_cdata_in_image() {
+        let rss_xml = r#"<?xml version="1.0" encoding="UTF-8"?>
+        <rss version="2.0">
+          <channel>
+            <title>Test Feed</title>
+            <link>https://example.com</link>
+            <description>Test</description>
+            <image>
+              <title><![CDATA[Image Title]]></title>
+              <url><![CDATA[https://example.com/image.png]]></url>
+              <link><![CDATA[https://example.com]]></link>
+            </image>
+            <item>
+              <title>Item 1</title>
+              <link>https://example.com/1</link>
+              <description>Desc</description>
+            </item>
+          </channel>
+        </rss>
+        "#;
+
+        let result = parse_rss(rss_xml, None);
+        assert!(result.is_ok());
+        let data = result.unwrap();
+        assert_eq!(data.image_title, "Image Title");
+        assert_eq!(data.image_url, "https://example.com/image.png");
+        assert_eq!(data.image_link, "https://example.com");
+    }
+
+    #[test]
+    fn test_parse_rss_with_cdata_in_item() {
+        let rss_xml = r#"<?xml version="1.0" encoding="UTF-8"?>
+        <rss version="2.0">
+          <channel>
+            <title>Test Feed</title>
+            <link>https://example.com</link>
+            <description>Test</description>
+            <item>
+              <title><![CDATA[CDATA Item Title]]></title>
+              <link>https://example.com/1</link>
+              <description><![CDATA[<p>HTML content</p>]]></description>
+            </item>
+          </channel>
+        </rss>
+        "#;
+
+        let result = parse_rss(rss_xml, None);
+        assert!(result.is_ok());
+        let data = result.unwrap();
+        assert_eq!(data.items[0].title, "CDATA Item Title");
+        assert!(data.items[0].description.contains("HTML content"));
+    }
+
+    #[test]
+    fn test_process_text_event_with_failing_custom_handler() {
+        let rss_xml = r#"<?xml version="1.0" encoding="UTF-8"?>
+        <rss version="2.0">
+          <channel>
+            <title>Test Feed</title>
+            <link>https://example.com</link>
+            <description>Test</description>
+            <item>
+              <title>Item</title>
+              <link>https://example.com/1</link>
+              <description>Desc</description>
+              <unknownField>value</unknownField>
+            </item>
+          </channel>
+        </rss>
+        "#;
+
+        let handler = Arc::new(MockElementHandler);
+        let config = ParserConfig {
+            custom_handlers: vec![handler],
+        };
+
+        let result = parse_rss(rss_xml, Some(&config));
+        // The handler returns Err for unknown elements
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_element_with_attributes() {
+        let rss_xml = r#"<?xml version="1.0" encoding="UTF-8"?>
+        <rss version="2.0">
+          <channel>
+            <title>Test Feed</title>
+            <link>https://example.com</link>
+            <description>Test</description>
+            <item>
+              <title>Item</title>
+              <link href="https://example.com/1">https://example.com/1</link>
+              <description>Desc</description>
+              <enclosure url="https://example.com/audio.mp3" length="12345" type="audio/mpeg"/>
+            </item>
+          </channel>
+        </rss>
+        "#;
+
+        let result = parse_rss(rss_xml, None);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_cdata_event_channel_elements() {
+        let rss_xml = r#"<?xml version="1.0" encoding="UTF-8"?>
+        <rss version="2.0">
+          <channel>
+            <title><![CDATA[CDATA Channel Title]]></title>
+            <link>https://example.com</link>
+            <description><![CDATA[CDATA Description]]></description>
+            <item>
+              <title>Item</title>
+              <link>https://example.com/1</link>
+              <description>Desc</description>
+            </item>
+          </channel>
+        </rss>
+        "#;
+
+        let result = parse_rss(rss_xml, None);
+        assert!(result.is_ok());
+        let data = result.unwrap();
+        assert_eq!(data.title, "CDATA Channel Title");
+        assert_eq!(data.description, "CDATA Description");
+    }
+}
+
+impl std::fmt::Debug for ParserConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ParserConfig")
+            .field(
+                "custom_handlers",
+                &format!("[{} handlers]", self.custom_handlers.len()),
+            )
+            .finish()
     }
 }

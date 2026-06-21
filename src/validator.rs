@@ -197,7 +197,7 @@ impl<'a> RssFeedValidator<'a> {
                 ))
             })?;
 
-        let mut date = DateTime::parse_custom_format(
+        let date = DateTime::parse_custom_format(
             date_without_gmt,
             rss_date_format,
         )
@@ -207,7 +207,6 @@ impl<'a> RssFeedValidator<'a> {
             ))
         })?;
 
-        date.offset = time::UtcOffset::UTC;
         Ok(date)
     }
 
@@ -694,5 +693,56 @@ mod tests {
         assert!(errors
             .iter()
             .any(|e| e.field.contains("item[0] link")));
+    }
+
+    #[test]
+    fn test_parse_date_missing_gmt_suffix() {
+        let result =
+            RssFeedValidator::parse_date("Mon, 01 Jan 2024 00:00:00");
+        assert!(result.is_err());
+        if let Err(RssError::DateParseError(msg)) = result {
+            assert!(msg.contains("missing GMT"));
+        } else {
+            panic!("Expected DateParseError");
+        }
+    }
+
+    #[test]
+    fn test_parse_date_invalid_format_with_gmt() {
+        let result = RssFeedValidator::parse_date("not-a-date GMT");
+        assert!(result.is_err());
+        if let Err(RssError::DateParseError(msg)) = result {
+            assert!(msg.contains("Failed to parse date"));
+        } else {
+            panic!("Expected DateParseError");
+        }
+    }
+
+    #[test]
+    fn test_validate_rss_feed_convenience_function() {
+        let mut rss_data = RssData::new(Some(RssVersion::RSS2_0))
+            .title("Test Feed")
+            .link("https://example.com")
+            .description("A test feed")
+            .atom_link("https://example.com/feed.xml")
+            .pub_date("Mon, 01 Jan 2024 00:00:00 GMT")
+            .generator("RSS Gen Test");
+
+        rss_data.add_item(
+            RssItem::new()
+                .title("Test Item")
+                .link("https://example.com/item1")
+                .description("A test item")
+                .guid("unique-id-1")
+                .pub_date("Mon, 01 Jan 2024 00:00:00 GMT"),
+        );
+
+        assert!(validate_rss_feed(&rss_data).is_ok());
+    }
+
+    #[test]
+    fn test_validate_rss_feed_convenience_function_invalid() {
+        let rss_data = RssData::new(Some(RssVersion::RSS2_0));
+        assert!(validate_rss_feed(&rss_data).is_err());
     }
 }

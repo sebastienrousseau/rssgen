@@ -438,4 +438,15 @@ mod tests {
             500
         );
     }
+
+    #[test]
+    fn test_date_sort_error_constructor() {
+        let error = RssError::date_sort_error(3, "dates out of order");
+        match error {
+            DateSortError { index, message } => {
+                assert_eq!(index, 3);
+                assert_eq!(message, "dates out of order");
+            }
+        }
+    }
 }

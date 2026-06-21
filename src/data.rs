@@ -1412,4 +1412,132 @@ mod tests {
             panic!("Expected ValidationErrors");
         }
     }
+
+    #[test]
+    fn test_validate_size_exceeds_max() {
+        let mut rss_data = RssData::new(Some(RssVersion::RSS2_0));
+        // Fill description with enough data to exceed MAX_FEED_SIZE (1MB)
+        rss_data.description = "x".repeat(MAX_FEED_SIZE + 1);
+        let result = rss_data.validate_size();
+        assert!(result.is_err());
+        if let Err(RssError::InvalidInput(msg)) = result {
+            assert!(msg.contains("exceeds maximum allowed size"));
+        } else {
+            panic!("Expected InvalidInput error");
+        }
+    }
+
+    #[test]
+    fn test_validate_size_ok() {
+        let rss_data = RssData::new(Some(RssVersion::RSS2_0))
+            .title("Test")
+            .link("https://example.com")
+            .description("Short description");
+        assert!(rss_data.validate_size().is_ok());
+    }
+
+    #[test]
+    fn test_set_item_field_all_variants() {
+        let mut rss_data = RssData::new(None);
+        rss_data.set_item_field(RssItemField::Title, "Title");
+        rss_data
+            .set_item_field(RssItemField::Link, "https://example.com");
+        rss_data.set_item_field(RssItemField::Description, "Desc");
+        rss_data.set_item_field(RssItemField::Guid, "guid-1");
+        rss_data.set_item_field(
+            RssItemField::PubDate,
+            "Mon, 01 Jan 2024 00:00:00 GMT",
+        );
+        rss_data
+            .set_item_field(RssItemField::Author, "author@example.com");
+        rss_data.set_item_field(RssItemField::Category, "tech");
+        rss_data.set_item_field(
+            RssItemField::Comments,
+            "https://example.com/comments",
+        );
+        rss_data.set_item_field(
+            RssItemField::Enclosure,
+            "https://example.com/file.mp3",
+        );
+        rss_data.set_item_field(
+            RssItemField::Source,
+            "https://example.com/source",
+        );
+
+        let item = &rss_data.items[0];
+        assert_eq!(item.title, "Title");
+        assert_eq!(item.link, "https://example.com");
+        assert_eq!(item.description, "Desc");
+        assert_eq!(item.guid, "guid-1");
+        assert_eq!(item.author, "author@example.com");
+        assert_eq!(item.category, Some("tech".to_string()));
+        assert_eq!(
+            item.comments,
+            Some("https://example.com/comments".to_string())
+        );
+        assert_eq!(
+            item.enclosure,
+            Some("https://example.com/file.mp3".to_string())
+        );
+        assert_eq!(
+            item.source,
+            Some("https://example.com/source".to_string())
+        );
+    }
+
+    #[test]
+    fn test_rss_item_builder_all_fields() {
+        let item = RssItem::new()
+            .title("Title")
+            .link("https://example.com")
+            .description("Desc")
+            .guid("guid-1")
+            .pub_date("Mon, 01 Jan 2024 00:00:00 GMT")
+            .author("author@example.com")
+            .category("tech")
+            .comments("https://example.com/comments")
+            .enclosure("https://example.com/file.mp3")
+            .source("https://example.com/source");
+
+        assert_eq!(item.category, Some("tech".to_string()));
+        assert_eq!(
+            item.comments,
+            Some("https://example.com/comments".to_string())
+        );
+        assert_eq!(
+            item.enclosure,
+            Some("https://example.com/file.mp3".to_string())
+        );
+        assert_eq!(
+            item.source,
+            Some("https://example.com/source".to_string())
+        );
+    }
+
+    #[test]
+    fn test_rss_item_pub_date_parsed_valid() {
+        let item =
+            RssItem::new().pub_date("Sat, 07 Sep 2002 09:42:31 GMT");
+        let result = item.pub_date_parsed();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_rss_item_pub_date_parsed_invalid() {
+        let item = RssItem::new().pub_date("not-a-date");
+        let result = item.pub_date_parsed();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_date_iso8601() {
+        let result = parse_date("2024-01-15T10:30:00Z");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_parse_date_invalid() {
+        let result = parse_date("completely invalid date");
+        assert!(result.is_err());
+    }
 }

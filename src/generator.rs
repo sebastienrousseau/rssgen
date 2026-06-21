@@ -688,4 +688,78 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn test_generate_rss_2_0_without_image() {
+        let rss_data = RssData::new(Some(RssVersion::RSS2_0))
+            .title("No Image Feed")
+            .link("https://example.com")
+            .description("Feed without image");
+
+        let result = generate_rss(&rss_data);
+        assert!(result.is_ok());
+        let rss_feed = result.unwrap();
+        assert!(!rss_feed.contains("<image>"));
+    }
+
+    #[test]
+    fn test_generate_rss_2_0_without_atom_link() {
+        let rss_data = RssData::new(Some(RssVersion::RSS2_0))
+            .title("No Atom Link Feed")
+            .link("https://example.com")
+            .description("Feed without atom link");
+
+        let result = generate_rss(&rss_data);
+        assert!(result.is_ok());
+        let rss_feed = result.unwrap();
+        assert!(!rss_feed.contains("atom:link"));
+    }
+
+    #[test]
+    fn test_generate_rss_2_0_with_image() {
+        let mut rss_data = RssData::new(Some(RssVersion::RSS2_0))
+            .title("Feed With Image")
+            .link("https://example.com")
+            .description("Feed with image");
+        rss_data.set_image(
+            "Image Title",
+            "https://example.com/image.png",
+            "https://example.com",
+        );
+
+        let result = generate_rss(&rss_data);
+        assert!(result.is_ok());
+        let rss_feed = result.unwrap();
+        assert!(rss_feed.contains("<image>"));
+        assert_xml_element(
+            &rss_feed,
+            "url",
+            "https://example.com/image.png",
+        );
+    }
+
+    #[test]
+    fn test_generate_rss_2_0_with_atom_link() {
+        let rss_data = RssData::new(Some(RssVersion::RSS2_0))
+            .title("Feed With Atom Link")
+            .link("https://example.com")
+            .description("Feed with atom link")
+            .atom_link("https://example.com/feed.xml");
+
+        let result = generate_rss(&rss_data);
+        assert!(result.is_ok());
+        let rss_feed = result.unwrap();
+        assert!(rss_feed.contains("atom:link"));
+        assert!(rss_feed.contains("https://example.com/feed.xml"));
+    }
+
+    #[test]
+    fn test_sanitize_content_control_chars() {
+        let input = "Hello\x00World\x01Foo\nBar\tBaz";
+        let result = sanitize_content(input);
+        assert!(!result.contains('\x00'));
+        assert!(!result.contains('\x01'));
+        assert!(result.contains('\n'));
+        assert!(result.contains('\t'));
+    }
 }

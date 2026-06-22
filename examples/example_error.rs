@@ -7,7 +7,13 @@
 //! in the RSS Gen library's error module, including creating different types of errors,
 //! and converting errors to HTTP status codes.
 
-#![allow(missing_docs)]
+#![allow(
+    missing_docs,
+    unreachable_pub,
+    trivial_casts,
+    unused_qualifications,
+    clippy::io_other_error
+)]
 
 use quick_xml::Error as XmlError;
 use rss_gen::error::{Result, RssError};

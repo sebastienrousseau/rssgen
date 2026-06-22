@@ -5,10 +5,10 @@
 [package]
 # General project metadata
 name = "rss-gen"                            # The name of the library
-version = "0.0.3"                           # Initial version of the crate
+version = "0.0.5"                           # Current version of the crate
 authors = ["RSS Generator Contributors"]    # Library contributors
 edition = "2021"                            # Rust edition being used
-rust-version = "1.56.0"                     # Minimum supported Rust version
+rust-version = "1.79.0"                     # Minimum supported Rust version (bumped for quick-xml 0.40)
 license = "MIT OR Apache-2.0"               # Dual licensing strategy
 description = """
 A Rust library for generating, serializing, and deserializing RSS feeds for various RSS versions.
@@ -51,12 +51,13 @@ exclude = [
 # List of external crates used in this project
 dtt = "0.0"
 log = "0.4"
-quick-xml = { version = "0.37", features = ["serialize"] }
+quick-xml = { version = "0.40", features = ["serialize"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "2.0"
 time = "0.3"
 url = "2.5"
+commons = { package = "euxis-commons", version = "0.0.2", default-features = false, features = ["error", "time"] }
 
 [build-dependencies]
 # Dependencies for build scripts
@@ -64,8 +65,13 @@ version_check = "0.9"
 
 [dev-dependencies]
 # Dependencies for development and testing
-criterion = "0.5"
+criterion = "0.8"
 lazy_static = "1.5"
+proptest = "1.4"
+quickcheck = "1.0"
+quickcheck_macros = "1.0"
+arbitrary = { version = "1.3", features = ["derive"] }
+tokio-test = "0.4"
 
 # -----------------------------------------------------------------------------
 # Library Information
@@ -92,8 +98,107 @@ name = "benchmark"
 harness = false
 path = "benches/criterion.rs"
 
+[[bench]]
+# Stress testing benchmarks for performance validation
+name = "stress_test"
+harness = false
+path = "benches/stress_test.rs"
+
 [profile.bench]
 # Profile for benchmarks.
 debug = true
+
+# Linting config
+[lints.rust]
+missing_copy_implementations = "warn"
+missing_docs = "warn"
+unstable_features = "warn"
+unused_extern_crates = "warn"
+# `unused_results` is allow-by-default; HashMap::insert and similar
+# return-by-replacement APIs are idiomatically ignored. Promoting it to
+# `warn` combined with CI's `-D warnings` turns every such call into a
+# hard error without a corresponding readability benefit.
+unused_results = "allow"
+
+bare_trait_objects = "allow"
+elided_lifetimes_in_paths = "allow"
+non_camel_case_types = "allow"
+non_upper_case_globals = "allow"
+trivial_bounds = "allow"
+unsafe_code = "allow"
+
+missing_debug_implementations = "forbid"
+non_ascii_idents = "forbid"
+# `deny` (rather than `forbid`) so individual example files can opt out
+# via `#![allow(unreachable_pub)]` for `pub fn main`-style boilerplate.
+unreachable_pub = "deny"
+
+dead_code = "deny"
+deprecated_in_future = "deny"
+ellipsis_inclusive_range_patterns = "deny"
+explicit_outlives_requirements = "deny"
+future_incompatible = { level = "deny", priority = -1 }
+keyword_idents = { level = "deny", priority = -1 }
+macro_use_extern_crate = "deny"
+meta_variable_misuse = "deny"
+# `missing_fragment_specifier` was promoted to a hard error in Rust,
+# so declaring it here triggers `renamed_and_removed_lints`.
+noop_method_call = "deny"
+rust_2018_idioms = { level = "deny", priority = -1 }
+rust_2021_compatibility = { level = "deny", priority = -1 }
+single_use_lifetimes = "deny"
+trivial_casts = "deny"
+trivial_numeric_casts = "deny"
+unused = { level = "deny", priority = -1 }
+unused_features = "deny"
+unused_import_braces = "deny"
+unused_labels = "deny"
+unused_lifetimes = "deny"
+unused_macro_rules = "deny"
+unused_qualifications = "deny"
+variant_size_differences = "deny"
+
+[package.metadata.clippy]
+warn-lints = [
+    "clippy::all",
+    "clippy::pedantic",
+    "clippy::cargo",
+    "clippy::nursery",
+]
+
+[profile.dev]
+codegen-units = 256
+debug = true
+debug-assertions = true
+incremental = true
+lto = false
+opt-level = 0
+overflow-checks = true
+panic = 'unwind'
+rpath = false
+strip = false
+
+[profile.release]
+codegen-units = 1
+debug = false
+debug-assertions = false
+incremental = false
+lto = true
+opt-level = 3
+overflow-checks = false
+panic = "abort"
+rpath = false
+strip = "symbols"
+
+[profile.test]
+codegen-units = 256
+debug = true
+debug-assertions = true
+incremental = true
+lto = false
+opt-level = 0
+overflow-checks = true
+rpath = false
+strip = false
 
 

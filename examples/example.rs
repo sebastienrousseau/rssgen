@@ -7,6 +7,14 @@
 //! demonstrating various aspects of the library including logging levels, formats,
 //! macros, and core functionality.
 
+#![allow(
+    missing_docs,
+    unreachable_pub,
+    trivial_casts,
+    unused_qualifications,
+    clippy::io_other_error
+)]
+
 mod example_data;
 mod example_error;
 mod example_generator;

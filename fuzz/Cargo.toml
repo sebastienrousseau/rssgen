@@ -1,0 +1,48 @@
+[package]
+name = "rss-gen-fuzz"
+version = "0.0.4"
+edition = "2021"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+
+[dependencies.rss-gen]
+path = ".."
+
+# Prevent this from interfering with workspaces
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "fuzz_rss_parsing"
+path = "fuzz_targets/fuzz_rss_parsing.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_rss_generation"
+path = "fuzz_targets/fuzz_rss_generation.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_url_validation"
+path = "fuzz_targets/fuzz_url_validation.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_date_parsing"
+path = "fuzz_targets/fuzz_date_parsing.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_sanitize_content"
+path = "fuzz_targets/fuzz_sanitize_content.rs"
+test = false
+doc = false

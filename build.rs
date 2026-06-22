@@ -16,9 +16,9 @@ use std::process;
 /// # Returns
 ///
 /// * `Some(true)` - If the current Rustc version is at least the minimum
-///    required version.
+///   required version.
 /// * `Some(false)` - If the current Rustc version is less than the minimum
-///    required version.
+///   required version.
 /// * `None` - If the current Rustc version cannot be determined.
 ///
 /// # Errors

@@ -83,7 +83,7 @@ impl<'a> RssFeedValidator<'a> {
         for (index, item) in self.rss_data.items.iter().enumerate() {
             Self::validate_url(
                 &item.link,
-                &format!("item[{}] link", index),
+                &format!("item[{index}] link"),
                 errors,
             );
         }
@@ -134,8 +134,8 @@ impl<'a> RssFeedValidator<'a> {
         for (index, item) in self.rss_data.items.iter().enumerate() {
             if let Err(e) = item.validate() {
                 errors.push(ValidationError {
-                    field: format!("item[{}]", index),
-                    message: format!("Item validation failed: {}", e),
+                    field: format!("item[{index}]"),
+                    message: format!("Item validation failed: {e}"),
                 });
             }
         }
@@ -153,7 +153,7 @@ impl<'a> RssFeedValidator<'a> {
         for (index, item) in self.rss_data.items.iter().enumerate() {
             Self::validate_date(
                 &item.pub_date,
-                &format!("item[{}].pubDate", index),
+                &format!("item[{index}].pubDate"),
                 errors,
             );
         }
@@ -169,7 +169,7 @@ impl<'a> RssFeedValidator<'a> {
             if let Err(e) = Self::parse_date(date_str) {
                 errors.push(ValidationError {
                     field: field.to_string(),
-                    message: format!("Invalid date format: {}", e),
+                    message: format!("Invalid date format: {e}"),
                 });
             }
         }
@@ -193,23 +193,20 @@ impl<'a> RssFeedValidator<'a> {
         let date_without_gmt =
             date_str.strip_suffix(" GMT").ok_or_else(|| {
                 RssError::DateParseError(format!(
-                    "Invalid date format (missing GMT): {}",
-                    date_str
+                    "Invalid date format (missing GMT): {date_str}"
                 ))
             })?;
 
-        let mut date = DateTime::parse_custom_format(
+        let date = DateTime::parse_custom_format(
             date_without_gmt,
             rss_date_format,
         )
         .map_err(|_| {
             RssError::DateParseError(format!(
-                "Failed to parse date: {}",
-                date_str
+                "Failed to parse date: {date_str}"
             ))
         })?;
 
-        date.offset = time::UtcOffset::UTC;
         Ok(date)
     }
 
@@ -237,20 +234,18 @@ impl<'a> RssFeedValidator<'a> {
                     });
                 }
             }
-            RssVersion::RSS1_0 => {
+            RssVersion::RSS1_0
                 if self
                     .rss_data
                     .items
                     .iter()
-                    .any(|item| item.guid.is_empty())
-                {
-                    errors.push(ValidationError {
-                        field: "guid".to_string(),
-                        message:
-                            "All items must have a guid in RSS 1.0"
-                                .to_string(),
-                    });
-                }
+                    .any(|item| item.guid.is_empty()) =>
+            {
+                errors.push(ValidationError {
+                    field: "guid".to_string(),
+                    message: "All items must have a guid in RSS 1.0"
+                        .to_string(),
+                });
             }
             _ => {}
         }
@@ -272,8 +267,7 @@ impl<'a> RssFeedValidator<'a> {
             errors.push(ValidationError {
                 field: field.to_string(),
                 message: format!(
-                    "URL exceeds maximum length of {} characters",
-                    MAX_URL_LENGTH
+                    "URL exceeds maximum length of {MAX_URL_LENGTH} characters"
                 ),
             });
             return;
@@ -286,17 +280,14 @@ impl<'a> RssFeedValidator<'a> {
                 {
                     errors.push(ValidationError {
                         field: field.to_string(),
-                        message: format!("Invalid URL scheme in {}: {}. Only HTTP and HTTPS are allowed.", field, url),
+                        message: format!("Invalid URL scheme in {field}: {url}. Only HTTP and HTTPS are allowed."),
                     });
                 }
             }
             Err(_) => {
                 errors.push(ValidationError {
                     field: field.to_string(),
-                    message: format!(
-                        "Invalid URL in {}: {}",
-                        field, url
-                    ),
+                    message: format!("Invalid URL in {field}: {url}"),
                 });
             }
         }
@@ -536,8 +527,7 @@ mod tests {
             validator.validate_version_specific(&mut errors);
             assert!(
                 errors.is_empty(),
-                "Unexpected errors for version {:?}",
-                version
+                "Unexpected errors for version {version:?}"
             );
         }
     }
@@ -610,5 +600,147 @@ mod tests {
 
         assert!(!errors.is_empty());
         assert!(errors[0].message.contains("Title is missing"));
+    }
+
+    #[test]
+    fn test_validate_items_with_invalid_item() {
+        let mut rss_data = RssData::new(Some(RssVersion::RSS2_0))
+            .title("Test Feed")
+            .link("https://example.com")
+            .description("A test feed")
+            .atom_link("https://example.com/feed.xml")
+            .generator("Test");
+
+        // Add an item missing required fields (title, link, description)
+        rss_data.add_item(RssItem::new().guid("guid1"));
+
+        let validator = RssFeedValidator::new(&rss_data);
+        let mut errors = Vec::new();
+        validator.validate_items(&mut errors);
+
+        assert!(!errors.is_empty(), "Expected item validation errors");
+        assert!(errors[0].field.contains("item[0]"));
+        assert!(errors[0].message.contains("Item validation failed"));
+    }
+
+    #[test]
+    fn test_validate_dates_with_invalid_item_date() {
+        let mut rss_data = RssData::new(Some(RssVersion::RSS2_0))
+            .title("Test Feed")
+            .link("https://example.com")
+            .description("A test feed")
+            .atom_link("https://example.com/feed.xml")
+            .pub_date("Mon, 01 Jan 2024 00:00:00 GMT")
+            .generator("Test");
+
+        rss_data.add_item(
+            RssItem::new()
+                .title("Item")
+                .link("https://example.com/item")
+                .description("Desc")
+                .guid("guid1")
+                .pub_date("not a valid date"),
+        );
+
+        let validator = RssFeedValidator::new(&rss_data);
+        let mut errors = Vec::new();
+        validator.validate_dates(&mut errors);
+
+        assert!(!errors.is_empty(), "Expected date validation errors");
+        assert!(errors
+            .iter()
+            .any(|e| e.field.contains("item[0].pubDate")));
+    }
+
+    #[test]
+    fn test_validate_url_exceeds_max_length() {
+        let mut errors = Vec::new();
+        let long_url = format!(
+            "https://example.com/{}",
+            "a".repeat(MAX_URL_LENGTH)
+        );
+
+        RssFeedValidator::validate_url(&long_url, "test", &mut errors);
+
+        assert_eq!(errors.len(), 1);
+        assert!(errors[0]
+            .message
+            .contains("URL exceeds maximum length"));
+    }
+
+    #[test]
+    fn test_validate_structure_with_invalid_item_link() {
+        let mut rss_data = RssData::new(Some(RssVersion::RSS2_0))
+            .title("Test Feed")
+            .link("https://example.com")
+            .description("A test feed")
+            .atom_link("https://example.com/feed.xml");
+
+        rss_data.add_item(
+            RssItem::new()
+                .title("Item")
+                .link("not-a-valid-url")
+                .description("Desc")
+                .guid("guid1"),
+        );
+
+        let validator = RssFeedValidator::new(&rss_data);
+        let mut errors = Vec::new();
+        validator.validate_structure(&mut errors);
+
+        assert!(errors
+            .iter()
+            .any(|e| e.field.contains("item[0] link")));
+    }
+
+    #[test]
+    fn test_parse_date_missing_gmt_suffix() {
+        let result =
+            RssFeedValidator::parse_date("Mon, 01 Jan 2024 00:00:00");
+        assert!(result.is_err());
+        if let Err(RssError::DateParseError(msg)) = result {
+            assert!(msg.contains("missing GMT"));
+        } else {
+            panic!("Expected DateParseError");
+        }
+    }
+
+    #[test]
+    fn test_parse_date_invalid_format_with_gmt() {
+        let result = RssFeedValidator::parse_date("not-a-date GMT");
+        assert!(result.is_err());
+        if let Err(RssError::DateParseError(msg)) = result {
+            assert!(msg.contains("Failed to parse date"));
+        } else {
+            panic!("Expected DateParseError");
+        }
+    }
+
+    #[test]
+    fn test_validate_rss_feed_convenience_function() {
+        let mut rss_data = RssData::new(Some(RssVersion::RSS2_0))
+            .title("Test Feed")
+            .link("https://example.com")
+            .description("A test feed")
+            .atom_link("https://example.com/feed.xml")
+            .pub_date("Mon, 01 Jan 2024 00:00:00 GMT")
+            .generator("RSS Gen Test");
+
+        rss_data.add_item(
+            RssItem::new()
+                .title("Test Item")
+                .link("https://example.com/item1")
+                .description("A test item")
+                .guid("unique-id-1")
+                .pub_date("Mon, 01 Jan 2024 00:00:00 GMT"),
+        );
+
+        assert!(validate_rss_feed(&rss_data).is_ok());
+    }
+
+    #[test]
+    fn test_validate_rss_feed_convenience_function_invalid() {
+        let rss_data = RssData::new(Some(RssVersion::RSS2_0));
+        assert!(validate_rss_feed(&rss_data).is_err());
     }
 }

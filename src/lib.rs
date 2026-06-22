@@ -11,7 +11,7 @@
 )]
 #![crate_name = "rss_gen"]
 #![crate_type = "lib"]
-#![warn(missing_docs)]
+#![deny(missing_docs)]
 #![forbid(unsafe_code)]
 #![deny(clippy::all)]
 #![deny(clippy::cargo)]
@@ -135,9 +135,9 @@ pub fn quick_rss(
     rss_data.add_item(
         RssItem::new()
             .title("Example Item")
-            .link(format!("{}/example-item", link))
+            .link(format!("{link}/example-item"))
             .description("This is an example item in the RSS feed")
-            .guid(format!("{}/example-item", link)),
+            .guid(format!("{link}/example-item")),
     );
 
     generate_rss(&rss_data)

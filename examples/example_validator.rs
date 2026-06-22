@@ -8,7 +8,13 @@
 //! This example demonstrates how to use the `RssFeedValidator` to validate the structure
 //! and content of RSS feeds using the RSS Gen library.
 
-#![allow(missing_docs)]
+#![allow(
+    missing_docs,
+    unreachable_pub,
+    trivial_casts,
+    unused_qualifications,
+    clippy::io_other_error
+)]
 
 use rss_gen::validator::RssFeedValidator;
 use rss_gen::{RssData, RssItem, RssVersion};

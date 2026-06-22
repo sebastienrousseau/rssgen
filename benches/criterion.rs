@@ -1,9 +1,8 @@
 #![allow(missing_docs)]
-use criterion::{
-    black_box, criterion_group, criterion_main, Criterion,
-};
+use criterion::{criterion_group, criterion_main, Criterion};
 use lazy_static::lazy_static;
 use rss_gen::{generate_rss, parse_rss, RssData, RssItem, RssVersion};
+use std::hint::black_box;
 use std::time::Duration;
 
 fn generate_large_rss_data(item_count: usize) -> RssData {

@@ -8,7 +8,13 @@
 //! This example demonstrates the usage of various components of the RSS Gen library,
 //! including RSS feed generation, parsing, serialization, and deserialization.
 
-#![allow(missing_docs)]
+#![allow(
+    missing_docs,
+    unreachable_pub,
+    trivial_casts,
+    unused_qualifications,
+    clippy::io_other_error
+)]
 
 use rss_gen::{generate_rss, parse_rss, RssData, RssVersion};
 use std::error::Error;

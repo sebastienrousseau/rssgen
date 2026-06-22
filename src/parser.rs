@@ -193,8 +193,7 @@ fn parse_channel_element(
             }
         }
         _ => Err(RssError::UnknownElement(format!(
-            "Unknown channel element: {}",
-            element
+            "Unknown channel element: {element}"
         ))),
     }
 }
@@ -247,7 +246,7 @@ fn parse_item_element(
             } else {
                 let enclosure_str = attributes
                     .iter()
-                    .map(|(k, v)| format!("{}=\"{}\"", k, v))
+                    .map(|(k, v)| format!("{k}=\"{v}\""))
                     .collect::<Vec<String>>()
                     .join(" ");
                 item.enclosure = Some(enclosure_str);
@@ -278,19 +277,19 @@ struct ParsingContext<'a> {
     current_attributes: &'a [(String, String)],
 }
 
-impl<'a> ParsingContext<'a> {
+impl ParsingContext<'_> {
     /// Helper function to check if the current state is in a channel.
-    pub fn in_channel(&self) -> bool {
+    pub(crate) fn in_channel(&self) -> bool {
         matches!(self.state, ParsingState::Channel)
     }
 
     /// Helper function to check if the current state is in an item.
-    pub fn in_item(&self) -> bool {
+    pub(crate) fn in_item(&self) -> bool {
         matches!(self.state, ParsingState::Item)
     }
 
     /// Helper function to check if the current state is in an image.
-    pub fn in_image(&self) -> bool {
+    pub(crate) fn in_image(&self) -> bool {
         matches!(self.state, ParsingState::Image)
     }
 }
@@ -459,8 +458,7 @@ fn process_start_event(
                     | ParsingState::Image
             ) {
                 return Err(RssError::UnknownElement(format!(
-                    "Unknown element: {}",
-                    name_str
+                    "Unknown element: {name_str}"
                 )));
             }
         }
@@ -527,7 +525,12 @@ fn process_text_event(
     rss_data: &mut RssData,
     config: Option<&ParserConfig>,
 ) -> Result<()> {
-    let text = e.unescape()?.into_owned();
+    let decoded = e
+        .decode()
+        .map_err(|err| RssError::Custom(err.to_string()))?;
+    let text = quick_xml::escape::unescape(&decoded)
+        .map_err(|err| RssError::Custom(err.to_string()))?
+        .into_owned();
 
     let parse_context = ParsingContext {
         is_rss_1_0: matches!(
@@ -670,7 +673,7 @@ struct ParserContext {
 
 impl ParserContext {
     /// Initialize a new `ParserContext` with default values.
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         ParserContext {
             rss_version: RssVersionState::Other,
             parsing_state: ParsingState::None,
@@ -684,13 +687,24 @@ impl ParserContext {
     }
 }
 
+impl std::fmt::Debug for ParserConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ParserConfig")
+            .field(
+                "custom_handlers",
+                &format!("[{} handlers]", self.custom_handlers.len()),
+            )
+            .finish()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::Arc;
-    use quick_xml::events::BytesText;
     use quick_xml::events::BytesCData;
     use quick_xml::events::BytesStart;
+    use quick_xml::events::BytesText;
+    use std::sync::Arc;
 
     struct MockElementHandler;
 
@@ -734,7 +748,8 @@ mod tests {
         let mut context = ParserContext::new();
         let mut rss_data = RssData::default();
 
-        let result = process_start_event(&e, &mut context, &mut rss_data);
+        let result =
+            process_start_event(&e, &mut context, &mut rss_data);
         assert!(result.is_ok());
     }
 
@@ -744,7 +759,8 @@ mod tests {
         let mut context = ParserContext::new();
         let mut rss_data = RssData::default();
 
-        let result = process_start_event(&e, &mut context, &mut rss_data);
+        let result =
+            process_start_event(&e, &mut context, &mut rss_data);
         assert!(result.is_ok());
         assert_eq!(context.current_element, "item");
     }
@@ -755,7 +771,8 @@ mod tests {
         let mut context = ParserContext::new();
         let mut rss_data = RssData::default();
 
-        let result = process_text_event(&e, &mut context, &mut rss_data, None);
+        let result =
+            process_text_event(&e, &mut context, &mut rss_data, None);
         assert!(result.is_ok());
     }
 
@@ -765,28 +782,36 @@ mod tests {
         let mut context = ParserContext::new();
         let mut rss_data = RssData::default();
 
-        let result = process_cdata_event(&e, &mut context, &mut rss_data, None);
+        let result =
+            process_cdata_event(&e, &mut context, &mut rss_data, None);
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_parse_channel_rdf_li_rss_1_0() {
         let mut rss_data = RssData::default();
-        let result = parse_channel_element(&mut rss_data, "rdf:li", "", true);
+        let result =
+            parse_channel_element(&mut rss_data, "rdf:li", "", true);
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_parse_channel_rdf_li_non_rss_1_0() {
         let mut rss_data = RssData::default();
-        let result = parse_channel_element(&mut rss_data, "rdf:li", "", false);
+        let result =
+            parse_channel_element(&mut rss_data, "rdf:li", "", false);
         assert!(result.is_err());
     }
 
     #[test]
     fn test_parse_channel_unknown_element() {
         let mut rss_data = RssData::default();
-        let result = parse_channel_element(&mut rss_data, "unknownElement", "", false);
+        let result = parse_channel_element(
+            &mut rss_data,
+            "unknownElement",
+            "",
+            false,
+        );
         assert!(result.is_err());
     }
 
@@ -816,9 +841,9 @@ mod tests {
                 assert_eq!(parsed_data.image_title, "Sample Image");
             }
             Err(RssError::UnknownElement(element)) => {
-                panic!("Failed due to unknown element: {:?}", element);
+                panic!("Failed due to unknown element: {element:?}");
             }
-            Err(e) => panic!("Failed to parse RSS with image: {:?}", e),
+            Err(e) => panic!("Failed to parse RSS with image: {e:?}"),
         }
     }
 
@@ -843,9 +868,9 @@ mod tests {
                 assert_eq!(parsed_data.title, "Sample Feed");
             }
             Err(RssError::UnknownElement(element)) => {
-                panic!("Failed due to unknown element: {:?}", element);
+                panic!("Failed due to unknown element: {element:?}");
             }
-            Err(e) => panic!("Failed to parse RSS 1.0: {:?}", e),
+            Err(e) => panic!("Failed to parse RSS 1.0: {e:?}"),
         }
     }
 
@@ -869,9 +894,9 @@ mod tests {
                 assert_eq!(parsed_data.title, "Sample Feed");
             }
             Err(RssError::UnknownElement(element)) => {
-                panic!("Failed due to unknown element: {:?}", element);
+                panic!("Failed due to unknown element: {element:?}");
             }
-            Err(e) => panic!("Failed to parse RSS 2.0: {:?}", e),
+            Err(e) => panic!("Failed to parse RSS 2.0: {e:?}"),
         }
     }
 
@@ -1127,5 +1152,331 @@ mod tests {
             item.source,
             Some("https://example.com".to_string())
         );
+    }
+
+    #[test]
+    fn test_process_text_event_in_channel() {
+        let e = BytesText::from_escaped("Channel Title");
+        let mut context = ParserContext::new();
+        context.parsing_state = ParsingState::Channel;
+        context.current_element = "title".to_string();
+        let mut rss_data = RssData::default();
+
+        let result =
+            process_text_event(&e, &mut context, &mut rss_data, None);
+        assert!(result.is_ok());
+        assert_eq!(rss_data.title, "Channel Title");
+    }
+
+    #[test]
+    fn test_process_text_event_in_item() {
+        let e = BytesText::from_escaped("Item Title");
+        let mut context = ParserContext::new();
+        context.parsing_state = ParsingState::Item;
+        context.current_element = "title".to_string();
+        let mut rss_data = RssData::default();
+
+        let result =
+            process_text_event(&e, &mut context, &mut rss_data, None);
+        assert!(result.is_ok());
+        assert_eq!(context.current_item.title, "Item Title");
+    }
+
+    #[test]
+    fn test_process_cdata_event_in_channel() {
+        let e = BytesCData::new("CDATA Description");
+        let mut context = ParserContext::new();
+        context.parsing_state = ParsingState::Channel;
+        context.current_element = "description".to_string();
+        let mut rss_data = RssData::default();
+
+        let result =
+            process_cdata_event(&e, &mut context, &mut rss_data, None);
+        assert!(result.is_ok());
+        assert_eq!(rss_data.description, "CDATA Description");
+    }
+
+    #[test]
+    fn test_process_cdata_event_in_item() {
+        let e = BytesCData::new("CDATA Item Desc");
+        let mut context = ParserContext::new();
+        context.parsing_state = ParsingState::Item;
+        context.current_element = "description".to_string();
+        let mut rss_data = RssData::default();
+
+        let result =
+            process_cdata_event(&e, &mut context, &mut rss_data, None);
+        assert!(result.is_ok());
+        assert_eq!(context.current_item.description, "CDATA Item Desc");
+    }
+
+    #[test]
+    fn test_process_text_event_with_custom_handler() {
+        let handler = Arc::new(MockElementHandler);
+        let config = ParserConfig {
+            custom_handlers: vec![handler],
+        };
+
+        let e = BytesText::from_escaped("Custom content");
+        let mut context = ParserContext::new();
+        // Use None state so handle_text_event skips channel/item/image parsing
+        // and apply_custom_handlers is invoked with the element and text
+        context.current_element = "customElement".to_string();
+        let mut rss_data = RssData::default();
+
+        let result = process_text_event(
+            &e,
+            &mut context,
+            &mut rss_data,
+            Some(&config),
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_parse_rss_with_cdata() {
+        let rss_xml = r#"
+        <?xml version="1.0" encoding="UTF-8"?>
+        <rss version="2.0">
+          <channel>
+            <title>CDATA Feed</title>
+            <link>https://example.com</link>
+            <description><![CDATA[A feed with <b>CDATA</b> content]]></description>
+            <item>
+              <title><![CDATA[CDATA Item]]></title>
+              <link>https://example.com/item1</link>
+              <description><![CDATA[Item with <em>HTML</em>]]></description>
+            </item>
+          </channel>
+        </rss>
+        "#;
+
+        let result = parse_rss(rss_xml, None);
+        assert!(result.is_ok());
+        let data = result.unwrap();
+        assert_eq!(data.title, "CDATA Feed");
+        assert!(data.description.contains("CDATA"));
+        assert_eq!(data.items.len(), 1);
+        assert_eq!(data.items[0].title, "CDATA Item");
+    }
+
+    #[test]
+    fn test_process_text_event_with_escaped_entities() {
+        let e = BytesText::from_escaped("&amp; &lt; &gt;");
+        let mut context = ParserContext::new();
+        context.parsing_state = ParsingState::Channel;
+        context.current_element = "title".to_string();
+        let mut rss_data = RssData::default();
+
+        let result =
+            process_text_event(&e, &mut context, &mut rss_data, None);
+        assert!(result.is_ok());
+        // BytesText::from_escaped + unescape should decode entities
+        assert_eq!(rss_data.title, "& < >");
+    }
+
+    #[test]
+    fn test_process_start_event_unknown_element_outside_context() {
+        let e = BytesStart::new("unknownRoot");
+        let mut context = ParserContext::new();
+        // State is None, so unknown element triggers error
+        context.parsing_state = ParsingState::None;
+        let mut rss_data = RssData::default();
+
+        let result =
+            process_start_event(&e, &mut context, &mut rss_data);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_rss_with_all_channel_fields() {
+        let rss_xml = r#"
+        <?xml version="1.0" encoding="UTF-8"?>
+        <rss version="2.0">
+          <channel>
+            <title>Full Channel</title>
+            <link>https://example.com</link>
+            <description>A complete channel</description>
+            <language>en-US</language>
+            <copyright>2024</copyright>
+            <managingEditor>editor@example.com</managingEditor>
+            <webMaster>webmaster@example.com</webMaster>
+            <pubDate>Mon, 01 Jan 2024 00:00:00 GMT</pubDate>
+            <lastBuildDate>Mon, 01 Jan 2024 00:00:00 GMT</lastBuildDate>
+            <category>Technology</category>
+            <generator>Test Generator</generator>
+            <docs>https://example.com/docs</docs>
+            <ttl>60</ttl>
+            <item>
+              <title>Item 1</title>
+              <link>https://example.com/item1</link>
+              <description>First item</description>
+              <author>author@example.com</author>
+              <category>Cat1</category>
+              <comments>https://example.com/item1/comments</comments>
+              <source>https://example.com</source>
+            </item>
+          </channel>
+        </rss>
+        "#;
+
+        let result = parse_rss(rss_xml, None);
+        assert!(result.is_ok());
+        let data = result.unwrap();
+        assert_eq!(data.title, "Full Channel");
+        assert_eq!(data.language, "en-US");
+        assert_eq!(data.copyright, "2024");
+        assert_eq!(data.managing_editor, "editor@example.com");
+        assert_eq!(data.webmaster, "webmaster@example.com");
+        assert_eq!(data.category, "Technology");
+        assert_eq!(data.generator, "Test Generator");
+        assert_eq!(data.docs, "https://example.com/docs");
+        assert_eq!(data.ttl, "60");
+        assert_eq!(data.items.len(), 1);
+        assert_eq!(data.items[0].author, "author@example.com");
+        assert_eq!(data.items[0].category, Some("Cat1".to_string()));
+        assert_eq!(
+            data.items[0].comments,
+            Some("https://example.com/item1/comments".to_string())
+        );
+        assert_eq!(
+            data.items[0].source,
+            Some("https://example.com".to_string())
+        );
+    }
+
+    #[test]
+    fn test_parse_rss_malformed_xml() {
+        let xml = "<rss><channel><title>Test</unclosed";
+        let result = parse_rss(xml, None);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_rss_with_cdata_in_image() {
+        let rss_xml = r#"<?xml version="1.0" encoding="UTF-8"?>
+        <rss version="2.0">
+          <channel>
+            <title>Test Feed</title>
+            <link>https://example.com</link>
+            <description>Test</description>
+            <image>
+              <title><![CDATA[Image Title]]></title>
+              <url><![CDATA[https://example.com/image.png]]></url>
+              <link><![CDATA[https://example.com]]></link>
+            </image>
+            <item>
+              <title>Item 1</title>
+              <link>https://example.com/1</link>
+              <description>Desc</description>
+            </item>
+          </channel>
+        </rss>
+        "#;
+
+        let result = parse_rss(rss_xml, None);
+        assert!(result.is_ok());
+        let data = result.unwrap();
+        assert_eq!(data.image_title, "Image Title");
+        assert_eq!(data.image_url, "https://example.com/image.png");
+        assert_eq!(data.image_link, "https://example.com");
+    }
+
+    #[test]
+    fn test_parse_rss_with_cdata_in_item() {
+        let rss_xml = r#"<?xml version="1.0" encoding="UTF-8"?>
+        <rss version="2.0">
+          <channel>
+            <title>Test Feed</title>
+            <link>https://example.com</link>
+            <description>Test</description>
+            <item>
+              <title><![CDATA[CDATA Item Title]]></title>
+              <link>https://example.com/1</link>
+              <description><![CDATA[<p>HTML content</p>]]></description>
+            </item>
+          </channel>
+        </rss>
+        "#;
+
+        let result = parse_rss(rss_xml, None);
+        assert!(result.is_ok());
+        let data = result.unwrap();
+        assert_eq!(data.items[0].title, "CDATA Item Title");
+        assert!(data.items[0].description.contains("HTML content"));
+    }
+
+    #[test]
+    fn test_process_text_event_with_failing_custom_handler() {
+        let rss_xml = r#"<?xml version="1.0" encoding="UTF-8"?>
+        <rss version="2.0">
+          <channel>
+            <title>Test Feed</title>
+            <link>https://example.com</link>
+            <description>Test</description>
+            <item>
+              <title>Item</title>
+              <link>https://example.com/1</link>
+              <description>Desc</description>
+              <unknownField>value</unknownField>
+            </item>
+          </channel>
+        </rss>
+        "#;
+
+        let handler = Arc::new(MockElementHandler);
+        let config = ParserConfig {
+            custom_handlers: vec![handler],
+        };
+
+        let result = parse_rss(rss_xml, Some(&config));
+        // The handler returns Err for unknown elements
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_element_with_attributes() {
+        let rss_xml = r#"<?xml version="1.0" encoding="UTF-8"?>
+        <rss version="2.0">
+          <channel>
+            <title>Test Feed</title>
+            <link>https://example.com</link>
+            <description>Test</description>
+            <item>
+              <title>Item</title>
+              <link href="https://example.com/1">https://example.com/1</link>
+              <description>Desc</description>
+              <enclosure url="https://example.com/audio.mp3" length="12345" type="audio/mpeg"/>
+            </item>
+          </channel>
+        </rss>
+        "#;
+
+        let result = parse_rss(rss_xml, None);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_cdata_event_channel_elements() {
+        let rss_xml = r#"<?xml version="1.0" encoding="UTF-8"?>
+        <rss version="2.0">
+          <channel>
+            <title><![CDATA[CDATA Channel Title]]></title>
+            <link>https://example.com</link>
+            <description><![CDATA[CDATA Description]]></description>
+            <item>
+              <title>Item</title>
+              <link>https://example.com/1</link>
+              <description>Desc</description>
+            </item>
+          </channel>
+        </rss>
+        "#;
+
+        let result = parse_rss(rss_xml, None);
+        assert!(result.is_ok());
+        let data = result.unwrap();
+        assert_eq!(data.title, "CDATA Channel Title");
+        assert_eq!(data.description, "CDATA Description");
     }
 }

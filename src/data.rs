@@ -28,6 +28,7 @@ use url::Url;
     Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize,
 )]
 #[non_exhaustive]
+#[derive(Default)]
 pub enum RssVersion {
     /// RSS version 0.90
     RSS0_90,
@@ -38,6 +39,7 @@ pub enum RssVersion {
     /// RSS version 1.0
     RSS1_0,
     /// RSS version 2.0
+    #[default]
     RSS2_0,
 }
 
@@ -56,12 +58,6 @@ impl RssVersion {
             Self::RSS1_0 => "1.0",
             Self::RSS2_0 => "2.0",
         }
-    }
-}
-
-impl Default for RssVersion {
-    fn default() -> Self {
-        Self::RSS2_0
     }
 }
 
@@ -263,7 +259,7 @@ impl RssData {
 
         if total_size > MAX_FEED_SIZE {
             return Err(RssError::InvalidInput(
-                format!("Total feed size exceeds maximum allowed size of {} bytes", MAX_FEED_SIZE)
+                format!("Total feed size exceeds maximum allowed size of {MAX_FEED_SIZE} bytes")
             ));
         }
 
@@ -345,7 +341,7 @@ impl RssData {
         if self.link.is_empty() {
             errors.push("Link is missing".to_string());
         } else if let Err(e) = validate_url(&self.link) {
-            errors.push(format!("Invalid link: {}", e));
+            errors.push(format!("Invalid link: {e}"));
         }
 
         if self.description.is_empty() {
@@ -355,14 +351,13 @@ impl RssData {
         // Check category length
         if self.category.len() > MAX_GENERAL_LENGTH {
             return Err(RssError::InvalidInput(format!(
-            "Category exceeds maximum allowed length of {} characters",
-            MAX_GENERAL_LENGTH
+            "Category exceeds maximum allowed length of {MAX_GENERAL_LENGTH} characters"
         )));
         }
 
         if !self.pub_date.is_empty() {
             if let Err(e) = parse_date(&self.pub_date) {
-                errors.push(format!("Invalid publication date: {}", e));
+                errors.push(format!("Invalid publication date: {e}"));
             }
         }
 
@@ -673,7 +668,7 @@ impl RssItem {
         if self.link.is_empty() {
             errors.push("Link is missing".to_string());
         } else if let Err(e) = validate_url(&self.link) {
-            errors.push(format!("Invalid link: {}", e));
+            errors.push(format!("Invalid link: {e}"));
         }
 
         if self.description.is_empty() {
@@ -958,7 +953,7 @@ mod tests {
         assert!(result.is_err());
         if let Err(RssError::ValidationErrors(errors)) = result {
             assert!(errors.iter().any(|e| e.contains("Invalid link")),
-                "Expected an error containing 'Invalid link', but got: {:?}", errors);
+                "Expected an error containing 'Invalid link', but got: {errors:?}");
         } else {
             panic!("Expected ValidationErrors");
         }
@@ -1375,5 +1370,174 @@ mod tests {
     fn test_rss_item_set_empty_field() {
         let item = RssItem::new().set(RssItemField::Title, "");
         assert!(item.title.is_empty());
+    }
+
+    #[test]
+    fn test_rss_data_validate_invalid_pub_date() {
+        let rss_data = RssData::new(None)
+            .title("Test Feed")
+            .link("https://example.com")
+            .description("A test feed")
+            .pub_date("not a valid date");
+
+        let result = rss_data.validate();
+        assert!(result.is_err());
+        if let Err(RssError::ValidationErrors(errors)) = result {
+            assert!(
+                errors
+                    .iter()
+                    .any(|e| e.contains("Invalid publication date")),
+                "Expected 'Invalid publication date' error, got: {errors:?}"
+            );
+        } else {
+            panic!("Expected ValidationErrors");
+        }
+    }
+
+    #[test]
+    fn test_rss_item_validate_invalid_link() {
+        let item = RssItem::new()
+            .title("Item")
+            .link("not-a-valid-url")
+            .description("Desc");
+
+        let result = item.validate();
+        assert!(result.is_err());
+        if let Err(RssError::ValidationErrors(errors)) = result {
+            assert!(
+                errors.iter().any(|e| e.contains("Invalid link")),
+                "Expected 'Invalid link' error, got: {errors:?}"
+            );
+        } else {
+            panic!("Expected ValidationErrors");
+        }
+    }
+
+    #[test]
+    fn test_validate_size_exceeds_max() {
+        let mut rss_data = RssData::new(Some(RssVersion::RSS2_0));
+        // Fill description with enough data to exceed MAX_FEED_SIZE (1MB)
+        rss_data.description = "x".repeat(MAX_FEED_SIZE + 1);
+        let result = rss_data.validate_size();
+        assert!(result.is_err());
+        if let Err(RssError::InvalidInput(msg)) = result {
+            assert!(msg.contains("exceeds maximum allowed size"));
+        } else {
+            panic!("Expected InvalidInput error");
+        }
+    }
+
+    #[test]
+    fn test_validate_size_ok() {
+        let rss_data = RssData::new(Some(RssVersion::RSS2_0))
+            .title("Test")
+            .link("https://example.com")
+            .description("Short description");
+        assert!(rss_data.validate_size().is_ok());
+    }
+
+    #[test]
+    fn test_set_item_field_all_variants() {
+        let mut rss_data = RssData::new(None);
+        rss_data.set_item_field(RssItemField::Title, "Title");
+        rss_data
+            .set_item_field(RssItemField::Link, "https://example.com");
+        rss_data.set_item_field(RssItemField::Description, "Desc");
+        rss_data.set_item_field(RssItemField::Guid, "guid-1");
+        rss_data.set_item_field(
+            RssItemField::PubDate,
+            "Mon, 01 Jan 2024 00:00:00 GMT",
+        );
+        rss_data
+            .set_item_field(RssItemField::Author, "author@example.com");
+        rss_data.set_item_field(RssItemField::Category, "tech");
+        rss_data.set_item_field(
+            RssItemField::Comments,
+            "https://example.com/comments",
+        );
+        rss_data.set_item_field(
+            RssItemField::Enclosure,
+            "https://example.com/file.mp3",
+        );
+        rss_data.set_item_field(
+            RssItemField::Source,
+            "https://example.com/source",
+        );
+
+        let item = &rss_data.items[0];
+        assert_eq!(item.title, "Title");
+        assert_eq!(item.link, "https://example.com");
+        assert_eq!(item.description, "Desc");
+        assert_eq!(item.guid, "guid-1");
+        assert_eq!(item.author, "author@example.com");
+        assert_eq!(item.category, Some("tech".to_string()));
+        assert_eq!(
+            item.comments,
+            Some("https://example.com/comments".to_string())
+        );
+        assert_eq!(
+            item.enclosure,
+            Some("https://example.com/file.mp3".to_string())
+        );
+        assert_eq!(
+            item.source,
+            Some("https://example.com/source".to_string())
+        );
+    }
+
+    #[test]
+    fn test_rss_item_builder_all_fields() {
+        let item = RssItem::new()
+            .title("Title")
+            .link("https://example.com")
+            .description("Desc")
+            .guid("guid-1")
+            .pub_date("Mon, 01 Jan 2024 00:00:00 GMT")
+            .author("author@example.com")
+            .category("tech")
+            .comments("https://example.com/comments")
+            .enclosure("https://example.com/file.mp3")
+            .source("https://example.com/source");
+
+        assert_eq!(item.category, Some("tech".to_string()));
+        assert_eq!(
+            item.comments,
+            Some("https://example.com/comments".to_string())
+        );
+        assert_eq!(
+            item.enclosure,
+            Some("https://example.com/file.mp3".to_string())
+        );
+        assert_eq!(
+            item.source,
+            Some("https://example.com/source".to_string())
+        );
+    }
+
+    #[test]
+    fn test_rss_item_pub_date_parsed_valid() {
+        let item =
+            RssItem::new().pub_date("Sat, 07 Sep 2002 09:42:31 GMT");
+        let result = item.pub_date_parsed();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_rss_item_pub_date_parsed_invalid() {
+        let item = RssItem::new().pub_date("not-a-date");
+        let result = item.pub_date_parsed();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_date_iso8601() {
+        let result = parse_date("2024-01-15T10:30:00Z");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_parse_date_invalid() {
+        let result = parse_date("completely invalid date");
+        assert!(result.is_err());
     }
 }

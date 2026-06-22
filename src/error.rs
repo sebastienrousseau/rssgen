@@ -174,7 +174,7 @@ impl RssError {
     /// This method logs the error at the error level. It uses the `log` crate,
     /// so the application using this library should configure a logger.
     pub fn log(&self) {
-        log::error!("RSS Error occurred: {}", self);
+        log::error!("RSS Error occurred: {self}");
     }
 
     /// Converts the `RssError` into an appropriate HTTP status code.
@@ -227,7 +227,7 @@ mod tests {
     #[test]
     fn test_xml_write_error() {
         let xml_error = quick_xml::Error::Io(std::sync::Arc::new(
-            io::Error::new(io::ErrorKind::Other, "XML error"),
+            io::Error::other("XML error"),
         ));
         let error = RssError::XmlWriteError(xml_error);
         assert_eq!(
@@ -327,10 +327,7 @@ mod tests {
         );
         assert_eq!(
             RssError::XmlWriteError(quick_xml::Error::Io(
-                std::sync::Arc::new(io::Error::new(
-                    io::ErrorKind::Other,
-                    "XML error"
-                ))
+                std::sync::Arc::new(io::Error::other("XML error"))
             ))
             .to_http_status(),
             500
@@ -368,7 +365,7 @@ mod tests {
         let rss_error = RssError::MissingField("title".to_string());
 
         assert_eq!(
-            format!("{}", rss_error),
+            format!("{rss_error}"),
             "A required field is missing: title"
         );
     }
@@ -379,7 +376,7 @@ mod tests {
             RssError::DateParseError("Invalid date format".to_string());
 
         assert_eq!(
-            format!("{}", rss_error),
+            format!("{rss_error}"),
             "Date parse error: Invalid date format"
         );
     }
@@ -390,7 +387,7 @@ mod tests {
             RssError::InvalidUrl("https://invalid-url".to_string());
 
         assert_eq!(
-            format!("{}", rss_error),
+            format!("{rss_error}"),
             "Invalid URL provided: https://invalid-url"
         );
     }
@@ -401,7 +398,7 @@ mod tests {
             RssError::UnknownElement("unknown-element".to_string());
 
         assert_eq!(
-            format!("{}", rss_error),
+            format!("{rss_error}"),
             "Unknown XML element found: unknown-element"
         );
     }
@@ -416,8 +413,34 @@ mod tests {
             RssError::ValidationErrors(validation_errors.clone());
 
         assert_eq!(
-            format!("{}", rss_error),
+            format!("{rss_error}"),
             format!("Validation errors: {:?}", validation_errors)
         );
+    }
+
+    #[test]
+    fn test_error_log() {
+        let error = RssError::missing_field("title");
+        // log() writes to the log crate; just verify it doesn't panic
+        error.log();
+
+        let error = RssError::custom("something went wrong");
+        error.log();
+    }
+
+    #[test]
+    fn test_custom_error_http_status() {
+        assert_eq!(
+            RssError::Custom("err".to_string()).to_http_status(),
+            500
+        );
+    }
+
+    #[test]
+    fn test_date_sort_error_constructor() {
+        let error = RssError::date_sort_error(3, "dates out of order");
+        let DateSortError { index, message } = error;
+        assert_eq!(index, 3);
+        assert_eq!(message, "dates out of order");
     }
 }

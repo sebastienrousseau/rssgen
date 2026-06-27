@@ -5,8 +5,8 @@
 
 #![doc = include_str!("../README.md")]
 #![doc(
-    html_favicon_url = "https://kura.pro/rssgen/images/favicon.ico",
-    html_logo_url = "https://kura.pro/rssgen/images/logos/rssgen.svg",
+    html_favicon_url = "https://cloudcdn.pro/rssgen/v1/favicon.ico",
+    html_logo_url = "https://cloudcdn.pro/rssgen/v1/logos/rssgen.svg",
     html_root_url = "https://docs.rs/rss-gen"
 )]
 #![crate_name = "rss_gen"]

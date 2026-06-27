@@ -334,30 +334,36 @@ impl RssData {
     pub fn validate(&self) -> Result<()> {
         let mut errors = Vec::new();
 
+        // Issue #34: prefix errors with `channel.` so downstream
+        // tooling can distinguish channel-level failures from
+        // per-item failures.
         if self.title.is_empty() {
-            errors.push("Title is missing".to_string());
+            errors.push("channel.title is missing".to_string());
         }
 
         if self.link.is_empty() {
-            errors.push("Link is missing".to_string());
+            errors.push("channel.link is missing".to_string());
         } else if let Err(e) = validate_url(&self.link) {
-            errors.push(format!("Invalid link: {e}"));
+            // RSS 2.0 §5.1 requires the channel link to be an
+            // absolute browser-followable URL. Keep `validate_url`
+            // (http/https only) for the channel pass.
+            errors.push(format!("Invalid channel.link: {e}"));
         }
 
         if self.description.is_empty() {
-            errors.push("Description is missing".to_string());
+            errors.push("channel.description is missing".to_string());
         }
 
         // Check category length
         if self.category.len() > MAX_GENERAL_LENGTH {
             return Err(RssError::InvalidInput(format!(
-            "Category exceeds maximum allowed length of {MAX_GENERAL_LENGTH} characters"
+            "channel.category exceeds maximum allowed length of {MAX_GENERAL_LENGTH} characters"
         )));
         }
 
         if !self.pub_date.is_empty() {
             if let Err(e) = parse_date(&self.pub_date) {
-                errors.push(format!("Invalid publication date: {e}"));
+                errors.push(format!("Invalid channel.pub_date: {e}"));
             }
         }
 
@@ -661,18 +667,23 @@ impl RssItem {
     pub fn validate(&self) -> Result<()> {
         let mut errors = Vec::new();
 
+        // Issue #34: prefix errors with `item.` so downstream tooling
+        // can distinguish per-item failures from channel-level ones.
         if self.title.is_empty() {
-            errors.push("Title is missing".to_string());
+            errors.push("item.title is missing".to_string());
         }
 
         if self.link.is_empty() {
-            errors.push("Link is missing".to_string());
-        } else if let Err(e) = validate_url(&self.link) {
-            errors.push(format!("Invalid link: {e}"));
+            errors.push("item.link is missing".to_string());
+        } else if let Err(e) = validate_link_field(&self.link) {
+            // RSS 2.0 §5.7 allows item links to be relative — use the
+            // lenient `validate_link_field` instead of the strict
+            // `validate_url` we apply to channel.link.
+            errors.push(format!("Invalid item.link: {e}"));
         }
 
         if self.description.is_empty() {
-            errors.push("Description is missing".to_string());
+            errors.push("item.description is missing".to_string());
         }
 
         // Add more field validations as needed...
@@ -815,6 +826,46 @@ pub fn validate_url(url: &str) -> Result<()> {
     Ok(())
 }
 
+/// Validates a value used as an item-level link field.
+///
+/// Per RSS 2.0 §5.7 item-level link URLs may be relative. This helper
+/// accepts:
+///
+///   * absolute URLs (any scheme that `url::Url` parses), e.g.
+///     `https://example.com/post`
+///   * root-relative paths starting with `/`, e.g. `/tags/`
+///   * bare paths without a leading slash, e.g. `articles/foo.html`
+///
+/// Rejects:
+///
+///   * the empty string (caller should check `is_empty()` first)
+///   * any string containing whitespace or ASCII control characters —
+///     those would round-trip into the rendered RSS XML and break
+///     well-formedness or feed-reader parsing.
+///
+/// # Errors
+///
+/// Returns `RssError::InvalidUrl` with a descriptive message when the
+/// input contains whitespace or control characters, or is empty.
+pub fn validate_link_field(value: &str) -> Result<()> {
+    if value.is_empty() {
+        return Err(RssError::InvalidUrl(
+            "empty link is not a valid relative or absolute URL"
+                .to_string(),
+        ));
+    }
+    if value.chars().any(|c| c.is_whitespace() || c.is_control()) {
+        return Err(RssError::InvalidUrl(format!(
+            "link contains whitespace or control characters: {value:?}"
+        )));
+    }
+    // Anything else — absolute URL OR relative path — is accepted.
+    // `Url::parse` would reject relative paths because there's no
+    // base, so we don't call it here. RSS 2.0 §5.7 explicitly allows
+    // both shapes for item links.
+    Ok(())
+}
+
 /// Parses a date string into a `DateTime`.
 ///
 /// # Arguments
@@ -952,8 +1003,8 @@ mod tests {
         let result = invalid_rss_data.validate();
         assert!(result.is_err());
         if let Err(RssError::ValidationErrors(errors)) = result {
-            assert!(errors.iter().any(|e| e.contains("Invalid link")),
-                "Expected an error containing 'Invalid link', but got: {errors:?}");
+            assert!(errors.iter().any(|e| e.contains("Invalid channel.link")),
+                "Expected an error containing 'Invalid channel.link', but got: {errors:?}");
         } else {
             panic!("Expected ValidationErrors");
         }
@@ -1051,7 +1102,10 @@ mod tests {
 
         if let Err(RssError::ValidationErrors(errors)) = result {
             assert_eq!(errors.len(), 1); // Adjust to expect 1 error if only one is returned
-            assert!(errors.contains(&"Link is missing".to_string())); // Adjust to the actual error returned
+            assert!(
+                errors.contains(&"item.link is missing".to_string()),
+                "expected `item.link is missing`, got: {errors:?}"
+            );
         } else {
             panic!("Expected ValidationErrors");
         }
@@ -1386,8 +1440,8 @@ mod tests {
             assert!(
                 errors
                     .iter()
-                    .any(|e| e.contains("Invalid publication date")),
-                "Expected 'Invalid publication date' error, got: {errors:?}"
+                    .any(|e| e.contains("Invalid channel.pub_date")),
+                "Expected 'Invalid channel.pub_date' error, got: {errors:?}"
             );
         } else {
             panic!("Expected ValidationErrors");
@@ -1396,17 +1450,20 @@ mod tests {
 
     #[test]
     fn test_rss_item_validate_invalid_link() {
+        // Issue #34: relative URLs are now allowed for item links
+        // (RSS 2.0 §5.7). Only whitespace / control chars are
+        // rejected because they break XML well-formedness.
         let item = RssItem::new()
             .title("Item")
-            .link("not-a-valid-url")
+            .link("not a valid url with spaces")
             .description("Desc");
 
         let result = item.validate();
         assert!(result.is_err());
         if let Err(RssError::ValidationErrors(errors)) = result {
             assert!(
-                errors.iter().any(|e| e.contains("Invalid link")),
-                "Expected 'Invalid link' error, got: {errors:?}"
+                errors.iter().any(|e| e.contains("Invalid item.link")),
+                "Expected `Invalid item.link` error, got: {errors:?}"
             );
         } else {
             panic!("Expected ValidationErrors");
@@ -1539,5 +1596,68 @@ mod tests {
     fn test_parse_date_invalid() {
         let result = parse_date("completely invalid date");
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_rss_item_accepts_relative_link() {
+        // Regression for sebastienrousseau/rssgen#34.
+        // RSS 2.0 §5.7 allows item-level relative URLs. Root-relative
+        // and bare-path forms must both pass.
+        for link in ["/tags/", "articles/foo.html", "post.html"] {
+            let item = RssItem::new()
+                .title("Item")
+                .link(link)
+                .description("Desc");
+            assert!(
+                item.validate().is_ok(),
+                "expected relative link {link:?} to be accepted"
+            );
+        }
+    }
+
+    #[test]
+    fn test_rss_data_still_rejects_relative_link() {
+        // Channel-level link (RSS 2.0 §5.1) must be absolute.
+        // Regression for sebastienrousseau/rssgen#34: don't accidentally
+        // relax this when fixing the item-level rule.
+        let data = RssData::new(None)
+            .title("Channel")
+            .link("/tags/")
+            .description("Desc");
+        let result = data.validate();
+        assert!(
+            result.is_err(),
+            "channel.link `/tags/` must be rejected"
+        );
+        if let Err(RssError::ValidationErrors(errors)) = result {
+            assert!(
+                errors
+                    .iter()
+                    .any(|e| e.contains("Invalid channel.link")),
+                "expected channel-prefixed error, got: {errors:?}"
+            );
+        } else {
+            panic!("expected ValidationErrors");
+        }
+    }
+
+    #[test]
+    fn test_validate_link_field_rejects_whitespace_and_control() {
+        // Whitespace / control characters break XML well-formedness
+        // even though they pass URL parsing.
+        assert!(validate_link_field("/path with space").is_err());
+        assert!(validate_link_field("foo\tbar").is_err());
+        assert!(validate_link_field("\u{0007}beep").is_err());
+        assert!(validate_link_field("").is_err());
+    }
+
+    #[test]
+    fn test_validate_link_field_accepts_absolute_and_relative() {
+        assert!(validate_link_field("https://example.com/post").is_ok());
+        assert!(validate_link_field("http://example.com/").is_ok());
+        assert!(validate_link_field("/tags/").is_ok());
+        assert!(validate_link_field("articles/foo.html").is_ok());
+        // Non-http schemes are fine for items (atom, mailto, etc.).
+        assert!(validate_link_field("mailto:hi@example.com").is_ok());
     }
 }

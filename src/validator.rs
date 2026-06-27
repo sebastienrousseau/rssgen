@@ -599,7 +599,11 @@ mod tests {
         validator.validate_rss_data(&mut errors);
 
         assert!(!errors.is_empty());
-        assert!(errors[0].message.contains("Title is missing"));
+        assert!(
+            errors[0].message.contains("channel.title is missing"),
+            "expected `channel.title is missing`, got: {:?}",
+            errors[0].message
+        );
     }
 
     #[test]

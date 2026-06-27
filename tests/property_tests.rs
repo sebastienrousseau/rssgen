@@ -223,8 +223,8 @@ mod regression_tests {
         assert!(result.is_err());
 
         if let Err(RssError::ValidationErrors(errors)) = result {
-            assert!(errors.len() >= 3); // Should have errors for title, link, description
             // Issue #34: errors now carry `channel.` / `item.` context prefix.
+            assert!(errors.len() >= 3);
             assert!(errors
                 .iter()
                 .any(|e| e.contains("channel.title is missing")));

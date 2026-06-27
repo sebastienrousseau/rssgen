@@ -37,12 +37,14 @@ You need [Rust](https://rustup.rs/) 1.79.0 or later. Works on macOS, Linux, and 
 
 ## Overview
 
-RSS Gen creates, serializes, and deserializes RSS feeds for multiple RSS versions.
+RSS Gen creates, serializes, and deserializes syndication feeds in RSS
+and Atom 1.0.
 
 - **Feed generation** with a builder API
-- **XML serialization** to valid RSS output
-- **Deserialization** of existing feeds into Rust structs
-- **Multi-version support** — RSS 0.90 through 2.0
+- **XML serialization** to valid RSS or Atom 1.0 output
+- **Deserialization** of existing RSS feeds into Rust structs
+- **Multi-version support** — RSS 0.90 through 2.0 and Atom 1.0
+- **Format auto-detection** for dispatching between RSS and Atom inputs
 
 ---
 
@@ -51,26 +53,61 @@ RSS Gen creates, serializes, and deserializes RSS feeds for multiple RSS version
 | | |
 | :--- | :--- |
 | **RSS generation** | Create RSS 2.0 feeds programmatically |
+| **Atom 1.0 generation** | Create Atom feeds with multi-author, enclosure, and HTML content |
 | **Serialization** | Serialize feeds to XML strings |
 | **Deserialization** | Parse existing RSS feeds into Rust structs |
-| **Multiple versions** | Support for RSS 0.90, 0.91, 0.92, 1.0, and 2.0 |
-| **Validation** | Validate feed structure and required elements |
+| **Multiple versions** | RSS 0.90, 0.91, 0.92, 1.0, 2.0, and Atom 1.0 |
+| **Format detection** | `detect_feed_format` peeks the root element |
+| **Validation** | Required-element validation with `channel.` / `item.` / `feed.` / `entry.<idx>.` context-prefixed errors |
 
 ---
 
 ## Usage
 
+### RSS
+
 ```rust
 use rss_gen::{generate_rss, RssData, RssVersion};
 
-fn main() {
-    let rss = RssData::new(Some(RssVersion::RSS2_0))
-        .title("My Blog")
-        .link("https://example.com")
-        .description("A blog about Rust");
+let rss = RssData::new(Some(RssVersion::RSS2_0))
+    .title("My Blog")
+    .link("https://example.com")
+    .description("A blog about Rust");
 
-    println!("{}", generate_rss(&rss).unwrap());
-}
+println!("{}", generate_rss(&rss).unwrap());
+```
+
+### Atom 1.0
+
+```rust
+use rss_gen::{generate_atom, AtomEntry, AtomFeed};
+
+let feed = AtomFeed::new()
+    .id("https://example.com/feed")
+    .title("My Blog")
+    .updated("2026-06-27T00:00:00Z")
+    .author_name("Jane Doe")
+    .self_link("https://example.com/atom.xml")
+    .add_entry(
+        AtomEntry::new()
+            .id("https://example.com/post-1")
+            .title("First Post")
+            .updated("2026-06-27T00:00:00Z")
+            .summary("Hello, Atom"),
+    );
+
+println!("{}", generate_atom(&feed).unwrap());
+```
+
+### Format detection
+
+```rust
+use rss_gen::{detect_feed_format, FeedFormat};
+
+let xml = r#"<?xml version="1.0"?>
+<feed xmlns="http://www.w3.org/2005/Atom"><id/></feed>"#;
+
+assert_eq!(detect_feed_format(xml), FeedFormat::Atom);
 ```
 
 ---

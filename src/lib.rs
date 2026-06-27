@@ -18,6 +18,8 @@
 #![deny(clippy::pedantic)]
 #![allow(clippy::module_name_repetitions)]
 
+/// Atom 1.0 feed generation, validation, and feed-format detection.
+pub mod atom;
 /// Contains the main types and data structures used to represent RSS feeds.
 pub mod data;
 /// Defines error types used throughout the library.
@@ -31,6 +33,10 @@ pub mod parser;
 /// Provides utilities for validating RSS feeds.
 pub mod validator;
 
+pub use atom::{
+    detect_feed_format, generate_atom, AtomEntry, AtomFeed, AtomLink,
+    AtomPerson, AtomTextType, FeedFormat,
+};
 pub use data::{RssData, RssItem, RssVersion};
 pub use error::{Result, RssError};
 pub use generator::generate_rss;
@@ -145,6 +151,10 @@ pub fn quick_rss(
 
 /// Prelude module for convenient importing of common types and functions.
 pub mod prelude {
+    pub use crate::atom::{
+        detect_feed_format, generate_atom, AtomEntry, AtomFeed,
+        AtomLink, AtomPerson, AtomTextType, FeedFormat,
+    };
     pub use crate::data::{RssData, RssItem, RssVersion};
     pub use crate::error::{Result, RssError};
     pub use crate::generate_rss;

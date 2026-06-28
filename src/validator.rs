@@ -6,9 +6,12 @@
 //! This module provides functionality to validate RSS feeds, ensuring they
 //! conform to the specified RSS version standards and contain valid data.
 
-use crate::data::{RssData, RssVersion};
+use crate::data::{
+    parse_date as parse_rss_date, validate_link_field, RssData,
+    RssVersion,
+};
 use crate::error::{Result, RssError, ValidationError};
-use dtt::datetime::DateTime;
+use time::OffsetDateTime;
 use url::Url;
 
 /// Maximum allowed length for URL strings
@@ -60,9 +63,11 @@ impl<'a> RssFeedValidator<'a> {
         if errors.is_empty() {
             Ok(())
         } else {
-            Err(RssError::ValidationErrors(
-                errors.into_iter().map(|e| e.to_string()).collect(),
-            ))
+            // Preserve the structured `ValidationError { field, message }`
+            // shape rather than flattening to `Vec<String>` — callers
+            // (CI gates, IDE integrations, JSON error responses) can
+            // now match on `e.field` instead of parsing strings.
+            Err(RssError::ValidationErrors(errors))
         }
     }
 
@@ -78,22 +83,31 @@ impl<'a> RssFeedValidator<'a> {
 
     /// Validates the overall structure of the RSS feed.
     fn validate_structure(&self, errors: &mut Vec<ValidationError>) {
-        Self::validate_url(&self.rss_data.link, "channel link", errors);
+        Self::validate_url(&self.rss_data.link, "channel.link", errors);
 
         for (index, item) in self.rss_data.items.iter().enumerate() {
-            Self::validate_url(
-                &item.link,
-                &format!("item[{index}] link"),
-                errors,
-            );
+            // RSS 2.0 §5.7 allows item links to be relative — and an
+            // <item> isn't required to have a <link> at all so long as
+            // it carries a <title> or <description>. Skip the strict
+            // absolute-URL check for empty links and delegate the
+            // populated case to `validate_link_field` so we stay
+            // aligned with `RssData::validate` / `RssItem::validate`.
+            if item.link.is_empty() {
+                continue;
+            }
+            if let Err(e) = validate_link_field(&item.link) {
+                errors.push(ValidationError::new(
+                    format!("item.{index}.link"),
+                    format!("Invalid item.{index}.link: {e}"),
+                ));
+            }
         }
 
         if self.rss_data.items.is_empty() {
-            errors.push(ValidationError {
-                field: "items".to_string(),
-                message: "RSS feed must contain at least one item"
-                    .to_string(),
-            });
+            errors.push(ValidationError::new(
+                "items",
+                "RSS feed must contain at least one item",
+            ));
         }
 
         self.validate_guids(errors);
@@ -105,13 +119,10 @@ impl<'a> RssFeedValidator<'a> {
         let mut guids = std::collections::HashSet::new();
         for item in &self.rss_data.items {
             if !guids.insert(&item.guid) {
-                errors.push(ValidationError {
-                    field: "guid".to_string(),
-                    message: format!(
-                        "Duplicate GUID found: {}",
-                        item.guid
-                    ),
-                });
+                errors.push(ValidationError::new(
+                    "guid",
+                    format!("Duplicate GUID found: {}", item.guid),
+                ));
             }
         }
     }
@@ -121,11 +132,10 @@ impl<'a> RssFeedValidator<'a> {
         if self.rss_data.version == RssVersion::RSS2_0
             && self.rss_data.atom_link.is_empty()
         {
-            errors.push(ValidationError {
-                field: "atom_link".to_string(),
-                message: "atom:link is required for RSS 2.0 feeds"
-                    .to_string(),
-            });
+            errors.push(ValidationError::new(
+                "atom_link",
+                "atom:link is required for RSS 2.0 feeds",
+            ));
         }
     }
 
@@ -133,10 +143,10 @@ impl<'a> RssFeedValidator<'a> {
     fn validate_items(&self, errors: &mut Vec<ValidationError>) {
         for (index, item) in self.rss_data.items.iter().enumerate() {
             if let Err(e) = item.validate() {
-                errors.push(ValidationError {
-                    field: format!("item[{index}]"),
-                    message: format!("Item validation failed: {e}"),
-                });
+                errors.push(ValidationError::new(
+                    format!("item[{index}]"),
+                    format!("Item validation failed: {e}"),
+                ));
             }
         }
     }
@@ -167,47 +177,29 @@ impl<'a> RssFeedValidator<'a> {
     ) {
         if !date_str.is_empty() {
             if let Err(e) = Self::parse_date(date_str) {
-                errors.push(ValidationError {
-                    field: field.to_string(),
-                    message: format!("Invalid date format: {e}"),
-                });
+                errors.push(ValidationError::new(
+                    field,
+                    format!("Invalid date format: {e}"),
+                ));
             }
         }
     }
 
-    /// Parses a date string into a `DateTime` object.
+    /// Parses a date string into a [`time::OffsetDateTime`].
     ///
-    /// # Arguments
-    ///
-    /// * `date_str` - The date string to parse.
-    ///
-    /// # Returns
-    ///
-    /// A `Result` containing the parsed `DateTime` object or an error if the parsing fails.
+    /// Delegates to [`crate::data::parse_date`], which accepts both
+    /// RFC 2822 (the historical RSS 2.0 wire format — any timezone is
+    /// accepted, including `+0000`, `+0530`, `EST`, etc.) and ISO 8601
+    /// (used by Atom and Dublin Core). The previous implementation
+    /// hard-required a literal `" GMT"` suffix, rejecting every
+    /// spec-compliant feed produced outside of GMT.
     ///
     /// # Errors
     ///
-    /// This function returns an `Err(RssError::DateParseError)` if the date format is invalid.
-    pub fn parse_date(date_str: &str) -> Result<DateTime> {
-        let rss_date_format = "[weekday repr:short], [day] [month repr:short] [year] [hour]:[minute]:[second]";
-        let date_without_gmt =
-            date_str.strip_suffix(" GMT").ok_or_else(|| {
-                RssError::DateParseError(format!(
-                    "Invalid date format (missing GMT): {date_str}"
-                ))
-            })?;
-
-        let date = DateTime::parse_custom_format(
-            date_without_gmt,
-            rss_date_format,
-        )
-        .map_err(|_| {
-            RssError::DateParseError(format!(
-                "Failed to parse date: {date_str}"
-            ))
-        })?;
-
-        Ok(date)
+    /// Returns [`RssError::DateParseError`] when the input matches
+    /// neither RFC 2822 nor ISO 8601.
+    pub fn parse_date(date_str: &str) -> Result<OffsetDateTime> {
+        parse_rss_date(date_str)
     }
 
     /// Validates version-specific requirements of the RSS feed.
@@ -353,14 +345,14 @@ mod tests {
         let result = validator.validate();
         assert!(result.is_err());
         if let Err(RssError::ValidationErrors(errors)) = result {
-            assert!(errors
-                .iter()
-                .any(|e| e.contains("atom:link is required")));
-            assert!(errors.iter().any(|e| e
-                .contains("RSS feed must contain at least one item")));
-            assert!(errors
-                .iter()
-                .any(|e| e.contains("Invalid date format")));
+            assert!(errors.iter().any(|e| e.field == "atom_link"
+                && e.message.contains("atom:link is required")));
+            assert!(errors.iter().any(|e| e.field == "items"
+                && e.message.contains(
+                    "RSS feed must contain at least one item"
+                )));
+            assert!(errors.iter().any(|e| e.field == "pubDate"
+                && e.message.contains("Invalid date format")));
         } else {
             panic!("Expected ValidationErrors");
         }
@@ -651,9 +643,7 @@ mod tests {
         validator.validate_dates(&mut errors);
 
         assert!(!errors.is_empty(), "Expected date validation errors");
-        assert!(errors
-            .iter()
-            .any(|e| e.field.contains("item[0].pubDate")));
+        assert!(errors.iter().any(|e| e.field == "item[0].pubDate"));
     }
 
     #[test]
@@ -683,7 +673,7 @@ mod tests {
         rss_data.add_item(
             RssItem::new()
                 .title("Item")
-                .link("not-a-valid-url")
+                .link("bad url with spaces")
                 .description("Desc")
                 .guid("guid1"),
         );
@@ -692,32 +682,101 @@ mod tests {
         let mut errors = Vec::new();
         validator.validate_structure(&mut errors);
 
-        assert!(errors
-            .iter()
-            .any(|e| e.field.contains("item[0] link")));
+        assert!(errors.iter().any(|e| e.field == "item.0.link"
+            && e.message.contains("Invalid item.0.link")));
     }
 
     #[test]
-    fn test_parse_date_missing_gmt_suffix() {
-        let result =
-            RssFeedValidator::parse_date("Mon, 01 Jan 2024 00:00:00");
-        assert!(result.is_err());
-        if let Err(RssError::DateParseError(msg)) = result {
-            assert!(msg.contains("missing GMT"));
-        } else {
-            panic!("Expected DateParseError");
-        }
+    fn test_validate_structure_allows_empty_item_link() {
+        // RSS 2.0 §5.7 — an <item> with a <title> and <description>
+        // does NOT require a <link>. Empty item.link must NOT fail
+        // structural validation. Regression: pre-v0.0.6 the validator
+        // called Url::parse("") which always errored.
+        let mut rss_data = RssData::new(Some(RssVersion::RSS2_0))
+            .title("Test Feed")
+            .link("https://example.com")
+            .description("A test feed")
+            .atom_link("https://example.com/feed.xml");
+
+        rss_data.add_item(
+            RssItem::new()
+                .title("Item")
+                .description("Body only — no link")
+                .guid("guid-no-link"),
+        );
+
+        let validator = RssFeedValidator::new(&rss_data);
+        let mut errors = Vec::new();
+        validator.validate_structure(&mut errors);
+
+        // The empty item.link must NOT have produced a structural error.
+        // The single item has index 0 — assert that no error fires
+        // against `item.0.link` specifically.
+        assert!(
+            !errors.iter().any(|e| e.field == "item.0.link"),
+            "empty item.link should be accepted, got: {errors:?}"
+        );
     }
 
     #[test]
-    fn test_parse_date_invalid_format_with_gmt() {
-        let result = RssFeedValidator::parse_date("not-a-date GMT");
-        assert!(result.is_err());
-        if let Err(RssError::DateParseError(msg)) = result {
-            assert!(msg.contains("Failed to parse date"));
-        } else {
-            panic!("Expected DateParseError");
-        }
+    fn test_validate_structure_allows_relative_item_link() {
+        // RSS 2.0 §5.7 also allows relative URLs at the item level.
+        let mut rss_data = RssData::new(Some(RssVersion::RSS2_0))
+            .title("Test Feed")
+            .link("https://example.com")
+            .description("A test feed")
+            .atom_link("https://example.com/feed.xml");
+
+        rss_data.add_item(
+            RssItem::new()
+                .title("Item")
+                .link("/tags/")
+                .description("Tag index")
+                .guid("guid-tags"),
+        );
+
+        let validator = RssFeedValidator::new(&rss_data);
+        let mut errors = Vec::new();
+        validator.validate_structure(&mut errors);
+        assert!(
+            !errors.iter().any(|e| e.field == "item.0.link"),
+            "relative item.link should be accepted, got: {errors:?}"
+        );
+    }
+
+    #[test]
+    fn test_parse_date_accepts_numeric_timezone_offset() {
+        // RFC 2822 / RFC 1123 allow numeric timezone offsets. The
+        // pre-v0.0.6 implementation hard-required the literal `" GMT"`
+        // suffix and rejected every offset-based date — a hard P0
+        // spec violation.
+        assert!(RssFeedValidator::parse_date(
+            "Sun, 28 Jun 2026 00:12:20 +0000"
+        )
+        .is_ok());
+        assert!(RssFeedValidator::parse_date(
+            "Sat, 27 Jun 2026 19:12:20 -0500"
+        )
+        .is_ok());
+    }
+
+    #[test]
+    fn test_parse_date_accepts_iso8601() {
+        // Atom and Dublin Core date wire formats — must also flow
+        // through the same parse helper.
+        assert!(RssFeedValidator::parse_date("2026-06-28T00:12:20Z")
+            .is_ok());
+    }
+
+    #[test]
+    fn test_parse_date_no_longer_requires_gmt_suffix() {
+        // Regression: pre-v0.0.6 this string failed with "missing GMT".
+        // Today it's a perfectly compliant RFC 2822 instant and must
+        // round-trip.
+        assert!(RssFeedValidator::parse_date(
+            "Mon, 01 Jan 2024 00:00:00 +0000"
+        )
+        .is_ok());
     }
 
     #[test]

@@ -49,8 +49,14 @@ pub enum RssError {
     UnknownElement(String),
 
     /// Error for validation errors.
+    ///
+    /// Carries a `Vec<ValidationError>` rather than `Vec<String>` so callers
+    /// can programmatically inspect the offending `field` rather than parse
+    /// human-readable strings. The wrapped `ValidationError::Display` impl
+    /// formats as the bare `message` (e.g. `channel.title is missing`),
+    /// matching the string format used in earlier releases.
     #[error("Validation errors: {0:?}")]
-    ValidationErrors(Vec<String>),
+    ValidationErrors(Vec<ValidationError>),
 
     /// Error for date sort errors.
     #[error("Date sort error: {0:?}")]
@@ -82,14 +88,43 @@ pub enum RssError {
 }
 
 /// Represents a specific validation error.
-#[derive(Debug, Error)]
+///
+/// `field` identifies the offending element using a dotted path
+/// (`channel.title`, `item.0.link`, `feed.id`, `entry.2.updated`, …) so
+/// downstream tooling can dispatch on the field without parsing strings.
+/// `message` is the full human-readable error text and is what
+/// [`std::fmt::Display`] writes — preserving the bare-string format that previous
+/// releases of this crate emitted as the [`RssError::ValidationErrors`]
+/// payload.
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
 #[non_exhaustive]
-#[error("Validation error: {message}")]
+#[error("{message}")]
 pub struct ValidationError {
-    /// The field that failed validation.
+    /// The dotted path identifying the field that failed validation.
     pub field: String,
-    /// The error message.
+    /// The full human-readable error text. Read via `Display` /
+    /// `to_string()`; matches the string format used in
+    /// pre-v0.0.6 releases.
     pub message: String,
+}
+
+impl ValidationError {
+    /// Constructs a [`ValidationError`].
+    ///
+    /// `field` should be the dotted path (e.g. `"channel.title"`);
+    /// `message` is the full human-readable error text and is what
+    /// [`std::fmt::Display`] writes back out — keeping the bare-string format used
+    /// by earlier releases of this crate.
+    #[must_use]
+    pub fn new<F: Into<String>, M: Into<String>>(
+        field: F,
+        message: M,
+    ) -> Self {
+        Self {
+            field: field.into(),
+            message: message.into(),
+        }
+    }
 }
 
 /// Represents a specific date sorting error.
@@ -341,14 +376,18 @@ mod tests {
 
     #[test]
     fn test_validation_error() {
-        let error = ValidationError {
-            field: "some_field".to_string(),
-            message: "Invalid field".to_string(),
-        };
-        assert_eq!(
-            error.to_string(),
-            "Validation error: Invalid field"
+        // v0.0.6: Display writes the bare `message`, not the previous
+        // "Validation error: …" prefix — callers that compared the
+        // string against `e.to_string()` now see the same strings the
+        // crate produced as `Vec<String>` entries pre-v0.0.6, which is
+        // what the property tests in tests/property_tests.rs assert.
+        let error = ValidationError::new(
+            "channel.title",
+            "channel.title is missing",
         );
+        assert_eq!(error.to_string(), "channel.title is missing");
+        assert_eq!(error.field, "channel.title");
+        assert_eq!(error.message, "channel.title is missing");
     }
 
     #[test]
@@ -406,16 +445,39 @@ mod tests {
     #[test]
     fn test_validation_errors() {
         let validation_errors = vec![
-            "Title is missing".to_string(),
-            "Invalid pub date".to_string(),
+            ValidationError::new(
+                "channel.title",
+                "channel.title is missing",
+            ),
+            ValidationError::new(
+                "channel.pub_date",
+                "Invalid channel.pub_date: 2026/06/28",
+            ),
         ];
         let rss_error =
             RssError::ValidationErrors(validation_errors.clone());
 
+        // Display of ValidationError is the bare `message` — matches the
+        // string format pre-v0.0.6 callers were used to.
         assert_eq!(
-            format!("{rss_error}"),
-            format!("Validation errors: {:?}", validation_errors)
+            validation_errors[0].to_string(),
+            "channel.title is missing"
         );
+        // The wrapping RssError formats the Vec via its Debug impl so
+        // both the field and the message are surfaced.
+        let rendered = format!("{rss_error}");
+        assert!(rendered.contains("channel.title"));
+        assert!(rendered.contains("Invalid channel.pub_date"));
+    }
+
+    #[test]
+    fn test_validation_error_field_is_accessible() {
+        let err = ValidationError::new(
+            "item.0.link",
+            "item.0.link is missing",
+        );
+        assert_eq!(err.field, "item.0.link");
+        assert_eq!(err.to_string(), "item.0.link is missing");
     }
 
     #[test]

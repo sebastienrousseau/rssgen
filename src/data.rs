@@ -9,10 +9,9 @@
 //! utility functions for URL validation and date parsing.
 
 use crate::{
-    error::{Result, RssError},
+    error::{Result, RssError, ValidationError},
     MAX_FEED_SIZE, MAX_GENERAL_LENGTH,
 };
-use dtt::datetime::DateTime;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt;
@@ -332,26 +331,38 @@ impl RssData {
     ///
     /// Additionally, it can return an error if the link format is invalid or the publication date cannot be parsed.
     pub fn validate(&self) -> Result<()> {
-        let mut errors = Vec::new();
+        let mut errors: Vec<ValidationError> = Vec::new();
 
         // Issue #34: prefix errors with `channel.` so downstream
         // tooling can distinguish channel-level failures from
         // per-item failures.
         if self.title.is_empty() {
-            errors.push("channel.title is missing".to_string());
+            errors.push(ValidationError::new(
+                "channel.title",
+                "channel.title is missing",
+            ));
         }
 
         if self.link.is_empty() {
-            errors.push("channel.link is missing".to_string());
+            errors.push(ValidationError::new(
+                "channel.link",
+                "channel.link is missing",
+            ));
         } else if let Err(e) = validate_url(&self.link) {
             // RSS 2.0 §5.1 requires the channel link to be an
             // absolute browser-followable URL. Keep `validate_url`
             // (http/https only) for the channel pass.
-            errors.push(format!("Invalid channel.link: {e}"));
+            errors.push(ValidationError::new(
+                "channel.link",
+                format!("Invalid channel.link: {e}"),
+            ));
         }
 
         if self.description.is_empty() {
-            errors.push("channel.description is missing".to_string());
+            errors.push(ValidationError::new(
+                "channel.description",
+                "channel.description is missing",
+            ));
         }
 
         // Check category length
@@ -363,7 +374,10 @@ impl RssData {
 
         if !self.pub_date.is_empty() {
             if let Err(e) = parse_date(&self.pub_date) {
-                errors.push(format!("Invalid channel.pub_date: {e}"));
+                errors.push(ValidationError::new(
+                    "channel.pub_date",
+                    format!("Invalid channel.pub_date: {e}"),
+                ));
             }
         }
 
@@ -665,28 +679,38 @@ impl RssItem {
     ///
     /// Additionally, it can return an error if any of the custom validation rules are violated (e.g., maximum length for certain fields).
     pub fn validate(&self) -> Result<()> {
-        let mut errors = Vec::new();
+        let mut errors: Vec<ValidationError> = Vec::new();
 
         // Issue #34: prefix errors with `item.` so downstream tooling
         // can distinguish per-item failures from channel-level ones.
         if self.title.is_empty() {
-            errors.push("item.title is missing".to_string());
+            errors.push(ValidationError::new(
+                "item.title",
+                "item.title is missing",
+            ));
         }
 
         if self.link.is_empty() {
-            errors.push("item.link is missing".to_string());
+            errors.push(ValidationError::new(
+                "item.link",
+                "item.link is missing",
+            ));
         } else if let Err(e) = validate_link_field(&self.link) {
             // RSS 2.0 §5.7 allows item links to be relative — use the
             // lenient `validate_link_field` instead of the strict
             // `validate_url` we apply to channel.link.
-            errors.push(format!("Invalid item.link: {e}"));
+            errors.push(ValidationError::new(
+                "item.link",
+                format!("Invalid item.link: {e}"),
+            ));
         }
 
         if self.description.is_empty() {
-            errors.push("item.description is missing".to_string());
+            errors.push(ValidationError::new(
+                "item.description",
+                "item.description is missing",
+            ));
         }
-
-        // Add more field validations as needed...
 
         if !errors.is_empty() {
             return Err(RssError::ValidationErrors(errors));
@@ -695,18 +719,16 @@ impl RssItem {
         Ok(())
     }
 
-    /// Parses the `pub_date` string into a `DateTime` object.
+    /// Parses the `pub_date` string into a [`time::OffsetDateTime`].
     ///
-    /// # Returns
-    ///
-    /// * `Ok(DateTime)` if the date is valid and successfully parsed.
-    /// * `Err(RssError)` if the date is invalid or cannot be parsed.
+    /// Delegates to [`parse_date`], which accepts both RFC 2822
+    /// and ISO 8601 inputs.
     ///
     /// # Errors
     ///
-    /// This function returns an `Err(RssError)` if the `pub_date` is invalid or
-    /// cannot be parsed into a `DateTime` object.
-    pub fn pub_date_parsed(&self) -> Result<DateTime> {
+    /// Returns [`RssError::DateParseError`] when the `pub_date` field
+    /// matches neither RFC 2822 nor ISO 8601.
+    pub fn pub_date_parsed(&self) -> Result<OffsetDateTime> {
         parse_date(&self.pub_date)
     }
 
@@ -866,40 +888,33 @@ pub fn validate_link_field(value: &str) -> Result<()> {
     Ok(())
 }
 
-/// Parses a date string into a `DateTime`.
+/// Parses a date string into a [`time::OffsetDateTime`].
+///
+/// Accepts both RFC 2822 (the historical RSS 2.0 wire format —
+/// `Mon, 01 Jan 2024 00:00:00 GMT` / `… +0000` / `… +0530`) and ISO 8601
+/// (`2024-01-01T00:00:00Z`, used by Atom and Dublin Core). The previous
+/// implementation collapsed every successfully-parsed date to a UTC
+/// sentinel; this revision returns the actual parsed value so callers can
+/// inspect the timezone offset and the exact instant.
 ///
 /// # Arguments
 ///
 /// * `date_str` - A string slice that holds the date to parse.
 ///
-/// # Returns
-///
-/// * `Ok(DateTime)` if the date is valid and successfully parsed.
-/// * `Err(RssError)` if the date is invalid or cannot be parsed.
-///
 /// # Errors
 ///
-/// This function returns an `Err(RssError::DateParseError)` if the date cannot
-/// be parsed into a valid `DateTime`.
-///
-/// # Panics
-///
-/// This function will panic if the "UTC" time zone is invalid, but this is
-/// highly unlikely as "UTC" is always valid.
-pub fn parse_date(date_str: &str) -> Result<DateTime> {
-    if OffsetDateTime::parse(date_str, &Rfc2822).is_ok() {
-        return Ok(
-            DateTime::new_with_tz("UTC").expect("UTC is always valid")
-        );
+/// Returns [`RssError::DateParseError`] when the input matches neither
+/// RFC 2822 nor ISO 8601.
+pub fn parse_date(date_str: &str) -> Result<OffsetDateTime> {
+    if let Ok(parsed) = OffsetDateTime::parse(date_str, &Rfc2822) {
+        return Ok(parsed);
     }
 
-    if OffsetDateTime::parse(date_str, &Iso8601::DEFAULT).is_ok() {
-        return Ok(
-            DateTime::new_with_tz("UTC").expect("UTC is always valid")
-        );
+    if let Ok(parsed) =
+        OffsetDateTime::parse(date_str, &Iso8601::DEFAULT)
+    {
+        return Ok(parsed);
     }
-
-    // Handle custom parsing logic here...
 
     Err(RssError::DateParseError(date_str.to_string()))
 }
@@ -1003,8 +1018,9 @@ mod tests {
         let result = invalid_rss_data.validate();
         assert!(result.is_err());
         if let Err(RssError::ValidationErrors(errors)) = result {
-            assert!(errors.iter().any(|e| e.contains("Invalid channel.link")),
-                "Expected an error containing 'Invalid channel.link', but got: {errors:?}");
+            assert!(errors.iter().any(|e| e.field == "channel.link"
+                && e.message.contains("Invalid channel.link")),
+                "Expected a structured ValidationError on `channel.link`, got: {errors:?}");
         } else {
             panic!("Expected ValidationErrors");
         }
@@ -1101,9 +1117,10 @@ mod tests {
         assert!(result.is_err());
 
         if let Err(RssError::ValidationErrors(errors)) = result {
-            assert_eq!(errors.len(), 1); // Adjust to expect 1 error if only one is returned
+            assert_eq!(errors.len(), 1);
             assert!(
-                errors.contains(&"item.link is missing".to_string()),
+                errors.iter().any(|e| e.field == "item.link"
+                    && e.message == "item.link is missing"),
                 "expected `item.link is missing`, got: {errors:?}"
             );
         } else {
@@ -1438,10 +1455,9 @@ mod tests {
         assert!(result.is_err());
         if let Err(RssError::ValidationErrors(errors)) = result {
             assert!(
-                errors
-                    .iter()
-                    .any(|e| e.contains("Invalid channel.pub_date")),
-                "Expected 'Invalid channel.pub_date' error, got: {errors:?}"
+                errors.iter().any(|e| e.field == "channel.pub_date"
+                    && e.message.contains("Invalid channel.pub_date")),
+                "Expected structured `channel.pub_date` error, got: {errors:?}"
             );
         } else {
             panic!("Expected ValidationErrors");
@@ -1462,8 +1478,9 @@ mod tests {
         assert!(result.is_err());
         if let Err(RssError::ValidationErrors(errors)) = result {
             assert!(
-                errors.iter().any(|e| e.contains("Invalid item.link")),
-                "Expected `Invalid item.link` error, got: {errors:?}"
+                errors.iter().any(|e| e.field == "item.link"
+                    && e.message.contains("Invalid item.link")),
+                "Expected structured `item.link` error, got: {errors:?}"
             );
         } else {
             panic!("Expected ValidationErrors");
@@ -1631,10 +1648,9 @@ mod tests {
         );
         if let Err(RssError::ValidationErrors(errors)) = result {
             assert!(
-                errors
-                    .iter()
-                    .any(|e| e.contains("Invalid channel.link")),
-                "expected channel-prefixed error, got: {errors:?}"
+                errors.iter().any(|e| e.field == "channel.link"
+                    && e.message.contains("Invalid channel.link")),
+                "expected channel-prefixed structured error, got: {errors:?}"
             );
         } else {
             panic!("expected ValidationErrors");

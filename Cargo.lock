@@ -219,9 +219,6 @@ name = "deranged"
 version = "0.5.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7cd812cc2bc1d69d4764bd80df88b4317eaef9e773c75226407d9bc0876b211c"
-dependencies = [
- "serde_core",
-]
 
 [[package]]
 name = "derive_arbitrary"
@@ -243,20 +240,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
-]
-
-[[package]]
-name = "dtt"
-version = "0.0.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "300fa4cbe63b08446f74755c6cc002fb70e45bf50c32390f475d19b1ef23bc8e"
-dependencies = [
- "pastey",
- "serde",
- "serde_json",
- "thiserror",
- "time",
- "version_check",
 ]
 
 [[package]]
@@ -293,15 +276,6 @@ checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
  "windows-sys",
-]
-
-[[package]]
-name = "euxis-commons"
-version = "0.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5cc1cf9c4720703ea04d9eb4a191ac8e43b597805742e102fb7eaa4d9c3f5b27"
-dependencies = [
- "thiserror",
 ]
 
 [[package]]
@@ -593,12 +567,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pastey"
-version = "0.2.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2ee67f1008b1ba2321834326597b8e186293b049a023cdef258527550b9935b4"
-
-[[package]]
 name = "percent-encoding"
 version = "2.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -858,8 +826,6 @@ version = "0.0.5"
 dependencies = [
  "arbitrary",
  "criterion",
- "dtt",
- "euxis-commons",
  "lazy_static",
  "log",
  "proptest",
@@ -867,7 +833,6 @@ dependencies = [
  "quickcheck",
  "quickcheck_macros",
  "serde",
- "serde_json",
  "thiserror",
  "time",
  "tokio-test",

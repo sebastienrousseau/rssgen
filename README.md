@@ -293,9 +293,13 @@ fn main() {
 
     match generate_rss(&feed) {
         Err(RssError::ValidationErrors(errors)) => {
-            assert!(errors.iter().any(|e| e == "channel.title is missing"));
-            assert!(errors.iter().any(|e| e == "channel.link is missing"));
-            assert!(errors.iter().any(|e| e == "channel.description is missing"));
+            // Each entry is a `ValidationError { field, message }` —
+            // dispatch programmatically on `field` rather than parsing
+            // strings; `Display` (`e.to_string()`) still gives the
+            // bare message for human-readable output.
+            assert!(errors.iter().any(|e| e.field == "channel.title"));
+            assert!(errors.iter().any(|e| e.field == "channel.link"));
+            assert!(errors.iter().any(|e| e.field == "channel.description"));
         }
         other => panic!("expected ValidationErrors, got {other:?}"),
     }

@@ -38,7 +38,7 @@ pub use atom::{
     AtomPerson, AtomTextType, FeedFormat,
 };
 pub use data::{RssData, RssItem, RssVersion};
-pub use error::{Result, RssError};
+pub use error::{Result, RssError, ValidationError};
 pub use generator::generate_rss;
 pub use parser::parse_rss;
 
@@ -156,7 +156,7 @@ pub mod prelude {
         AtomLink, AtomPerson, AtomTextType, FeedFormat,
     };
     pub use crate::data::{RssData, RssItem, RssVersion};
-    pub use crate::error::{Result, RssError};
+    pub use crate::error::{Result, RssError, ValidationError};
     pub use crate::generate_rss;
     pub use crate::parse_rss;
     pub use crate::quick_rss;

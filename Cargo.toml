@@ -49,15 +49,12 @@ exclude = [
 
 [dependencies]
 # List of external crates used in this project
-dtt = "0.0"
 log = "0.4"
 quick-xml = { version = "0.40", features = ["serialize"] }
 serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
 thiserror = "2.0"
-time = "0.3"
+time = { version = "0.3", features = ["parsing", "formatting", "macros"] }
 url = "2.5"
-commons = { package = "euxis-commons", version = "0.0.2", default-features = false, features = ["error", "time"] }
 
 [build-dependencies]
 # Dependencies for build scripts
@@ -85,8 +82,10 @@ path = "src/lib.rs"                     # Path to the library entry point
 # -----------------------------------------------------------------------------
 # Features
 # -----------------------------------------------------------------------------
-[features]
-async = []
+# No optional features in v0.0.6. Async / Tokio integration was previously
+# advertised via a no-op `async = []` flag; the flag was removed because
+# nothing was `#[cfg]`-gated against it. It will return as a properly wired
+# `tokio` / `async-write` feature in a follow-up release.
 
 # -----------------------------------------------------------------------------
 # Benchmarking

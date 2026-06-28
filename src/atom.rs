@@ -47,7 +47,7 @@
 //! assert!(xml.contains(r#"<feed xmlns="http://www.w3.org/2005/Atom">"#));
 //! ```
 
-use crate::error::{Result, RssError};
+use crate::error::{Result, RssError, ValidationError};
 use crate::generator::sanitize_content;
 use quick_xml::events::{
     BytesDecl, BytesEnd, BytesStart, BytesText, Event,
@@ -489,20 +489,32 @@ impl AtomFeed {
     /// Returns [`RssError::ValidationErrors`] containing every missing or
     /// invalid required element discovered.
     pub fn validate(&self) -> Result<()> {
-        let mut errors = Vec::new();
+        let mut errors: Vec<ValidationError> = Vec::new();
 
         if self.id.is_empty() {
-            errors.push("feed.id is missing".to_string());
+            errors.push(ValidationError::new(
+                "feed.id",
+                "feed.id is missing",
+            ));
         }
         if self.title.is_empty() {
-            errors.push("feed.title is missing".to_string());
+            errors.push(ValidationError::new(
+                "feed.title",
+                "feed.title is missing",
+            ));
         }
         if self.updated.is_empty() {
-            errors.push("feed.updated is missing".to_string());
+            errors.push(ValidationError::new(
+                "feed.updated",
+                "feed.updated is missing",
+            ));
         } else if !is_rfc3339(&self.updated) {
-            errors.push(format!(
-                "feed.updated is not a valid RFC 3339 timestamp: {}",
-                self.updated
+            errors.push(ValidationError::new(
+                "feed.updated",
+                format!(
+                    "feed.updated is not a valid RFC 3339 timestamp: {}",
+                    self.updated
+                ),
             ));
         }
 
@@ -517,9 +529,12 @@ impl AtomFeed {
                 errors.append(&mut entry_errors);
             }
             if !feed_has_author && entry.authors.is_empty() {
-                errors.push(format!(
-                    "entry.{idx}.author is missing (and feed has no \
-                     feed-level author)"
+                errors.push(ValidationError::new(
+                    format!("entry.{idx}.author"),
+                    format!(
+                        "entry.{idx}.author is missing (and feed has \
+                         no feed-level author)"
+                    ),
                 ));
             }
         }
@@ -664,7 +679,7 @@ impl AtomEntry {
     /// Returns [`RssError::ValidationErrors`] containing every missing or
     /// invalid required element discovered.
     pub fn validate(&self) -> Result<()> {
-        let mut errors = Vec::new();
+        let mut errors: Vec<ValidationError> = Vec::new();
         push_entry_errors(self, "entry.", &mut errors);
         if errors.is_empty() {
             Ok(())
@@ -675,7 +690,7 @@ impl AtomEntry {
 
     fn validate_with_index(&self, idx: usize) -> Result<()> {
         let prefix = format!("entry.{idx}.");
-        let mut errors = Vec::new();
+        let mut errors: Vec<ValidationError> = Vec::new();
         push_entry_errors(self, &prefix, &mut errors);
         if errors.is_empty() {
             Ok(())
@@ -688,26 +703,43 @@ impl AtomEntry {
 fn push_entry_errors(
     entry: &AtomEntry,
     prefix: &str,
-    errors: &mut Vec<String>,
+    errors: &mut Vec<ValidationError>,
 ) {
+    let field_path = |suffix: &str| format!("{prefix}{suffix}");
+
     if entry.id.is_empty() {
-        errors.push(format!("{prefix}id is missing"));
+        errors.push(ValidationError::new(
+            field_path("id"),
+            format!("{prefix}id is missing"),
+        ));
     }
     if entry.title.is_empty() {
-        errors.push(format!("{prefix}title is missing"));
+        errors.push(ValidationError::new(
+            field_path("title"),
+            format!("{prefix}title is missing"),
+        ));
     }
     if entry.updated.is_empty() {
-        errors.push(format!("{prefix}updated is missing"));
+        errors.push(ValidationError::new(
+            field_path("updated"),
+            format!("{prefix}updated is missing"),
+        ));
     } else if !is_rfc3339(&entry.updated) {
-        errors.push(format!(
-            "{prefix}updated is not a valid RFC 3339 timestamp: {}",
-            entry.updated
+        errors.push(ValidationError::new(
+            field_path("updated"),
+            format!(
+                "{prefix}updated is not a valid RFC 3339 timestamp: {}",
+                entry.updated
+            ),
         ));
     }
     if !entry.published.is_empty() && !is_rfc3339(&entry.published) {
-        errors.push(format!(
-            "{prefix}published is not a valid RFC 3339 timestamp: {}",
-            entry.published
+        errors.push(ValidationError::new(
+            field_path("published"),
+            format!(
+                "{prefix}published is not a valid RFC 3339 timestamp: {}",
+                entry.published
+            ),
         ));
     }
 }
@@ -940,12 +972,15 @@ mod tests {
     fn validate_rejects_missing_required_fields() {
         let feed = AtomFeed::new();
         let err = feed.validate().unwrap_err();
-        let RssError::ValidationErrors(msgs) = err else {
+        let RssError::ValidationErrors(errs) = err else {
             panic!("expected ValidationErrors");
         };
-        assert!(msgs.iter().any(|m| m == "feed.id is missing"));
-        assert!(msgs.iter().any(|m| m == "feed.title is missing"));
-        assert!(msgs.iter().any(|m| m == "feed.updated is missing"));
+        assert!(errs.iter().any(|e| e.field == "feed.id"
+            && e.message == "feed.id is missing"));
+        assert!(errs.iter().any(|e| e.field == "feed.title"
+            && e.message == "feed.title is missing"));
+        assert!(errs.iter().any(|e| e.field == "feed.updated"
+            && e.message == "feed.updated is missing"));
     }
 
     #[test]
@@ -956,12 +991,13 @@ mod tests {
             .updated("yesterday afternoon")
             .author_name("Tester");
         let err = feed.validate().unwrap_err();
-        let RssError::ValidationErrors(msgs) = err else {
+        let RssError::ValidationErrors(errs) = err else {
             panic!("expected ValidationErrors");
         };
-        assert!(msgs.iter().any(|m| m.starts_with(
-            "feed.updated is not a valid RFC 3339 timestamp"
-        )));
+        assert!(errs.iter().any(|e| e.field == "feed.updated"
+            && e.message.starts_with(
+                "feed.updated is not a valid RFC 3339 timestamp"
+            )));
     }
 
     #[test]
@@ -977,22 +1013,25 @@ mod tests {
                     .updated("2026-06-27T00:00:00Z"),
             );
         let err = feed.validate().unwrap_err();
-        let RssError::ValidationErrors(msgs) = err else {
+        let RssError::ValidationErrors(errs) = err else {
             panic!("expected ValidationErrors");
         };
-        assert!(msgs.iter().any(|m| m.contains("entry.0.author")));
+        assert!(errs.iter().any(|e| e.field == "entry.0.author"));
     }
 
     #[test]
     fn entry_validate_uses_unindexed_prefix() {
         let entry = AtomEntry::new();
         let err = entry.validate().unwrap_err();
-        let RssError::ValidationErrors(msgs) = err else {
+        let RssError::ValidationErrors(errs) = err else {
             panic!("expected ValidationErrors");
         };
-        assert!(msgs.iter().any(|m| m == "entry.id is missing"));
-        assert!(msgs.iter().any(|m| m == "entry.title is missing"));
-        assert!(msgs.iter().any(|m| m == "entry.updated is missing"));
+        assert!(errs.iter().any(|e| e.field == "entry.id"
+            && e.message == "entry.id is missing"));
+        assert!(errs.iter().any(|e| e.field == "entry.title"
+            && e.message == "entry.title is missing"));
+        assert!(errs.iter().any(|e| e.field == "entry.updated"
+            && e.message == "entry.updated is missing"));
     }
 
     #[test]

@@ -5,7 +5,7 @@
 [package]
 # General project metadata
 name = "rss-gen"                            # The name of the library
-version = "0.0.5"                           # Current version of the crate
+version = "0.0.6"
 authors = ["RSS Generator Contributors"]    # Library contributors
 edition = "2021"                            # Rust edition being used
 rust-version = "1.88.0"                     # Minimum supported Rust version. Bumped from 1.79.0 in v0.0.6: `time 0.3.51` / `time-core 0.1.9` declare `rust-version = "1.88"` and the `icu_*` chain (via `url`/`idna`) pulls 1.86. Effective floor through current crates.io is 1.88.

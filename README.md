@@ -67,9 +67,9 @@ rss-gen = "0.0.6"
 
 | Surface | Minimum Supported Rust Version |
 | :--- | :--- |
-| Library | **1.79.0** (bumped from 1.68.0 in 0.0.5 to track `quick-xml 0.40`) |
+| Library | **1.85.0** (bumped from 1.79.0 in v0.0.6; `time-core 0.1.9` — transitive of `time 0.3.51` — ships in edition 2024 and won't build under Cargo < 1.85) |
 
-CI runs `stable` on every push. Cross-platform: macOS, Linux, Windows.
+CI runs `stable` on every push, plus a dedicated MSRV lane that pins the 1.85.0 floor. Cross-platform matrix: Ubuntu + macOS + Windows.
 
 ### Build from source
 

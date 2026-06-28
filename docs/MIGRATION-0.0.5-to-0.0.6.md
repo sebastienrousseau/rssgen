@@ -54,7 +54,14 @@ switch to `time::OffsetDateTime` accessors (`.year()`, `.month()`,
 
 Rationale: ADR-0002 (`docs/adr/0002-time-only-date-stack.md`).
 
-## 3. Removed dependencies and feature flag
+## 3. MSRV bumped from 1.79.0 to 1.85.0
+
+`time-core 0.1.9` (a transitive of `time 0.3.51`) ships in
+edition 2024 and won't build under Cargo < 1.85. The 1.79 floor is
+no longer reachable through current crates.io. Bump your CI's
+toolchain to `1.85.0` or `stable` before pulling v0.0.6.
+
+## 4. Removed dependencies and feature flag
 
 | Removed | Why | Replacement |
 | :--- | :--- | :--- |
@@ -68,7 +75,7 @@ If your project depended on these crates transitively *through*
 action is needed. If you were relying on them being in the
 dependency tree, declare them directly in your own `Cargo.toml`.
 
-## 4. New surface (no migration needed — purely additive)
+## 5. New surface (no migration needed — purely additive)
 
 - `rss_gen::atom::{AtomFeed, AtomEntry, AtomPerson, AtomLink, AtomTextType, FeedFormat}`
 - `rss_gen::atom::generate_atom`
@@ -77,7 +84,7 @@ dependency tree, declare them directly in your own `Cargo.toml`.
 
 All re-exported from the crate root and `prelude`.
 
-## 5. Validation behaviour changes (no API change)
+## 6. Validation behaviour changes (no API change)
 
 - Item-level `link` now accepts relative URLs per RSS 2.0 §5.7
   (absolute URLs, root-relative paths like `/tags/`, and bare paths

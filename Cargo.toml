@@ -8,7 +8,7 @@ name = "rss-gen"                            # The name of the library
 version = "0.0.5"                           # Current version of the crate
 authors = ["RSS Generator Contributors"]    # Library contributors
 edition = "2021"                            # Rust edition being used
-rust-version = "1.79.0"                     # Minimum supported Rust version (bumped for quick-xml 0.40)
+rust-version = "1.85.0"                     # Minimum supported Rust version. Bumped from 1.79.0 in v0.0.6: `time-core 0.1.9` (transitive of `time 0.3.51`) ships in edition 2024, which requires Rust 1.85+. The 1.79 floor is no longer reachable through current crates.io.
 license = "MIT OR Apache-2.0"               # Dual licensing strategy
 description = """
 A Rust library for generating, serializing, and deserializing RSS feeds for various RSS versions.

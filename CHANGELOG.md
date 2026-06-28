@@ -84,12 +84,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ISO 8601 parsing/formatting throughput; `0.3.51` is the build-fix
   for the macros-feature regression in `0.3.50`. No API changes
   affecting `rss-gen`.
-- **MSRV bumped from `1.79.0` to `1.85.0`.** `time-core 0.1.9` (a
-  transitive of `time 0.3.51`) ships in edition 2024 and won't
-  build under Cargo < 1.85. The 1.79 floor is no longer reachable
-  through current crates.io. CI now pins a dedicated MSRV lane to
-  the 1.85.0 floor so future dep updates can't silently push the
-  effective MSRV.
+- **MSRV bumped from `1.79.0` to `1.88.0`.** The effective floor
+  through current crates.io is 1.88: `time 0.3.51` and
+  `time-core 0.1.9` declare `rust-version = "1.88"`, the `icu_*`
+  chain (transitives of `url`/`idna`) and `criterion 0.8.2`
+  declare 1.86, and the lowest version that satisfies every
+  transitive is 1.88.0. CI now pins a dedicated MSRV lane to
+  this floor so future dep updates can't silently push the
+  effective MSRV without anyone noticing.
 
 ### Performance
 

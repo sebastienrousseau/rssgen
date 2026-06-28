@@ -49,14 +49,17 @@ jobs:
       cname: doc.rssgen.co
 
   # ----------------------------------------------------------------------
-  # MSRV — the published `rust-version = "1.85.0"` floor must keep
+  # MSRV — the published `rust-version = "1.88.0"` floor must keep
   # building. Without this lane, transient dep updates can silently
   # push the effective MSRV without anyone noticing. Bumped from 1.79
-  # in v0.0.6 because `time-core 0.1.9` (transitive of `time 0.3.51`)
-  # ships in edition 2024 and won't build under Cargo < 1.85.
+  # in v0.0.6 because the effective floor through current crates.io is
+  # 1.88: `time 0.3.51` / `time-core 0.1.9` declare
+  # `rust-version = "1.88"`, the `icu_*` chain (transitives of
+  # `url`/`idna`) and `criterion 0.8.2` pull 1.86, and the lowest
+  # version that satisfies every transitive is 1.88.0.
   # ----------------------------------------------------------------------
   msrv:
-    name: MSRV (1.85.0)
+    name: MSRV (1.88.0)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -75,13 +78,13 @@ jobs:
           show-progress: false
       - uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9 # master
         with:
-          toolchain: '1.85.0'
+          toolchain: '1.88.0'
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
           key: msrv
           save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: cargo check (--all-features, lib + tests)
-        run: cargo +1.85.0 check --workspace --all-features --tests --benches --examples
+        run: cargo +1.88.0 check --workspace --all-features --tests --benches --examples
 
   # ----------------------------------------------------------------------
   # Miri — nightly UB sanity sweep. Even with `forbid(unsafe_code)`,

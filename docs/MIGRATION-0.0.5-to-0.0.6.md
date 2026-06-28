@@ -54,12 +54,14 @@ switch to `time::OffsetDateTime` accessors (`.year()`, `.month()`,
 
 Rationale: ADR-0002 (`docs/adr/0002-time-only-date-stack.md`).
 
-## 3. MSRV bumped from 1.79.0 to 1.85.0
+## 3. MSRV bumped from 1.79.0 to 1.88.0
 
-`time-core 0.1.9` (a transitive of `time 0.3.51`) ships in
-edition 2024 and won't build under Cargo < 1.85. The 1.79 floor is
-no longer reachable through current crates.io. Bump your CI's
-toolchain to `1.85.0` or `stable` before pulling v0.0.6.
+The effective floor through current crates.io is 1.88: `time 0.3.51`
+and `time-core 0.1.9` declare `rust-version = "1.88"`, the `icu_*`
+chain (transitives of `url`/`idna`) and `criterion 0.8.2` declare
+1.86, and the lowest version that satisfies every transitive is
+1.88.0. Bump your CI's toolchain to `1.88.0` or `stable` before
+pulling v0.0.6.
 
 ## 4. Removed dependencies and feature flag
 

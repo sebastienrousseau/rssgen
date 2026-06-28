@@ -5,8 +5,8 @@
 
 #![doc = include_str!("../README.md")]
 #![doc(
-    html_favicon_url = "https://kura.pro/rssgen/images/favicon.ico",
-    html_logo_url = "https://kura.pro/rssgen/images/logos/rssgen.svg",
+    html_favicon_url = "https://cloudcdn.pro/rssgen/v1/favicon.ico",
+    html_logo_url = "https://cloudcdn.pro/rssgen/v1/logos/rssgen.svg",
     html_root_url = "https://docs.rs/rss-gen"
 )]
 #![crate_name = "rss_gen"]
@@ -18,6 +18,8 @@
 #![deny(clippy::pedantic)]
 #![allow(clippy::module_name_repetitions)]
 
+/// Atom 1.0 feed generation, validation, and feed-format detection.
+pub mod atom;
 /// Contains the main types and data structures used to represent RSS feeds.
 pub mod data;
 /// Defines error types used throughout the library.
@@ -31,8 +33,12 @@ pub mod parser;
 /// Provides utilities for validating RSS feeds.
 pub mod validator;
 
+pub use atom::{
+    detect_feed_format, generate_atom, AtomEntry, AtomFeed, AtomLink,
+    AtomPerson, AtomTextType, FeedFormat,
+};
 pub use data::{RssData, RssItem, RssVersion};
-pub use error::{Result, RssError};
+pub use error::{Result, RssError, ValidationError};
 pub use generator::generate_rss;
 pub use parser::parse_rss;
 
@@ -145,8 +151,12 @@ pub fn quick_rss(
 
 /// Prelude module for convenient importing of common types and functions.
 pub mod prelude {
+    pub use crate::atom::{
+        detect_feed_format, generate_atom, AtomEntry, AtomFeed,
+        AtomLink, AtomPerson, AtomTextType, FeedFormat,
+    };
     pub use crate::data::{RssData, RssItem, RssVersion};
-    pub use crate::error::{Result, RssError};
+    pub use crate::error::{Result, RssError, ValidationError};
     pub use crate::generate_rss;
     pub use crate::parse_rss;
     pub use crate::quick_rss;

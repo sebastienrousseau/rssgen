@@ -1,5 +1,5 @@
 <!-- markdownlint-disable MD033 MD041 -->
-<img src="https://kura.pro/rssgen/images/logos/rssgen.svg"
+<img src="https://cloudcdn.pro/rssgen/v1/logos/rssgen.svg"
 alt="RSS Gen logo" height="66" align="right" />
 <!-- markdownlint-enable MD033 MD041 -->
 

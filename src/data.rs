@@ -9,10 +9,9 @@
 //! utility functions for URL validation and date parsing.
 
 use crate::{
-    error::{Result, RssError},
+    error::{Result, RssError, ValidationError},
     MAX_FEED_SIZE, MAX_GENERAL_LENGTH,
 };
-use dtt::datetime::DateTime;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt;
@@ -332,32 +331,53 @@ impl RssData {
     ///
     /// Additionally, it can return an error if the link format is invalid or the publication date cannot be parsed.
     pub fn validate(&self) -> Result<()> {
-        let mut errors = Vec::new();
+        let mut errors: Vec<ValidationError> = Vec::new();
 
+        // Issue #34: prefix errors with `channel.` so downstream
+        // tooling can distinguish channel-level failures from
+        // per-item failures.
         if self.title.is_empty() {
-            errors.push("Title is missing".to_string());
+            errors.push(ValidationError::new(
+                "channel.title",
+                "channel.title is missing",
+            ));
         }
 
         if self.link.is_empty() {
-            errors.push("Link is missing".to_string());
+            errors.push(ValidationError::new(
+                "channel.link",
+                "channel.link is missing",
+            ));
         } else if let Err(e) = validate_url(&self.link) {
-            errors.push(format!("Invalid link: {e}"));
+            // RSS 2.0 §5.1 requires the channel link to be an
+            // absolute browser-followable URL. Keep `validate_url`
+            // (http/https only) for the channel pass.
+            errors.push(ValidationError::new(
+                "channel.link",
+                format!("Invalid channel.link: {e}"),
+            ));
         }
 
         if self.description.is_empty() {
-            errors.push("Description is missing".to_string());
+            errors.push(ValidationError::new(
+                "channel.description",
+                "channel.description is missing",
+            ));
         }
 
         // Check category length
         if self.category.len() > MAX_GENERAL_LENGTH {
             return Err(RssError::InvalidInput(format!(
-            "Category exceeds maximum allowed length of {MAX_GENERAL_LENGTH} characters"
+            "channel.category exceeds maximum allowed length of {MAX_GENERAL_LENGTH} characters"
         )));
         }
 
         if !self.pub_date.is_empty() {
             if let Err(e) = parse_date(&self.pub_date) {
-                errors.push(format!("Invalid publication date: {e}"));
+                errors.push(ValidationError::new(
+                    "channel.pub_date",
+                    format!("Invalid channel.pub_date: {e}"),
+                ));
             }
         }
 
@@ -659,23 +679,38 @@ impl RssItem {
     ///
     /// Additionally, it can return an error if any of the custom validation rules are violated (e.g., maximum length for certain fields).
     pub fn validate(&self) -> Result<()> {
-        let mut errors = Vec::new();
+        let mut errors: Vec<ValidationError> = Vec::new();
 
+        // Issue #34: prefix errors with `item.` so downstream tooling
+        // can distinguish per-item failures from channel-level ones.
         if self.title.is_empty() {
-            errors.push("Title is missing".to_string());
+            errors.push(ValidationError::new(
+                "item.title",
+                "item.title is missing",
+            ));
         }
 
         if self.link.is_empty() {
-            errors.push("Link is missing".to_string());
-        } else if let Err(e) = validate_url(&self.link) {
-            errors.push(format!("Invalid link: {e}"));
+            errors.push(ValidationError::new(
+                "item.link",
+                "item.link is missing",
+            ));
+        } else if let Err(e) = validate_link_field(&self.link) {
+            // RSS 2.0 §5.7 allows item links to be relative — use the
+            // lenient `validate_link_field` instead of the strict
+            // `validate_url` we apply to channel.link.
+            errors.push(ValidationError::new(
+                "item.link",
+                format!("Invalid item.link: {e}"),
+            ));
         }
 
         if self.description.is_empty() {
-            errors.push("Description is missing".to_string());
+            errors.push(ValidationError::new(
+                "item.description",
+                "item.description is missing",
+            ));
         }
-
-        // Add more field validations as needed...
 
         if !errors.is_empty() {
             return Err(RssError::ValidationErrors(errors));
@@ -684,18 +719,16 @@ impl RssItem {
         Ok(())
     }
 
-    /// Parses the `pub_date` string into a `DateTime` object.
+    /// Parses the `pub_date` string into a [`time::OffsetDateTime`].
     ///
-    /// # Returns
-    ///
-    /// * `Ok(DateTime)` if the date is valid and successfully parsed.
-    /// * `Err(RssError)` if the date is invalid or cannot be parsed.
+    /// Delegates to [`parse_date`], which accepts both RFC 2822
+    /// and ISO 8601 inputs.
     ///
     /// # Errors
     ///
-    /// This function returns an `Err(RssError)` if the `pub_date` is invalid or
-    /// cannot be parsed into a `DateTime` object.
-    pub fn pub_date_parsed(&self) -> Result<DateTime> {
+    /// Returns [`RssError::DateParseError`] when the `pub_date` field
+    /// matches neither RFC 2822 nor ISO 8601.
+    pub fn pub_date_parsed(&self) -> Result<OffsetDateTime> {
         parse_date(&self.pub_date)
     }
 
@@ -815,40 +848,73 @@ pub fn validate_url(url: &str) -> Result<()> {
     Ok(())
 }
 
-/// Parses a date string into a `DateTime`.
+/// Validates a value used as an item-level link field.
+///
+/// Per RSS 2.0 §5.7 item-level link URLs may be relative. This helper
+/// accepts:
+///
+///   * absolute URLs (any scheme that `url::Url` parses), e.g.
+///     `https://example.com/post`
+///   * root-relative paths starting with `/`, e.g. `/tags/`
+///   * bare paths without a leading slash, e.g. `articles/foo.html`
+///
+/// Rejects:
+///
+///   * the empty string (caller should check `is_empty()` first)
+///   * any string containing whitespace or ASCII control characters —
+///     those would round-trip into the rendered RSS XML and break
+///     well-formedness or feed-reader parsing.
+///
+/// # Errors
+///
+/// Returns `RssError::InvalidUrl` with a descriptive message when the
+/// input contains whitespace or control characters, or is empty.
+pub fn validate_link_field(value: &str) -> Result<()> {
+    if value.is_empty() {
+        return Err(RssError::InvalidUrl(
+            "empty link is not a valid relative or absolute URL"
+                .to_string(),
+        ));
+    }
+    if value.chars().any(|c| c.is_whitespace() || c.is_control()) {
+        return Err(RssError::InvalidUrl(format!(
+            "link contains whitespace or control characters: {value:?}"
+        )));
+    }
+    // Anything else — absolute URL OR relative path — is accepted.
+    // `Url::parse` would reject relative paths because there's no
+    // base, so we don't call it here. RSS 2.0 §5.7 explicitly allows
+    // both shapes for item links.
+    Ok(())
+}
+
+/// Parses a date string into a [`time::OffsetDateTime`].
+///
+/// Accepts both RFC 2822 (the historical RSS 2.0 wire format —
+/// `Mon, 01 Jan 2024 00:00:00 GMT` / `… +0000` / `… +0530`) and ISO 8601
+/// (`2024-01-01T00:00:00Z`, used by Atom and Dublin Core). The previous
+/// implementation collapsed every successfully-parsed date to a UTC
+/// sentinel; this revision returns the actual parsed value so callers can
+/// inspect the timezone offset and the exact instant.
 ///
 /// # Arguments
 ///
 /// * `date_str` - A string slice that holds the date to parse.
 ///
-/// # Returns
-///
-/// * `Ok(DateTime)` if the date is valid and successfully parsed.
-/// * `Err(RssError)` if the date is invalid or cannot be parsed.
-///
 /// # Errors
 ///
-/// This function returns an `Err(RssError::DateParseError)` if the date cannot
-/// be parsed into a valid `DateTime`.
-///
-/// # Panics
-///
-/// This function will panic if the "UTC" time zone is invalid, but this is
-/// highly unlikely as "UTC" is always valid.
-pub fn parse_date(date_str: &str) -> Result<DateTime> {
-    if OffsetDateTime::parse(date_str, &Rfc2822).is_ok() {
-        return Ok(
-            DateTime::new_with_tz("UTC").expect("UTC is always valid")
-        );
+/// Returns [`RssError::DateParseError`] when the input matches neither
+/// RFC 2822 nor ISO 8601.
+pub fn parse_date(date_str: &str) -> Result<OffsetDateTime> {
+    if let Ok(parsed) = OffsetDateTime::parse(date_str, &Rfc2822) {
+        return Ok(parsed);
     }
 
-    if OffsetDateTime::parse(date_str, &Iso8601::DEFAULT).is_ok() {
-        return Ok(
-            DateTime::new_with_tz("UTC").expect("UTC is always valid")
-        );
+    if let Ok(parsed) =
+        OffsetDateTime::parse(date_str, &Iso8601::DEFAULT)
+    {
+        return Ok(parsed);
     }
-
-    // Handle custom parsing logic here...
 
     Err(RssError::DateParseError(date_str.to_string()))
 }
@@ -952,8 +1018,9 @@ mod tests {
         let result = invalid_rss_data.validate();
         assert!(result.is_err());
         if let Err(RssError::ValidationErrors(errors)) = result {
-            assert!(errors.iter().any(|e| e.contains("Invalid link")),
-                "Expected an error containing 'Invalid link', but got: {errors:?}");
+            assert!(errors.iter().any(|e| e.field == "channel.link"
+                && e.message.contains("Invalid channel.link")),
+                "Expected a structured ValidationError on `channel.link`, got: {errors:?}");
         } else {
             panic!("Expected ValidationErrors");
         }
@@ -1050,8 +1117,12 @@ mod tests {
         assert!(result.is_err());
 
         if let Err(RssError::ValidationErrors(errors)) = result {
-            assert_eq!(errors.len(), 1); // Adjust to expect 1 error if only one is returned
-            assert!(errors.contains(&"Link is missing".to_string())); // Adjust to the actual error returned
+            assert_eq!(errors.len(), 1);
+            assert!(
+                errors.iter().any(|e| e.field == "item.link"
+                    && e.message == "item.link is missing"),
+                "expected `item.link is missing`, got: {errors:?}"
+            );
         } else {
             panic!("Expected ValidationErrors");
         }
@@ -1384,10 +1455,9 @@ mod tests {
         assert!(result.is_err());
         if let Err(RssError::ValidationErrors(errors)) = result {
             assert!(
-                errors
-                    .iter()
-                    .any(|e| e.contains("Invalid publication date")),
-                "Expected 'Invalid publication date' error, got: {errors:?}"
+                errors.iter().any(|e| e.field == "channel.pub_date"
+                    && e.message.contains("Invalid channel.pub_date")),
+                "Expected structured `channel.pub_date` error, got: {errors:?}"
             );
         } else {
             panic!("Expected ValidationErrors");
@@ -1396,17 +1466,21 @@ mod tests {
 
     #[test]
     fn test_rss_item_validate_invalid_link() {
+        // Issue #34: relative URLs are now allowed for item links
+        // (RSS 2.0 §5.7). Only whitespace / control chars are
+        // rejected because they break XML well-formedness.
         let item = RssItem::new()
             .title("Item")
-            .link("not-a-valid-url")
+            .link("not a valid url with spaces")
             .description("Desc");
 
         let result = item.validate();
         assert!(result.is_err());
         if let Err(RssError::ValidationErrors(errors)) = result {
             assert!(
-                errors.iter().any(|e| e.contains("Invalid link")),
-                "Expected 'Invalid link' error, got: {errors:?}"
+                errors.iter().any(|e| e.field == "item.link"
+                    && e.message.contains("Invalid item.link")),
+                "Expected structured `item.link` error, got: {errors:?}"
             );
         } else {
             panic!("Expected ValidationErrors");
@@ -1539,5 +1613,67 @@ mod tests {
     fn test_parse_date_invalid() {
         let result = parse_date("completely invalid date");
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_rss_item_accepts_relative_link() {
+        // Regression for sebastienrousseau/rssgen#34.
+        // RSS 2.0 §5.7 allows item-level relative URLs. Root-relative
+        // and bare-path forms must both pass.
+        for link in ["/tags/", "articles/foo.html", "post.html"] {
+            let item = RssItem::new()
+                .title("Item")
+                .link(link)
+                .description("Desc");
+            assert!(
+                item.validate().is_ok(),
+                "expected relative link {link:?} to be accepted"
+            );
+        }
+    }
+
+    #[test]
+    fn test_rss_data_still_rejects_relative_link() {
+        // Channel-level link (RSS 2.0 §5.1) must be absolute.
+        // Regression for sebastienrousseau/rssgen#34: don't accidentally
+        // relax this when fixing the item-level rule.
+        let data = RssData::new(None)
+            .title("Channel")
+            .link("/tags/")
+            .description("Desc");
+        let result = data.validate();
+        assert!(
+            result.is_err(),
+            "channel.link `/tags/` must be rejected"
+        );
+        if let Err(RssError::ValidationErrors(errors)) = result {
+            assert!(
+                errors.iter().any(|e| e.field == "channel.link"
+                    && e.message.contains("Invalid channel.link")),
+                "expected channel-prefixed structured error, got: {errors:?}"
+            );
+        } else {
+            panic!("expected ValidationErrors");
+        }
+    }
+
+    #[test]
+    fn test_validate_link_field_rejects_whitespace_and_control() {
+        // Whitespace / control characters break XML well-formedness
+        // even though they pass URL parsing.
+        assert!(validate_link_field("/path with space").is_err());
+        assert!(validate_link_field("foo\tbar").is_err());
+        assert!(validate_link_field("\u{0007}beep").is_err());
+        assert!(validate_link_field("").is_err());
+    }
+
+    #[test]
+    fn test_validate_link_field_accepts_absolute_and_relative() {
+        assert!(validate_link_field("https://example.com/post").is_ok());
+        assert!(validate_link_field("http://example.com/").is_ok());
+        assert!(validate_link_field("/tags/").is_ok());
+        assert!(validate_link_field("articles/foo.html").is_ok());
+        // Non-http schemes are fine for items (atom, mailto, etc.).
+        assert!(validate_link_field("mailto:hi@example.com").is_ok());
     }
 }

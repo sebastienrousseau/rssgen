@@ -223,16 +223,19 @@ mod regression_tests {
         assert!(result.is_err());
 
         if let Err(RssError::ValidationErrors(errors)) = result {
-            assert!(errors.len() >= 3); // Should have errors for title, link, description
+            // Issue #34: errors now carry `channel.` / `item.` context prefix.
+            // v0.0.6: ValidationErrors carries Vec<ValidationError> (was
+            // Vec<String>); field is the dotted path and message is the
+            // human-readable text — `Display` writes the bare message.
+            assert!(errors.len() >= 3);
+            assert!(errors.iter().any(|e| e.field == "channel.title"
+                && e.message == "channel.title is missing"));
+            assert!(errors.iter().any(|e| e.field == "channel.link"
+                && e.message == "channel.link is missing"));
             assert!(errors
                 .iter()
-                .any(|e| e.contains("Title is missing")));
-            assert!(errors
-                .iter()
-                .any(|e| e.contains("Link is missing")));
-            assert!(errors
-                .iter()
-                .any(|e| e.contains("Description is missing")));
+                .any(|e| e.field == "channel.description"
+                    && e.message == "channel.description is missing"));
         } else {
             panic!("Expected ValidationErrors");
         }

@@ -121,11 +121,24 @@ fn validation_errors_example() -> Result<()> {
     println!("---------------------------------------------");
 
     let errors = vec![
-        "Title is missing".to_string(),
-        "Invalid publication date".to_string(),
+        rss_gen::ValidationError::new(
+            "channel.title",
+            "channel.title is missing",
+        ),
+        rss_gen::ValidationError::new(
+            "channel.pub_date",
+            "Invalid channel.pub_date: 2026/06/28",
+        ),
     ];
-    let error = RssError::ValidationErrors(errors);
+    let error = RssError::ValidationErrors(errors.clone());
     println!("    ❌  Validation Errors: {}", error);
+    for e in &errors {
+        // Structured access — match on `field`, not on string content.
+        println!(
+            "       • field = {}, message = {}",
+            e.field, e.message
+        );
+    }
 
     Ok(())
 }

@@ -6,6 +6,30 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.0.6](https://github.com/sebastienrousseau/rssgen/compare/v0.0.5...v0.0.6) - 2026-06-28
+
+### Added
+
+- *(atom)* add Atom 1.0 feed generation, validation, format detection (closes #24)
+
+### Dependencies
+
+- *(deps)* bump time from 0.3.49 to 0.3.51
+
+### Documentation
+
+- *(readme)* full review against noyalib reference style + cloudcdn.pro logo swap
+
+### Fixed
+
+- *(v0.0.6)* close 5 spec/correctness bugs + drop dead deps
+- context-prefixed validation errors + relative item links ([#34](https://github.com/sebastienrousseau/rssgen/pull/34))
+
+### Tooling
+
+- *(msrv)* bump floor from 1.85.0 to 1.88.0 to match transitive deps
+- *(v0.0.6)* unblock MSRV + Miri + codecov gates on PR #35
+
 ### Added
 
 - **Atom 1.0 feed format support** (closes #24). A new `atom` module

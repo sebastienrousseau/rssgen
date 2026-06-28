@@ -20,11 +20,7 @@ publish = true
 # with a future workspace split.)
 release = true
 
-# Verify the published tarball matches the local one by running
-# `cargo publish --dry-run` before tagging.
-publish_features = ["all"]
-
-# Sign the git tag with the maintainer's SSH/GPG key.
+# Tag + release naming.
 git_tag_name = "v{{ version }}"
 git_release_name = "v{{ version }}"
 

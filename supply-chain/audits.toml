@@ -1,0 +1,7 @@
+# cargo-vet audits authored by the rss-gen maintainers.
+#
+# New audits go here as `[[audits.<crate>]]` blocks. Run
+# `cargo vet certify <crate> safe-to-deploy` to interactively add an
+# entry after reviewing a crate's source.
+
+[criteria]

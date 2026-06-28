@@ -1,0 +1,69 @@
+name: Release
+
+# Drives the release flow via release-plz:
+#
+#  * On every push to main, opens (or updates) a "release PR" with
+#    the bumped version, the regenerated CHANGELOG, and the inferred
+#    git-cliff section.
+#  * When that PR merges, tags the new version, creates a GitHub
+#    release, and publishes to crates.io.
+#
+# Tokens required (set as repo secrets):
+#  * `CRATES_TOKEN` — crates.io API token with `publish-update` scope.
+#  * `RELEASE_PLZ_TOKEN` — fine-grained GitHub PAT with `contents: write`
+#    and `pull-requests: write`. Falls back to GITHUB_TOKEN if absent.
+
+on:
+  push:
+    branches: [main]
+
+permissions: {}
+
+jobs:
+  release-plz-release:
+    name: release-plz release
+    runs-on: ubuntu-latest
+    if: ${{ github.repository_owner == 'sebastienrousseau' }}
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9 # master
+        with:
+          toolchain: stable
+      - name: Run release-plz release
+        uses: release-plz/action@4f8f49b9b09bf36e4ddec61e4a8a91bd3b71e90a # v0.5
+        with:
+          command: release
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_PLZ_TOKEN || secrets.GITHUB_TOKEN }}
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_TOKEN }}
+
+  release-plz-pr:
+    name: release-plz release-PR
+    runs-on: ubuntu-latest
+    if: ${{ github.repository_owner == 'sebastienrousseau' }}
+    permissions:
+      contents: write
+      pull-requests: write
+    concurrency:
+      group: release-plz-${{ github.ref }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9 # master
+        with:
+          toolchain: stable
+      - name: Run release-plz release-pr
+        uses: release-plz/action@4f8f49b9b09bf36e4ddec61e4a8a91bd3b71e90a # v0.5
+        with:
+          command: release-pr
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_PLZ_TOKEN || secrets.GITHUB_TOKEN }}
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_TOKEN }}

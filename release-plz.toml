@@ -1,0 +1,65 @@
+# release-plz config — drives version bumps + crates.io publishing
+# from CI.
+#
+# Workflow: on every push to main, release-plz inspects the conventional
+# commits since the last tag, opens a "release PR" with the bumped
+# version, the regenerated changelog, and the new git-cliff section.
+# Merging that PR triggers `cargo publish` to crates.io.
+
+[workspace]
+# Conventional Commits — generates the CHANGELOG from `feat:` / `fix:`
+# / `chore:` prefixes per Keep a Changelog 1.1.0.
+changelog_update = true
+git_release_enable = true
+
+# Publish to crates.io.
+publish = true
+
+# Don't release the workspace as a whole — each crate has its own
+# version. (Today we have only one crate; this is forward-compatible
+# with a future workspace split.)
+release = true
+
+# Verify the published tarball matches the local one by running
+# `cargo publish --dry-run` before tagging.
+publish_features = ["all"]
+
+# Sign the git tag with the maintainer's SSH/GPG key.
+git_tag_name = "v{{ version }}"
+git_release_name = "v{{ version }}"
+
+# release-plz writes release notes by extracting the matching CHANGELOG
+# section between the previous tag and the new one.
+git_release_body = """
+{% if release_body -%}
+{{ release_body }}
+{% else %}
+See the [CHANGELOG]({{ changelog_url }}) for the full diff.
+{% endif %}
+"""
+
+[changelog]
+header = """
+# Changelog
+
+All notable changes to `rss-gen` are documented here. The format follows
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project
+adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+"""
+
+# Conventional Commit prefix → CHANGELOG section.
+commit_parsers = [
+  { message = "^feat", group = "Added" },
+  { message = "^fix", group = "Fixed" },
+  { message = "^perf", group = "Performance" },
+  { message = "^refactor", group = "Changed" },
+  { message = "^docs", group = "Documentation" },
+  { message = "^test", group = "Testing" },
+  { message = "^ci", group = "Tooling" },
+  { message = "^chore\\(deps\\)", group = "Dependencies" },
+  { message = "^chore", skip = true },
+  { message = "^style", skip = true },
+]
+
+# Treat anything matching these as a hard breaking-change marker.
+sort_commits = "newest"

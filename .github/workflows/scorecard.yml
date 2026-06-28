@@ -1,0 +1,49 @@
+name: OSSF Scorecard
+
+# Runs the OpenSSF Scorecard analysis on every push to main and on a
+# weekly cadence. Publishes the SARIF result to the Security tab and
+# uploads the scorecard JSON to the public Scorecard API so the
+# README badge resolves.
+
+on:
+  branch_protection_rule:
+  schedule:
+    - cron: '23 4 * * 1' # Mondays 04:23 UTC
+  push:
+    branches: [main]
+
+permissions: read-all
+
+jobs:
+  analysis:
+    name: Scorecard analysis
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write   # to upload SARIF
+      id-token: write          # publish results to scorecard API
+      contents: read
+      actions: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
+
+      - name: Run analysis
+        uses: ossf/scorecard-action@05b42c624433fc40578a4040d5cf5e36ddca8cde # v2.4.0
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          publish_results: true
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: SARIF file
+          path: results.sarif
+          retention-days: 5
+
+      - name: Upload SARIF to code-scanning dashboard
+        uses: github/codeql-action/upload-sarif@4e828ff8d448a8a6e532957b1811f387a63867e8 # v3
+        with:
+          sarif_file: results.sarif

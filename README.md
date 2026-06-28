@@ -17,7 +17,12 @@
   <a href="https://crates.io/crates/rss-gen"><img src="https://img.shields.io/crates/v/rss-gen.svg?style=for-the-badge&color=fc8d62&logo=rust" alt="Crates.io" /></a>
   <a href="https://docs.rs/rss-gen"><img src="https://img.shields.io/badge/docs.rs-rss--gen-66c2a5?style=for-the-badge&labelColor=555555&logo=docs.rs" alt="Docs.rs" /></a>
   <a href="https://codecov.io/gh/sebastienrousseau/rssgen"><img src="https://img.shields.io/codecov/c/github/sebastienrousseau/rssgen?style=for-the-badge&logo=codecov" alt="Coverage" /></a>
+  <a href="https://scorecard.dev/viewer/?uri=github.com/sebastienrousseau/rssgen"><img src="https://img.shields.io/ossf-scorecard/github.com/sebastienrousseau/rssgen?style=for-the-badge&label=OpenSSF%20Scorecard&logo=openssf" alt="OpenSSF Scorecard" /></a>
   <a href="https://lib.rs/crates/rss-gen"><img src="https://img.shields.io/badge/lib.rs-rss--gen-orange.svg?style=for-the-badge" alt="lib.rs" /></a>
+</p>
+
+<p align="center">
+  <strong>50 000-item RSS feed in ~15 ms · Atom 1.0 in ~114 ms · format detection in 7 µs · 100 % rustdoc coverage · <code>#![forbid(unsafe_code)]</code></strong>
 </p>
 
 ---
@@ -442,10 +447,13 @@ Coordinated-disclosure contact and policy live in `CONTRIBUTING.md`.
 | Document | Covers |
 | :--- | :--- |
 | [`CHANGELOG.md`](CHANGELOG.md) | Per-release notes following Keep a Changelog 1.1.0. |
+| [`docs/MIGRATION-0.0.5-to-0.0.6.md`](docs/MIGRATION-0.0.5-to-0.0.6.md) | Mechanical migration guide for the v0.0.6 API breaks (`ValidationErrors` payload, `parse_date` return type, removed deps). |
+| [`docs/adr/`](docs/adr/) | Architecture Decision Records — structured `ValidationError`, `time`-only date stack, Atom as a sibling module. |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | Setup, signed-commit policy, PR guidelines. |
+| [`.github/SECURITY.md`](.github/SECURITY.md) | Coordinated-disclosure policy. |
 | [`AUTHORS.md`](AUTHORS.md) | Contributor roll. |
-| [docs.rs/rss-gen](https://docs.rs/rss-gen) | Generated API reference for the published version. |
-| [`rssgen.co`](https://rssgen.co) | Long-form documentation, examples, and design notes. |
+| [docs.rs/rss-gen](https://docs.rs/rss-gen) | Generated API reference for the published version (100 % coverage). |
+| [`doc.rssgen.co`](https://doc.rssgen.co) | Live docs published from `main` via `actions/deploy-pages`. |
 
 ---
 

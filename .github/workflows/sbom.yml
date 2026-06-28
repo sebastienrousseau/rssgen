@@ -1,0 +1,69 @@
+name: SBOM
+
+# Generates a CycloneDX SBOM (Software Bill of Materials) for every
+# push to main and every tagged release. CycloneDX is the
+# OWASP-stewarded format that procurement teams ask for; the JSON
+# artifact is attached to releases for downstream supply-chain
+# verification.
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions: read-all
+
+jobs:
+  cyclonedx:
+    name: CycloneDX SBOM
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write   # attach SBOM to releases
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+          show-progress: false
+
+      - uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9 # master
+        with:
+          toolchain: stable
+
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          key: sbom
+          save-if: false
+
+      - uses: taiki-e/install-action@1ed3272338f573e042a2e6bca3893aa19f43b47a # v2
+        with:
+          tool: cargo-cyclonedx
+
+      - name: Generate CycloneDX SBOM (JSON)
+        run: |
+          cargo cyclonedx --format json --all
+          mv rss-gen.cdx.json rss-gen.sbom.cdx.json || true
+
+      - name: Generate CycloneDX SBOM (XML)
+        run: |
+          cargo cyclonedx --format xml --all
+          mv rss-gen.cdx.xml rss-gen.sbom.cdx.xml || true
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: sbom
+          path: |
+            rss-gen.sbom.cdx.json
+            rss-gen.sbom.cdx.xml
+          retention-days: 90
+
+      - name: Attach SBOM to release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@72f2c25fcb47643c292f7107632f7a47c1df5cd8 # v2.3.2
+        with:
+          files: |
+            rss-gen.sbom.cdx.json
+            rss-gen.sbom.cdx.xml

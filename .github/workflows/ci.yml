@@ -13,14 +13,14 @@ jobs:
     uses: sebastienrousseau/pipelines/.github/workflows/rust-ci.yml@main
     with:
       rust-version: 'stable'
-      # Coverage disabled on this branch — tarpaulin crashes mid-run on
-      # the integration test binary (`cargo test --workspace --all-features`
-      # passes locally at 187/0, but tarpaulin's instrumented subprocess
-      # exits non-zero with "Test failed during run" before reporting,
-      # giving an unactionable 92.6% / "exit code 1" pair). Re-enable
-      # after a tarpaulin upgrade or after splitting property tests out
-      # of the coverage subprocess. Codecov badge will stay at the
-      # last main-branch value until then.
+      # Cross-OS matrix (macOS + Windows) runs in addition to the
+      # Linux check on every push and PR. Catches platform-specific
+      # path / line-ending / quick-xml encoding regressions.
+      run-cross-platform: true
+      # Coverage is handled by the dedicated `coverage` job below
+      # using cargo-llvm-cov rather than the shared workflow's
+      # tarpaulin path, which crashes mid-run on this codebase's
+      # integration test binary (see the v0.0.5 ci.yml comment).
       run-coverage: false
     secrets:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
@@ -47,3 +47,114 @@ jobs:
       type: rust
       redirect-crate: rss-gen
       cname: doc.rssgen.co
+
+  # ----------------------------------------------------------------------
+  # MSRV — the published `rust-version = "1.79.0"` floor must keep
+  # building. Without this lane, transient dep updates can silently
+  # push the effective MSRV without anyone noticing.
+  # ----------------------------------------------------------------------
+  msrv:
+    name: MSRV (1.79.0)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    env:
+      CARGO_TERM_COLOR: always
+      CARGO_INCREMENTAL: '0'
+      CARGO_NET_RETRY: '2'
+      CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
+      RUST_BACKTRACE: short
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+          show-progress: false
+      - uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9 # master
+        with:
+          toolchain: '1.79.0'
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          key: msrv
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - name: cargo check (--all-features, lib + tests)
+        run: cargo +1.79.0 check --workspace --all-features --tests --benches --examples
+
+  # ----------------------------------------------------------------------
+  # Miri — nightly UB sanity sweep. Even with `forbid(unsafe_code)`,
+  # Miri catches UB introduced through proc-macro / derive output
+  # (thiserror, serde) and through dep upgrades. Runs `cargo miri
+  # test --lib` over the safe-only library surface; integration tests
+  # spawn subprocesses Miri can't trace, so they're excluded.
+  # ----------------------------------------------------------------------
+  miri:
+    name: Miri (nightly)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      CARGO_TERM_COLOR: always
+      MIRIFLAGS: '-Zmiri-strict-provenance -Zmiri-symbolic-alignment-check'
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+          show-progress: false
+      - uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9 # master
+        with:
+          toolchain: nightly
+          components: miri
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          key: miri
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - name: cargo miri test --lib
+        run: cargo +nightly miri test --lib --all-features
+
+  # ----------------------------------------------------------------------
+  # Coverage — cargo-llvm-cov. Uses the LLVM source-based coverage
+  # backend rather than tarpaulin (which crashed on this codebase's
+  # integration test binary in the v0.0.5 cycle). Posts to Codecov.
+  # ----------------------------------------------------------------------
+  coverage:
+    name: Coverage (llvm-cov)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      CARGO_TERM_COLOR: always
+      CARGO_INCREMENTAL: '0'
+      CARGO_NET_RETRY: '2'
+      RUST_BACKTRACE: short
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+          show-progress: false
+      - uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9 # master
+        with:
+          toolchain: stable
+          components: llvm-tools-preview
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          key: llvm-cov
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - uses: taiki-e/install-action@1ed3272338f573e042a2e6bca3893aa19f43b47a # v2
+        with:
+          tool: cargo-llvm-cov
+      - name: cargo llvm-cov
+        run: |
+          cargo llvm-cov --workspace --all-features \
+            --lcov --output-path lcov.info \
+            --ignore-filename-regex '(tests/|examples/|benches/|fuzz/)'
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@18283e04ce6e62d37312384ff67231eb8fd56d24 # v5
+        with:
+          files: lcov.info
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false

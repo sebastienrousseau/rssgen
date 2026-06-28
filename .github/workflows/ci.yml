@@ -32,7 +32,18 @@ jobs:
 
   docs:
     if: github.ref == 'refs/heads/main'
+    # Publishes via actions/deploy-pages (the modern, workflow-driven
+    # GitHub Pages flow) — supersedes the legacy gh-pages branch push.
+    # The `cname` input is bundled into the upload-pages-artifact tarball
+    # so the custom domain stays bound across every deploy. The
+    # repository Pages source has been switched to `build_type=workflow`;
+    # the `gh-pages` branch is retired.
     uses: sebastienrousseau/pipelines/.github/workflows/docs.yml@main
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     with:
       type: rust
       redirect-crate: rss-gen
+      cname: doc.rssgen.co

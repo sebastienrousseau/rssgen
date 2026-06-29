@@ -164,7 +164,7 @@ jobs:
             --lcov --output-path lcov.info \
             --ignore-filename-regex '(tests/|examples/|benches/|fuzz/)'
       - name: Upload to Codecov
-        uses: codecov/codecov-action@18283e04ce6e62d37312384ff67231eb8fd56d24 # v5
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v5
         with:
           files: lcov.info
           token: ${{ secrets.CODECOV_TOKEN }}

@@ -60,7 +60,7 @@ Or pin explicitly in `Cargo.toml`:
 
 ```toml
 [dependencies]
-rss-gen = "0.0.7"
+rss-gen = "0.0.8"
 ```
 
 ### MSRV

@@ -1,0 +1,11 @@
+# `clippy::cargo` is denied in src/lib.rs, which turns on
+# `multiple_crate_versions`. `syn` is currently duplicated across the
+# ecosystem: `serde_derive` and `thiserror-impl` have moved to syn 3,
+# while `derive_arbitrary`, `displaydoc`, `quickcheck_macros`,
+# `synstructure`, `yoke-derive` and `zerocopy-derive` still require
+# syn 2. Nothing in this crate can unify them — it resolves when those
+# proc-macro crates finish migrating.
+#
+# Allow the duplicate for `syn` specifically rather than switching off
+# the whole lint, so a genuinely avoidable duplication still fails CI.
+allowed-duplicate-crates = ["syn"]

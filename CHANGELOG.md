@@ -4,6 +4,12 @@ All notable changes to `rss-gen` are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.9](https://github.com/sebastienrousseau/rssgen/compare/v0.0.8...v0.0.9) - 2026-08-05
+
+### Dependencies
+
+- *(deps)* consolidate dependency updates for v0.0.9 ([#51](https://github.com/sebastienrousseau/rssgen/pull/51))
+
 ## [0.0.8] - 2026-07-24
 
 ## [0.0.6](https://github.com/sebastienrousseau/rssgen/compare/v0.0.5...v0.0.6) - 2026-06-28

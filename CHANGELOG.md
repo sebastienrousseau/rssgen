@@ -4,6 +4,20 @@ All notable changes to `rss-gen` are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.11](https://github.com/sebastienrousseau/rssgen/compare/v0.0.10...v0.0.11) - 2026-08-10
+
+### Dependencies
+
+- *(deps)* `time` 0.3.54 -> 0.3.55 in the minor-and-patch group ([#55](https://github.com/sebastienrousseau/rssgen/pull/55))
+- *(ci)* `dtolnay/rust-toolchain`, `Swatinem/rust-cache` v2.9.1 -> v2.9.2,
+  `taiki-e/install-action`, and `github/codeql-action/upload-sarif`
+  v4.37.4 -> v4.37.6 ([#54](https://github.com/sebastienrousseau/rssgen/pull/54))
+
+## [0.0.10](https://github.com/sebastienrousseau/rssgen/compare/v0.0.9...v0.0.10) - 2026-08-08
+
+Version-only release; no source or dependency changes. Recorded here
+because the release shipped to crates.io without a changelog entry.
+
 ## [0.0.9](https://github.com/sebastienrousseau/rssgen/compare/v0.0.8...v0.0.9) - 2026-08-05
 
 ### Dependencies

@@ -76,7 +76,7 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
           show-progress: false
-      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master
         with:
           toolchain: '1.88.0'
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
@@ -114,7 +114,7 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
           show-progress: false
-      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master
         with:
           toolchain: nightly
           components: miri
@@ -147,7 +147,7 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
           show-progress: false
-      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master
         with:
           toolchain: stable
           components: llvm-tools-preview
@@ -155,7 +155,7 @@ jobs:
         with:
           key: llvm-cov
           save-if: ${{ github.ref == 'refs/heads/main' }}
-      - uses: taiki-e/install-action@ba47c86ac325773530516bb756137ac718732518 # v2
+      - uses: taiki-e/install-action@4076c08d76dba979c11a7285295b0716c1d67908 # v2
         with:
           tool: cargo-llvm-cov
       - name: cargo llvm-cov
@@ -164,7 +164,7 @@ jobs:
             --lcov --output-path lcov.info \
             --ignore-filename-regex '(tests/|examples/|benches/|fuzz/)'
       - name: Upload to Codecov
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v5
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v5
         with:
           files: lcov.info
           token: ${{ secrets.CODECOV_TOKEN }}

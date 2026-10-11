@@ -1,6 +1,5 @@
 #![allow(missing_docs)]
 use criterion::{criterion_group, criterion_main, Criterion};
-use lazy_static::lazy_static;
 use rss_gen::{
     detect_feed_format, generate_atom, generate_rss, parse_rss,
     AtomEntry, AtomFeed, RssData, RssItem, RssVersion,
@@ -56,23 +55,21 @@ fn generate_large_atom_feed(entry_count: usize) -> AtomFeed {
     feed
 }
 
-lazy_static! {
-    static ref SMALL_DATA: RssData = generate_large_rss_data(10);
-    static ref MEDIUM_DATA: RssData = generate_large_rss_data(100);
-    static ref LARGE_DATA: RssData = generate_large_rss_data(1000);
-    static ref SMALL_XML: String = generate_rss(&SMALL_DATA).unwrap();
-    static ref MEDIUM_XML: String = generate_rss(&MEDIUM_DATA).unwrap();
-    static ref LARGE_XML: String = generate_rss(&LARGE_DATA).unwrap();
-    static ref SMALL_ATOM: AtomFeed = generate_large_atom_feed(10);
-    static ref MEDIUM_ATOM: AtomFeed = generate_large_atom_feed(100);
-    static ref LARGE_ATOM: AtomFeed = generate_large_atom_feed(1000);
-    static ref SMALL_ATOM_XML: String =
-        generate_atom(&SMALL_ATOM).unwrap();
-    static ref MEDIUM_ATOM_XML: String =
-        generate_atom(&MEDIUM_ATOM).unwrap();
-    static ref LARGE_ATOM_XML: String =
-        generate_atom(&LARGE_ATOM).unwrap();
-}
+use std::sync::LazyLock;
+
+static SMALL_DATA: LazyLock<RssData> = LazyLock::new(|| generate_large_rss_data(10));
+static MEDIUM_DATA: LazyLock<RssData> = LazyLock::new(|| generate_large_rss_data(100));
+static LARGE_DATA: LazyLock<RssData> = LazyLock::new(|| generate_large_rss_data(1000));
+static SMALL_XML: LazyLock<String> = LazyLock::new(|| generate_rss(&SMALL_DATA).unwrap());
+static MEDIUM_XML: LazyLock<String> = LazyLock::new(|| generate_rss(&MEDIUM_DATA).unwrap());
+static LARGE_XML: LazyLock<String> = LazyLock::new(|| generate_rss(&LARGE_DATA).unwrap());
+static SMALL_ATOM: LazyLock<AtomFeed> = LazyLock::new(|| generate_large_atom_feed(10));
+static MEDIUM_ATOM: LazyLock<AtomFeed> = LazyLock::new(|| generate_large_atom_feed(100));
+static LARGE_ATOM: LazyLock<AtomFeed> = LazyLock::new(|| generate_large_atom_feed(1000));
+static SMALL_ATOM_XML: LazyLock<String> =
+    LazyLock::new(|| generate_atom(&SMALL_ATOM).unwrap());
+static LARGE_ATOM_XML: LazyLock<String> =
+    LazyLock::new(|| generate_atom(&LARGE_ATOM).unwrap());
 
 fn benchmark_generate_rss(c: &mut Criterion) {
     let mut group = c.benchmark_group("Generate RSS");

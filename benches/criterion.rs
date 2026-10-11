@@ -57,15 +57,24 @@ fn generate_large_atom_feed(entry_count: usize) -> AtomFeed {
 
 use std::sync::LazyLock;
 
-static SMALL_DATA: LazyLock<RssData> = LazyLock::new(|| generate_large_rss_data(10));
-static MEDIUM_DATA: LazyLock<RssData> = LazyLock::new(|| generate_large_rss_data(100));
-static LARGE_DATA: LazyLock<RssData> = LazyLock::new(|| generate_large_rss_data(1000));
-static SMALL_XML: LazyLock<String> = LazyLock::new(|| generate_rss(&SMALL_DATA).unwrap());
-static MEDIUM_XML: LazyLock<String> = LazyLock::new(|| generate_rss(&MEDIUM_DATA).unwrap());
-static LARGE_XML: LazyLock<String> = LazyLock::new(|| generate_rss(&LARGE_DATA).unwrap());
-static SMALL_ATOM: LazyLock<AtomFeed> = LazyLock::new(|| generate_large_atom_feed(10));
-static MEDIUM_ATOM: LazyLock<AtomFeed> = LazyLock::new(|| generate_large_atom_feed(100));
-static LARGE_ATOM: LazyLock<AtomFeed> = LazyLock::new(|| generate_large_atom_feed(1000));
+static SMALL_DATA: LazyLock<RssData> =
+    LazyLock::new(|| generate_large_rss_data(10));
+static MEDIUM_DATA: LazyLock<RssData> =
+    LazyLock::new(|| generate_large_rss_data(100));
+static LARGE_DATA: LazyLock<RssData> =
+    LazyLock::new(|| generate_large_rss_data(1000));
+static SMALL_XML: LazyLock<String> =
+    LazyLock::new(|| generate_rss(&SMALL_DATA).unwrap());
+static MEDIUM_XML: LazyLock<String> =
+    LazyLock::new(|| generate_rss(&MEDIUM_DATA).unwrap());
+static LARGE_XML: LazyLock<String> =
+    LazyLock::new(|| generate_rss(&LARGE_DATA).unwrap());
+static SMALL_ATOM: LazyLock<AtomFeed> =
+    LazyLock::new(|| generate_large_atom_feed(10));
+static MEDIUM_ATOM: LazyLock<AtomFeed> =
+    LazyLock::new(|| generate_large_atom_feed(100));
+static LARGE_ATOM: LazyLock<AtomFeed> =
+    LazyLock::new(|| generate_large_atom_feed(1000));
 static SMALL_ATOM_XML: LazyLock<String> =
     LazyLock::new(|| generate_atom(&SMALL_ATOM).unwrap());
 static LARGE_ATOM_XML: LazyLock<String> =

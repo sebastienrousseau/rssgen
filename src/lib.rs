@@ -17,6 +17,8 @@
 #![deny(clippy::cargo)]
 #![deny(clippy::pedantic)]
 #![allow(clippy::module_name_repetitions)]
+#![allow(unknown_lints)]
+#![allow(clippy::assert_is_empty)]
 
 /// Atom 1.0 feed generation, validation, and feed-format detection.
 pub mod atom;

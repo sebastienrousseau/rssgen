@@ -46,7 +46,8 @@ unsafe impl GlobalAlloc for TrackingAllocator {
             };
 
             // Update peak if necessary
-            let mut current_peak = self.peak_allocated.load(Ordering::Relaxed);
+            let mut current_peak =
+                self.peak_allocated.load(Ordering::Relaxed);
             loop {
                 if new_allocated <= current_peak {
                     break;

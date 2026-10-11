@@ -31,10 +31,19 @@ unsafe impl GlobalAlloc for TrackingAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         let ptr = System.alloc(layout);
         if !ptr.is_null() {
-            let old_allocated = self
-                .allocated
-                .fetch_add(layout.size(), Ordering::Relaxed);
-            let new_allocated = old_allocated + layout.size();
+            let mut current = self.allocated.load(Ordering::Relaxed);
+            let new_allocated = loop {
+                let next = current.saturating_add(layout.size());
+                match self.allocated.compare_exchange_weak(
+                    current,
+                    next,
+                    Ordering::Relaxed,
+                    Ordering::Relaxed,
+                ) {
+                    Ok(_) => break next,
+                    Err(actual) => current = actual,
+                }
+            };
 
             // Update peak if necessary
             let mut current_peak =
@@ -59,7 +68,19 @@ unsafe impl GlobalAlloc for TrackingAllocator {
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
         System.dealloc(ptr, layout);
-        self.allocated.fetch_sub(layout.size(), Ordering::Relaxed);
+        let mut current = self.allocated.load(Ordering::Relaxed);
+        loop {
+            let next = current.saturating_sub(layout.size());
+            match self.allocated.compare_exchange_weak(
+                current,
+                next,
+                Ordering::Relaxed,
+                Ordering::Relaxed,
+            ) {
+                Ok(_) => break,
+                Err(actual) => current = actual,
+            }
+        }
     }
 }
 

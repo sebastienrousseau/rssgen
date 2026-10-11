@@ -4,6 +4,14 @@ All notable changes to `rss-gen` are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.12] - 2026-10-11
+
+### Fixed
+
+- Prevented tracking allocator underflow and migrated to standard library LazyLock.
+- Formatted LazyLock benchmark declarations.
+- Allowed assert_is_empty lint for test compatibility.
+
 ## [0.0.11](https://github.com/sebastienrousseau/rssgen/compare/v0.0.10...v0.0.11) - 2026-08-10
 
 ### Dependencies

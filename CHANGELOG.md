@@ -4,6 +4,19 @@ All notable changes to `rss-gen` are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.13] - Unreleased
+
+### Changed
+
+- **Breaking: the MSRV is now Rust 1.89.0** (was 1.88.0), one floor
+  shared with the maintainer's other Rust crates. The dependencies alone
+  need 1.88. `Cargo.toml`, the MSRV CI lane and the README state it.
+
+### Dependencies
+
+- The minor-and-patch dependency group and the GitHub Actions group
+  (Dependabot #74, #75).
+
 ## [0.0.12] - 2026-10-11
 
 ### Fixed

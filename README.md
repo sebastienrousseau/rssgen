@@ -67,9 +67,9 @@ rss-gen = "0.0.8"
 
 | Surface | Minimum Supported Rust Version |
 | :--- | :--- |
-| Library | **1.88.0** (bumped from 1.79.0 in v0.0.6; `time 0.3.51` + `time-core 0.1.9` declare `rust-version = "1.88"`, the `icu_*` chain via `url`/`idna` pulls 1.86, and the effective floor through current crates.io is 1.88) |
+| Library | **1.89.0** (raised from 1.88.0 in v0.0.13 to share one floor with the maintainer's other Rust crates; the dependencies alone need 1.88: `time 0.3.51` + `time-core 0.1.9` declare `rust-version = "1.88"`, and the `icu_*` chain via `url`/`idna` pulls 1.86) |
 
-CI runs `stable` on every push, plus a dedicated MSRV lane that pins the 1.88.0 floor. Cross-platform matrix: Ubuntu + macOS + Windows.
+CI runs `stable` on every push, plus a dedicated MSRV lane that pins the 1.89.0 floor. Cross-platform matrix: Ubuntu + macOS + Windows.
 
 ### Build from source
 

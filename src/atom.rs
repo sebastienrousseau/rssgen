@@ -48,19 +48,17 @@
 //! ```
 
 use crate::error::{Result, RssError, ValidationError};
-use crate::generator::sanitize_content;
-use quick_xml::events::{
-    BytesDecl, BytesEnd, BytesStart, BytesText, Event,
+use crate::generator::clean_xml_text;
+use oxml::{
+    tree::NodeId, Document, EmptyElement, Newline, SerialiseOptions,
 };
-use quick_xml::Writer;
 use serde::{Deserialize, Serialize};
-use std::io::Cursor;
 
 /// Atom 1.0 namespace literal used on the root `<feed>` element.
 pub const ATOM_NAMESPACE: &str = "http://www.w3.org/2005/Atom";
 
-const XML_VERSION: &str = "1.0";
-const XML_ENCODING: &str = "utf-8";
+const XML_DECLARATION: &str =
+    r#"<?xml version="1.0" encoding="utf-8"?>"#;
 
 /// Discriminates between supported feed formats.
 ///
@@ -99,42 +97,33 @@ pub enum FeedFormat {
 /// ```
 #[must_use]
 pub fn detect_feed_format(xml: &str) -> FeedFormat {
-    use quick_xml::Reader;
+    use oxml::stream::{Event, Reader};
 
-    let mut reader = Reader::from_str(xml);
-    reader.config_mut().trim_text(true);
-    let mut buf = Vec::new();
-
+    let Ok(mut reader) = Reader::new(xml.trim_start()) else {
+        return FeedFormat::Unknown;
+    };
     loop {
-        match reader.read_event_into(&mut buf) {
-            Ok(Event::Start(start) | Event::Empty(start)) => {
-                let name = start.name();
-                let local = name.as_ref();
-                if local == b"rss" {
-                    return FeedFormat::Rss;
-                }
-                if local == b"rdf:RDF" || local == b"RDF" {
-                    return FeedFormat::RssRdf;
-                }
-                if local == b"feed" {
-                    // Only classify as Atom if the namespace matches —
-                    // some hand-rolled feeds use <feed> with no xmlns.
-                    let has_atom_ns =
-                        start.attributes().flatten().any(|a| {
-                            a.key.as_ref() == b"xmlns"
-                                && a.value.as_ref()
-                                    == ATOM_NAMESPACE.as_bytes()
-                        });
-                    return if has_atom_ns {
-                        FeedFormat::Atom
-                    } else {
-                        FeedFormat::Unknown
-                    };
-                }
-                return FeedFormat::Unknown;
+        match reader.next_event() {
+            Ok(Some(Event::StartElement { name, .. })) => {
+                return match name.local.as_str() {
+                    "rss" => FeedFormat::Rss,
+                    "RDF" => FeedFormat::RssRdf,
+                    "feed" => {
+                        // Only classify as Atom if the namespace matches —
+                        // some hand-rolled feeds use <feed> with no xmlns.
+                        if name.namespace.as_deref()
+                            == Some(ATOM_NAMESPACE)
+                        {
+                            FeedFormat::Atom
+                        } else {
+                            FeedFormat::Unknown
+                        }
+                    }
+                    _ => FeedFormat::Unknown,
+                };
             }
-            Ok(Event::Eof) | Err(_) => return FeedFormat::Unknown,
-            Ok(_) => buf.clear(),
+            Ok(None) | Err(_) => return FeedFormat::Unknown,
+            Ok(Some(_)) => {}
         }
     }
 }
@@ -772,156 +761,206 @@ fn sanitize_input(value: &str) -> String {
 pub fn generate_atom(feed: &AtomFeed) -> Result<String> {
     feed.validate()?;
 
-    let mut writer = Writer::new(Cursor::new(Vec::new()));
-
-    writer.write_event(Event::Decl(BytesDecl::new(
-        XML_VERSION,
-        Some(XML_ENCODING),
-        None,
-    )))?;
-
-    let mut feed_start = BytesStart::new("feed");
-    feed_start.push_attribute(("xmlns", ATOM_NAMESPACE));
+    let mut doc = Document::empty();
+    let feed_elem =
+        doc.append_element(doc.root(), Some(ATOM_NAMESPACE), "feed")?;
+    doc.declare_namespace(feed_elem, None, ATOM_NAMESPACE)?;
     if !feed.language.is_empty() {
-        feed_start.push_attribute(("xml:lang", feed.language.as_str()));
+        doc.set_attribute(
+            feed_elem,
+            Some("http://www.w3.org/XML/1998/namespace"),
+            "lang",
+            &clean_xml_text(&feed.language),
+        )?;
     }
-    writer.write_event(Event::Start(feed_start))?;
 
-    write_text_element(&mut writer, "id", &feed.id)?;
-    write_text_element(&mut writer, "title", &feed.title)?;
-    write_text_element(&mut writer, "updated", &feed.updated)?;
+    write_text_element(&mut doc, feed_elem, "id", &feed.id)?;
+    write_text_element(&mut doc, feed_elem, "title", &feed.title)?;
+    write_text_element(&mut doc, feed_elem, "updated", &feed.updated)?;
     if !feed.subtitle.is_empty() {
-        write_text_element(&mut writer, "subtitle", &feed.subtitle)?;
+        write_text_element(
+            &mut doc,
+            feed_elem,
+            "subtitle",
+            &feed.subtitle,
+        )?;
     }
     if !feed.rights.is_empty() {
-        write_text_element(&mut writer, "rights", &feed.rights)?;
+        write_text_element(
+            &mut doc,
+            feed_elem,
+            "rights",
+            &feed.rights,
+        )?;
     }
     if !feed.icon.is_empty() {
-        write_text_element(&mut writer, "icon", &feed.icon)?;
+        write_text_element(&mut doc, feed_elem, "icon", &feed.icon)?;
     }
     if !feed.logo.is_empty() {
-        write_text_element(&mut writer, "logo", &feed.logo)?;
+        write_text_element(&mut doc, feed_elem, "logo", &feed.logo)?;
     }
     if !feed.generator.is_empty() {
-        write_text_element(&mut writer, "generator", &feed.generator)?;
+        write_text_element(
+            &mut doc,
+            feed_elem,
+            "generator",
+            &feed.generator,
+        )?;
     }
 
     for person in &feed.authors {
-        write_person(&mut writer, "author", person)?;
+        write_person(&mut doc, feed_elem, "author", person)?;
     }
     for person in &feed.contributors {
-        write_person(&mut writer, "contributor", person)?;
+        write_person(&mut doc, feed_elem, "contributor", person)?;
     }
     for link in &feed.links {
-        write_link(&mut writer, link)?;
+        write_link(&mut doc, feed_elem, link)?;
     }
     for category in &feed.categories {
-        write_category(&mut writer, category)?;
+        write_category(&mut doc, feed_elem, category)?;
     }
 
     for entry in &feed.entries {
-        write_entry(&mut writer, entry)?;
+        write_entry(&mut doc, feed_elem, entry)?;
     }
 
-    writer.write_event(Event::End(BytesEnd::new("feed")))?;
-
-    let xml = writer.into_inner().into_inner();
-    String::from_utf8(xml).map_err(RssError::from)
+    let serialise_opts = SerialiseOptions {
+        indent: None,
+        empty_elements: EmptyElement::SelfClosing,
+        newline: Newline::Lf,
+    };
+    let mut xml = String::from(XML_DECLARATION);
+    let _ = doc.write_xml_with(&mut xml, serialise_opts);
+    Ok(xml)
 }
 
-fn write_text_element<W: std::io::Write>(
-    writer: &mut Writer<W>,
+fn write_text_element(
+    doc: &mut Document,
+    parent: NodeId,
     name: &str,
     content: &str,
 ) -> Result<()> {
-    let escaped = sanitize_content(content);
-    writer.write_event(Event::Start(BytesStart::new(name)))?;
-    writer
-        .write_event(Event::Text(BytesText::from_escaped(escaped)))?;
-    writer.write_event(Event::End(BytesEnd::new(name)))?;
+    let elem =
+        doc.append_element(parent, Some(ATOM_NAMESPACE), name)?;
+    doc.append_text(elem, &clean_xml_text(content))?;
     Ok(())
 }
 
-fn write_typed_text<W: std::io::Write>(
-    writer: &mut Writer<W>,
+fn write_typed_text(
+    doc: &mut Document,
+    parent: NodeId,
     name: &str,
     content: &str,
     text_type: AtomTextType,
 ) -> Result<()> {
-    let escaped = sanitize_content(content);
-    let mut start = BytesStart::new(name);
-    start.push_attribute(("type", text_type.as_attr()));
-    writer.write_event(Event::Start(start))?;
-    writer
-        .write_event(Event::Text(BytesText::from_escaped(escaped)))?;
-    writer.write_event(Event::End(BytesEnd::new(name)))?;
+    let elem =
+        doc.append_element(parent, Some(ATOM_NAMESPACE), name)?;
+    doc.set_attribute(elem, None, "type", text_type.as_attr())?;
+    doc.append_text(elem, &clean_xml_text(content))?;
     Ok(())
 }
 
-fn write_person<W: std::io::Write>(
-    writer: &mut Writer<W>,
+fn write_person(
+    doc: &mut Document,
+    parent: NodeId,
     element: &str,
     person: &AtomPerson,
 ) -> Result<()> {
-    writer.write_event(Event::Start(BytesStart::new(element)))?;
-    write_text_element(writer, "name", &person.name)?;
+    let person_elem =
+        doc.append_element(parent, Some(ATOM_NAMESPACE), element)?;
+    write_text_element(doc, person_elem, "name", &person.name)?;
     if !person.email.is_empty() {
-        write_text_element(writer, "email", &person.email)?;
+        write_text_element(doc, person_elem, "email", &person.email)?;
     }
     if !person.uri.is_empty() {
-        write_text_element(writer, "uri", &person.uri)?;
+        write_text_element(doc, person_elem, "uri", &person.uri)?;
     }
-    writer.write_event(Event::End(BytesEnd::new(element)))?;
     Ok(())
 }
 
-fn write_link<W: std::io::Write>(
-    writer: &mut Writer<W>,
+fn write_link(
+    doc: &mut Document,
+    parent: NodeId,
     link: &AtomLink,
 ) -> Result<()> {
-    let mut start = BytesStart::new("link");
-    start.push_attribute(("href", link.href.as_str()));
+    let link_elem =
+        doc.append_element(parent, Some(ATOM_NAMESPACE), "link")?;
+    doc.set_attribute(
+        link_elem,
+        None,
+        "href",
+        &clean_xml_text(&link.href),
+    )?;
     if !link.rel.is_empty() {
-        start.push_attribute(("rel", link.rel.as_str()));
+        doc.set_attribute(
+            link_elem,
+            None,
+            "rel",
+            &clean_xml_text(&link.rel),
+        )?;
     }
     if !link.mime_type.is_empty() {
-        start.push_attribute(("type", link.mime_type.as_str()));
+        doc.set_attribute(
+            link_elem,
+            None,
+            "type",
+            &clean_xml_text(&link.mime_type),
+        )?;
     }
     if !link.length.is_empty() {
-        start.push_attribute(("length", link.length.as_str()));
+        doc.set_attribute(
+            link_elem,
+            None,
+            "length",
+            &clean_xml_text(&link.length),
+        )?;
     }
     if !link.title.is_empty() {
-        start.push_attribute(("title", link.title.as_str()));
+        doc.set_attribute(
+            link_elem,
+            None,
+            "title",
+            &clean_xml_text(&link.title),
+        )?;
     }
-    writer.write_event(Event::Empty(start))?;
     Ok(())
 }
 
-fn write_category<W: std::io::Write>(
-    writer: &mut Writer<W>,
+fn write_category(
+    doc: &mut Document,
+    parent: NodeId,
     term: &str,
 ) -> Result<()> {
-    let mut start = BytesStart::new("category");
-    start.push_attribute(("term", term));
-    writer.write_event(Event::Empty(start))?;
+    let cat =
+        doc.append_element(parent, Some(ATOM_NAMESPACE), "category")?;
+    doc.set_attribute(cat, None, "term", &clean_xml_text(term))?;
     Ok(())
 }
 
-fn write_entry<W: std::io::Write>(
-    writer: &mut Writer<W>,
+fn write_entry(
+    doc: &mut Document,
+    parent: NodeId,
     entry: &AtomEntry,
 ) -> Result<()> {
-    writer.write_event(Event::Start(BytesStart::new("entry")))?;
+    let entry_elem =
+        doc.append_element(parent, Some(ATOM_NAMESPACE), "entry")?;
 
-    write_text_element(writer, "id", &entry.id)?;
-    write_text_element(writer, "title", &entry.title)?;
-    write_text_element(writer, "updated", &entry.updated)?;
+    write_text_element(doc, entry_elem, "id", &entry.id)?;
+    write_text_element(doc, entry_elem, "title", &entry.title)?;
+    write_text_element(doc, entry_elem, "updated", &entry.updated)?;
     if !entry.published.is_empty() {
-        write_text_element(writer, "published", &entry.published)?;
+        write_text_element(
+            doc,
+            entry_elem,
+            "published",
+            &entry.published,
+        )?;
     }
     if !entry.summary.is_empty() {
         write_typed_text(
-            writer,
+            doc,
+            entry_elem,
             "summary",
             &entry.summary,
             entry.summary_type,
@@ -929,30 +968,30 @@ fn write_entry<W: std::io::Write>(
     }
     if !entry.content.is_empty() {
         write_typed_text(
-            writer,
+            doc,
+            entry_elem,
             "content",
             &entry.content,
             entry.content_type,
         )?;
     }
     if !entry.rights.is_empty() {
-        write_text_element(writer, "rights", &entry.rights)?;
+        write_text_element(doc, entry_elem, "rights", &entry.rights)?;
     }
 
     for person in &entry.authors {
-        write_person(writer, "author", person)?;
+        write_person(doc, entry_elem, "author", person)?;
     }
     for person in &entry.contributors {
-        write_person(writer, "contributor", person)?;
+        write_person(doc, entry_elem, "contributor", person)?;
     }
     for link in &entry.links {
-        write_link(writer, link)?;
+        write_link(doc, entry_elem, link)?;
     }
     for category in &entry.categories {
-        write_category(writer, category)?;
+        write_category(doc, entry_elem, category)?;
     }
 
-    writer.write_event(Event::End(BytesEnd::new("entry")))?;
     Ok(())
 }
 

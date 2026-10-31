@@ -60,7 +60,7 @@ Or pin explicitly in `Cargo.toml`:
 
 ```toml
 [dependencies]
-rss-gen = "0.0.8"
+rss-gen = "0.0.13"
 ```
 
 ### MSRV
@@ -103,7 +103,7 @@ fn main() -> Result<(), rss_gen::RssError> {
     );
 
     let xml = generate_rss(&feed)?;
-    assert!(xml.contains("<rss version=\"2.0\""));
+    assert!(xml.contains(r#"<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">"#));
     assert!(xml.contains("<title>My Rust Blog</title>"));
     Ok(())
 }

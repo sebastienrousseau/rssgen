@@ -3,7 +3,7 @@
 
 //! This module provides macros for generating RSS feeds and setting fields for RSS data.
 //!
-//! It includes macros for generating RSS feeds from provided data using the quick_xml crate,
+//! It includes macros for generating RSS feeds from provided data using the `oxml` crate,
 //! as well as macros for setting fields in the `RssData` struct.
 
 /// Generates an RSS feed from the given `RssData` struct.
@@ -14,58 +14,41 @@
 ///
 /// # Arguments
 ///
-/// * `$writer` - The Writer instance to write the generated XML events.
+/// * `$writer` - The writer instance (`impl std::io::Write`) to write the generated XML.
 /// * `$options` - The `RssData` instance containing the metadata values for generating the RSS feed.
 ///
 /// # Returns
 ///
-/// Returns `Result<Writer<std::io::Cursor<Vec<u8>>>, Box<dyn Error>>` indicating success or an error if XML writing fails.
+/// Returns `Result<W, E>` indicating success or an error if XML writing fails.
 ///
 /// # Example
 ///
 /// ```text
 /// use rss_gen::{RssData, macro_generate_rss, macro_write_element};
-/// use quick_xml::Writer;
 /// use std::io::Cursor;
 ///
 /// fn generate_rss() -> Result<(), Box<dyn std::error::Error>> {
-///     let mut writer = Writer::new(Cursor::new(Vec::new()));
-///     let options = RssData::new()
-///         .Title("My Blog")
-///         .Link("https://example.com")
-///         .Description("A blog about Rust");
+///     let writer = Cursor::new(Vec::new());
+///     let options = RssData::new(None)
+///         .title("My Blog")
+///         .link("https://example.com")
+///         .description("A blog about Rust");
 ///
-///     let result: Result<Writer<Cursor<Vec<u8>>>, Box<dyn std::error::Error>> = macro_generate_rss!(writer, options);
+///     let result: Result<Cursor<Vec<u8>>, Box<dyn std::error::Error>> = macro_generate_rss!(writer, options);
 ///     assert!(result.is_ok());
 ///     Ok(())
 /// }
-/// ```text
-/// generate_rss().unwrap();
 /// ```
 #[macro_export]
 macro_rules! macro_generate_rss {
     ($writer:expr, $options:expr) => {{
-        use quick_xml::events::{
-            BytesDecl, BytesEnd, BytesStart, BytesText, Event,
-        };
-
         let mut writer = $writer;
 
-        writer.write_event(Event::Decl(BytesDecl::new(
-            "1.0",
-            Some("utf-8"),
-            None,
-        )))?;
-
-        let mut rss_start = BytesStart::new("rss");
-        rss_start.push_attribute(("version", "2.0"));
-        rss_start.push_attribute((
-            "xmlns:atom",
-            "http://www.w3.org/2005/Atom",
-        ));
-        writer.write_event(Event::Start(rss_start))?;
-
-        writer.write_event(Event::Start(BytesStart::new("channel")))?;
+        std::io::Write::write_all(
+            &mut writer,
+            b"<?xml version=\"1.0\" encoding=\"utf-8\"?><rss xmlns:atom=\"http://www.w3.org/2005/Atom\" version=\"2.0\"><channel>",
+        )
+        .map_err($crate::error::RssError::from)?;
 
         macro_write_element!(writer, "title", &$options.title)?;
         macro_write_element!(writer, "link", &$options.link)?;
@@ -94,27 +77,31 @@ macro_rules! macro_generate_rss {
 
         // Write image element
         if !$options.image_url.is_empty() {
-            writer
-                .write_event(Event::Start(BytesStart::new("image")))?;
+            std::io::Write::write_all(&mut writer, b"<image>")
+                .map_err($crate::error::RssError::from)?;
             macro_write_element!(writer, "url", &$options.image_url)?;
             macro_write_element!(writer, "title", &$options.title)?;
             macro_write_element!(writer, "link", &$options.link)?;
-            writer.write_event(Event::End(BytesEnd::new("image")))?;
+            std::io::Write::write_all(&mut writer, b"</image>")
+                .map_err($crate::error::RssError::from)?;
         }
 
         // Write atom:link
         if !$options.atom_link.is_empty() {
-            let mut atom_link_start = BytesStart::new("atom:link");
-            atom_link_start
-                .push_attribute(("href", $options.atom_link.as_str()));
-            atom_link_start.push_attribute(("rel", "self"));
-            atom_link_start
-                .push_attribute(("type", "application/rss+xml"));
-            writer.write_event(Event::Empty(atom_link_start))?;
+            std::io::Write::write_all(
+                &mut writer,
+                format!(
+                    r#"<atom:link href="{}" rel="self" type="application/rss+xml"/>"#,
+                    $options.atom_link
+                )
+                .as_bytes(),
+            )
+            .map_err($crate::error::RssError::from)?;
         }
 
         // Write item
-        writer.write_event(Event::Start(BytesStart::new("item")))?;
+        std::io::Write::write_all(&mut writer, b"<item>")
+            .map_err($crate::error::RssError::from)?;
         macro_write_element!(writer, "title", &$options.title)?;
         macro_write_element!(writer, "link", &$options.link)?;
         macro_write_element!(
@@ -125,10 +112,11 @@ macro_rules! macro_generate_rss {
         macro_write_element!(writer, "author", &$options.author)?;
         macro_write_element!(writer, "guid", &$options.guid)?;
         macro_write_element!(writer, "pubDate", &$options.pub_date)?;
-        writer.write_event(Event::End(BytesEnd::new("item")))?;
-
-        writer.write_event(Event::End(BytesEnd::new("channel")))?;
-        writer.write_event(Event::End(BytesEnd::new("rss")))?;
+        std::io::Write::write_all(
+            &mut writer,
+            b"</item></channel></rss>",
+        )
+        .map_err($crate::error::RssError::from)?;
 
         Ok(writer)
     }};
@@ -140,7 +128,7 @@ macro_rules! macro_generate_rss {
 ///
 /// # Arguments
 ///
-/// * `$writer` - The Writer instance to write the XML element.
+/// * `$writer` - The writer instance (`impl std::io::Write`) to write the XML element.
 /// * `$name` - The name of the XML element.
 /// * `$content` - The content of the XML element.
 ///
@@ -148,28 +136,25 @@ macro_rules! macro_generate_rss {
 ///
 /// ```
 /// use rss_gen::macro_write_element;
-/// use quick_xml::Writer;
 /// use std::io::Cursor;
-/// use quick_xml::events::{BytesStart, BytesEnd, BytesText, Event};
 ///
 /// fn _doctest_main_rss_gen_src_macros_rs_153_0() -> Result<(), Box<dyn std::error::Error>> {
-/// let mut writer = Writer::new(Cursor::new(Vec::new()));
-/// macro_write_element!(writer, "title", "My Blog").unwrap();
-///
-/// Ok(())
+///     let mut writer = Cursor::new(Vec::new());
+///     macro_write_element!(writer, "title", "My Blog").unwrap();
+///     Ok(())
 /// }
 /// ```
 #[macro_export]
 macro_rules! macro_write_element {
     ($writer:expr, $name:expr, $content:expr) => {{
         if !$content.is_empty() {
-            $writer
-                .write_event(Event::Start(BytesStart::new($name)))?;
-            $writer
-                .write_event(Event::Text(BytesText::new($content)))?;
-            $writer.write_event(Event::End(BytesEnd::new($name)))?;
+            $crate::generator::write_element(
+                &mut $writer,
+                $name,
+                $content,
+            )?;
         }
-        Ok::<(), quick_xml::Error>(())
+        Ok::<(), $crate::error::RssError>(())
     }};
 }
 
@@ -284,31 +269,29 @@ macro_rules! macro_metadata_option {
 
 #[cfg(test)]
 mod tests {
+    use crate::error::RssError;
     use crate::RssData;
-    use quick_xml::Writer;
     use std::collections::HashMap;
     use std::io::Cursor;
 
     #[test]
-    fn test_macro_generate_rss() -> Result<(), quick_xml::Error> {
+    fn test_macro_generate_rss() -> Result<(), RssError> {
         let options = RssData::new(None)
             .title("Test RSS Feed")
             .link("https://example.com")
             .description("A test RSS feed");
 
-        let writer = Writer::new(Cursor::new(Vec::new()));
+        let writer = Cursor::new(Vec::new());
         let result: Result<
-            Writer<Cursor<Vec<u8>>>,
+            Cursor<Vec<u8>>,
             Box<dyn std::error::Error>,
         > = macro_generate_rss!(writer, options);
 
         assert!(result.is_ok());
         let writer = result.unwrap();
-        let content =
-            String::from_utf8(writer.into_inner().into_inner())
-                .unwrap();
+        let content = String::from_utf8(writer.into_inner()).unwrap();
 
-        assert!(content.contains(r#"<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">"#));
+        assert!(content.contains(r#"<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">"#));
         assert!(content.contains("<title>Test RSS Feed</title>"));
         assert!(content.contains("<link>https://example.com</link>"));
         assert!(content
@@ -320,26 +303,23 @@ mod tests {
     /// Test generating an RSS feed using valid RSS data.
     /// Ensures that the macro generates valid XML elements for required fields.
     #[test]
-    fn test_macro_generate_rss_valid_data(
-    ) -> Result<(), quick_xml::Error> {
+    fn test_macro_generate_rss_valid_data() -> Result<(), RssError> {
         let options = RssData::new(None)
             .title("Test RSS Feed")
             .link("https://example.com")
             .description("A test RSS feed");
 
-        let writer = Writer::new(Cursor::new(Vec::new()));
+        let writer = Cursor::new(Vec::new());
         let result: Result<
-            Writer<Cursor<Vec<u8>>>,
+            Cursor<Vec<u8>>,
             Box<dyn std::error::Error>,
         > = macro_generate_rss!(writer, options);
 
         assert!(result.is_ok());
         let writer = result.unwrap();
-        let content =
-            String::from_utf8(writer.into_inner().into_inner())
-                .unwrap();
+        let content = String::from_utf8(writer.into_inner()).unwrap();
 
-        assert!(content.contains(r#"<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">"#));
+        assert!(content.contains(r#"<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">"#));
         assert!(content.contains("<title>Test RSS Feed</title>"));
         assert!(content.contains("<link>https://example.com</link>"));
         assert!(content
@@ -351,23 +331,21 @@ mod tests {
     /// Test generating an RSS feed with missing optional fields.
     /// Ensures that the macro still generates valid RSS but excludes the missing fields.
     #[test]
-    fn test_macro_generate_rss_missing_fields(
-    ) -> Result<(), quick_xml::Error> {
+    fn test_macro_generate_rss_missing_fields() -> Result<(), RssError>
+    {
         let options = RssData::new(None)
             .title("Test RSS Feed")
             .link("https://example.com");
 
-        let writer = Writer::new(Cursor::new(Vec::new()));
+        let writer = Cursor::new(Vec::new());
         let result: Result<
-            Writer<Cursor<Vec<u8>>>,
+            Cursor<Vec<u8>>,
             Box<dyn std::error::Error>,
         > = macro_generate_rss!(writer, options);
 
         assert!(result.is_ok());
         let writer = result.unwrap();
-        let content =
-            String::from_utf8(writer.into_inner().into_inner())
-                .unwrap();
+        let content = String::from_utf8(writer.into_inner()).unwrap();
 
         assert!(content.contains("<title>Test RSS Feed</title>"));
         assert!(content.contains("<link>https://example.com</link>"));

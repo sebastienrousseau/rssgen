@@ -16,9 +16,7 @@
     clippy::io_other_error
 )]
 
-use quick_xml::events::{BytesEnd, BytesStart, BytesText, Event};
-use quick_xml::Error as XmlError;
-use quick_xml::Writer;
+use rss_gen::error::RssError;
 use rss_gen::macro_set_rss_data_fields;
 use rss_gen::{
     macro_generate_rss, macro_write_element, RssData, RssVersion,
@@ -61,7 +59,7 @@ fn generate_rss_macro_example() -> Result<(), Box<dyn std::error::Error>>
     println!("🦀  Generate Rss Feed Macro Example");
     println!("---------------------------------------------");
 
-    let mut writer = Writer::new(Cursor::new(Vec::new()));
+    let mut writer = Cursor::new(Vec::new());
     let rss_data = RssData::new(Some(RssVersion::RSS2_0))
         .title("My Rust Blog")
         .link("https://myrustblog.com")
@@ -69,14 +67,14 @@ fn generate_rss_macro_example() -> Result<(), Box<dyn std::error::Error>>
 
     // Generate RSS feed using macro
     macro_generate_rss!(&mut writer, rss_data).map_err(
-        |e: XmlError| {
+        |e: RssError| {
             Box::new(ExampleError {
                 message: format!("Failed to generate RSS: {}", e),
             }) as Box<dyn std::error::Error>
         },
     )?;
 
-    let result = writer.into_inner().into_inner();
+    let result = writer.into_inner();
     let xml = String::from_utf8(result).map_err(|e| {
         Box::new(ExampleError {
             message: format!("Failed to convert RSS to UTF-8: {}", e),
@@ -94,17 +92,17 @@ fn write_element_macro_example(
     println!("\n🦀 Write Xml Element Macro Example");
     println!("---------------------------------------------");
 
-    let mut writer = Writer::new(Cursor::new(Vec::new()));
+    let mut writer = Cursor::new(Vec::new());
 
     // Writing an XML element using macro
     macro_write_element!(&mut writer, "title", "My Rust Blog")
-        .map_err(|e: XmlError| {
+        .map_err(|e: RssError| {
             Box::new(ExampleError {
                 message: format!("Failed to write XML element: {}", e),
             }) as Box<dyn std::error::Error>
         })?;
 
-    let result = writer.into_inner().into_inner();
+    let result = writer.into_inner();
     let xml = String::from_utf8(result).map_err(|e| {
         Box::new(ExampleError {
             message: format!("Failed to convert XML to UTF-8: {}", e),

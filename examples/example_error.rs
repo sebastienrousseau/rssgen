@@ -15,10 +15,9 @@
     clippy::io_other_error
 )]
 
-use quick_xml::Error as XmlError;
+use oxml::tree::NodeError;
 use rss_gen::error::{Result, RssError};
 use std::io;
-use std::sync::Arc;
 
 pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     println!("\n🧪 RSS Gen Error Handling Examples\n");
@@ -73,11 +72,7 @@ fn xml_error_example() -> Result<()> {
     println!("\n🦀 Xml Error Example");
     println!("---------------------------------------------");
 
-    let xml_error = XmlError::Io(Arc::new(io::Error::new(
-        io::ErrorKind::Other,
-        "XML parsing failed",
-    )));
-    let error = RssError::XmlWriteError(xml_error);
+    let error = RssError::XmlWriteError(NodeError::InvalidText);
     println!("    ❌  XML Error: {}", error);
 
     Ok(())
@@ -175,9 +170,7 @@ fn http_status_example() -> Result<()> {
     println!("---------------------------------------------");
 
     let missing_field_error = RssError::missing_field("author");
-    let xml_error = RssError::XmlWriteError(XmlError::Io(Arc::new(
-        io::Error::new(io::ErrorKind::Other, "XML error"),
-    )));
+    let xml_error = RssError::XmlWriteError(NodeError::InvalidText);
 
     println!(
         "    ❌  Missing Field Error HTTP Status: {}",

@@ -940,28 +940,7 @@ fn sanitize_input(input: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use quick_xml::de::from_str;
-
-    #[derive(Debug, Deserialize, PartialEq)]
-    struct Image {
-        title: String,
-        url: String,
-        link: String,
-    }
-
-    #[derive(Debug, Deserialize, PartialEq)]
-    struct Channel {
-        title: String,
-        link: String,
-        description: String,
-        image: Image,
-    }
-
-    #[derive(Debug, Deserialize, PartialEq)]
-    struct Rss {
-        #[serde(rename = "channel")]
-        channel: Channel,
-    }
+    use crate::parser::parse_rss;
 
     #[test]
     fn test_rss_version() {
@@ -1265,25 +1244,25 @@ mod tests {
         </rss>
         "#;
 
-        let parsed: Rss =
-            from_str(rss_xml).expect("Failed to parse RSS XML");
+        let parsed =
+            parse_rss(rss_xml, None).expect("Failed to parse RSS XML");
 
-        assert_eq!(parsed.channel.title, "GETS Open Tenders or Quotes");
+        assert_eq!(parsed.title, "GETS Open Tenders or Quotes");
         assert_eq!(
-            parsed.channel.link,
+            parsed.link,
             "https://www.gets.govt.nz//ExternalIndex.htm"
         );
-        assert_eq!(parsed.channel.description, "This feed lists the current open tenders or requests for quote listed on the GETS.");
+        assert_eq!(parsed.description, "This feed lists the current open tenders or requests for quote listed on the GETS.");
         assert_eq!(
-            parsed.channel.image.title,
+            parsed.image_title,
             "Open tenders or Requests for Quote from GETS"
         );
         assert_eq!(
-            parsed.channel.image.url,
+            parsed.image_url,
             "https://www.gets.govt.nz//ext/default/img/getsLogo.jpg"
         );
         assert_eq!(
-            parsed.channel.image.link,
+            parsed.image_link,
             "https://www.gets.govt.nz//ExternalIndex.htm"
         );
     }

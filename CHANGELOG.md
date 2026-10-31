@@ -4,6 +4,22 @@ All notable changes to `rss-gen` are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.13] - Unreleased
+
+### Changed
+
+- Replaced `quick-xml` with `oxml` 0.0.13 for RSS 0.90/0.91/0.92/1.0/2.0 and Atom 1.0 XML serialization, feed format detection, and streaming RSS parsing.
+- **Breaking: the MSRV is now Rust 1.89.0** (was 1.88.0), one floor
+  shared with the maintainer's other Rust crates. The dependencies alone
+  need 1.88. `Cargo.toml`, the MSRV CI lane and the README state it.
+
+### Dependencies
+
+- Replaced `quick-xml` 0.41 with `oxml` 0.0.13 (`default-features = false, features = ["std"]`).
+- Updated `tokio` to 1.54.1 (addresses `RUSTSEC-2026-0386`).
+- The minor-and-patch dependency group and the GitHub Actions group
+  (Dependabot #74, #75, #77, #79).
+
 ## [0.0.12] - 2026-10-11
 
 ### Fixed

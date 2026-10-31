@@ -42,10 +42,7 @@
 //! assert_eq!(parsed_data.items.len(), 1);
 //! ```
 
-use quick_xml::events::{
-    BytesCData, BytesEnd, BytesStart, BytesText, Event,
-};
-use quick_xml::Reader;
+use oxml::stream::{Event, Reader};
 use std::borrow::Cow;
 use std::sync::Arc;
 
@@ -377,37 +374,56 @@ pub fn parse_rss(
     xml_content: &str,
     config: Option<&ParserConfig>,
 ) -> Result<RssData> {
-    let mut reader = Reader::from_str(xml_content);
+    let mut reader = Reader::new(xml_content.trim_start())?;
     let mut rss_data = RssData::new(None);
-    let mut buf = Vec::with_capacity(1024);
     let mut context = ParserContext::new();
 
-    loop {
-        match reader.read_event_into(&mut buf) {
-            Ok(Event::Start(ref e)) => {
-                process_start_event(e, &mut context, &mut rss_data)?;
+    while let Some(event) = reader.next_event()? {
+        match event {
+            Event::StartElement {
+                name,
+                prefix,
+                attributes,
+                ..
+            } => {
+                let qname = match prefix.as_deref() {
+                    Some(p) if !p.is_empty() => {
+                        format!("{p}:{}", name.local)
+                    }
+                    _ => name.local,
+                };
+                let attrs: Vec<(String, String)> = attributes
+                    .into_iter()
+                    .map(|(n, v)| (n.local, v))
+                    .collect();
+                process_start_event(
+                    &qname,
+                    attrs,
+                    &mut context,
+                    &mut rss_data,
+                )?;
             }
-            Ok(Event::End(ref e)) => {
-                process_end_event(e, &mut context, &mut rss_data);
+            Event::EndElement { name, prefix, .. } => {
+                let qname = match prefix.as_deref() {
+                    Some(p) if !p.is_empty() => {
+                        format!("{p}:{}", name.local)
+                    }
+                    _ => name.local,
+                };
+                process_end_event(&qname, &mut context, &mut rss_data);
             }
-            Ok(Event::Text(ref e)) => process_text_event(
-                e,
-                &mut context,
-                &mut rss_data,
-                config,
-            )?,
-            Ok(Event::CData(ref e)) => process_cdata_event(
-                e,
-                &mut context,
-                &mut rss_data,
-                config,
-            )?,
-            Ok(Event::Eof) => break Ok(rss_data),
-            Err(e) => return Err(RssError::XmlParseError(e)),
+            Event::Text(text) if !text.trim().is_empty() => {
+                process_text_event(
+                    &text,
+                    &mut context,
+                    &mut rss_data,
+                    config,
+                )?;
+            }
             _ => (),
         }
-        buf.clear();
     }
+    Ok(rss_data)
 }
 
 /// Processes the start event of an XML element during RSS feed parsing.
@@ -418,23 +434,27 @@ pub fn parse_rss(
 ///
 /// # Arguments
 ///
-/// * `e` - A reference to the `BytesStart` struct representing the start of an XML element.
+/// * `name_str` - The qualified name of the XML element.
+/// * `attributes` - Key-value attribute pairs on the element.
 /// * `context` - A mutable reference to the `ParserContext` struct, which maintains the current parsing state.
 /// * `rss_data` - A mutable reference to the `RssData` struct, which stores the parsed RSS data.
 fn process_start_event(
-    e: &BytesStart<'_>,
+    name_str: &str,
+    attributes: Vec<(String, String)>,
     context: &mut ParserContext,
     _rss_data: &mut RssData,
 ) -> Result<()> {
-    let name_str = String::from_utf8_lossy(e.name().0).into_owned();
     if name_str.is_empty() {
         return Ok(());
     }
 
     // Detect RSS version or RDF for RSS 1.0
-    match name_str.as_str() {
-        "rss" | "rdf:RDF" => {
-            // Skip root elements like <rss> or <rdf:RDF>, continue to parse children
+    match name_str {
+        "rss" => {
+            return Ok(());
+        }
+        "rdf:RDF" => {
+            context.rss_version = RssVersionState::Rss1_0;
             return Ok(());
         }
         "channel" => {
@@ -465,17 +485,19 @@ fn process_start_event(
     }
 
     // Store current element and attributes
-    context.current_element = name_str;
-    context.current_attributes = e
-        .attributes()
-        .filter_map(std::result::Result::ok)
-        .map(|a| {
-            (
-                String::from_utf8_lossy(a.key.0).into_owned(),
-                String::from_utf8_lossy(&a.value).into_owned(),
-            )
-        })
-        .collect();
+    context.current_element = name_str.to_string();
+    context.current_attributes = attributes;
+
+    if matches!(context.parsing_state, ParsingState::Item)
+        && name_str == "enclosure"
+    {
+        parse_item_element(
+            &mut context.current_item,
+            "enclosure",
+            "",
+            &context.current_attributes,
+        );
+    }
 
     Ok(())
 }
@@ -487,25 +509,24 @@ fn process_start_event(
 ///
 /// # Arguments
 ///
-/// * `e` - A reference to the `BytesEnd` struct representing the end of an XML element.
+/// * `name` - The qualified name of the closing XML element.
 /// * `context` - A mutable reference to the `ParserContext` struct, which maintains the current parsing state.
 /// * `rss_data` - A mutable reference to the `RssData` struct, which stores the parsed RSS data.
 fn process_end_event(
-    e: &BytesEnd<'_>,
+    name: &str,
     context: &mut ParserContext,
     rss_data: &mut RssData,
 ) {
-    let name = e.name().0.to_vec();
-    if name == b"channel" {
+    if name == "channel" {
         if matches!(context.parsing_state, ParsingState::Channel) {
             context.parsing_state = ParsingState::None;
         }
-    } else if name == b"item" {
+    } else if name == "item" {
         if matches!(context.parsing_state, ParsingState::Item) {
             context.parsing_state = ParsingState::None;
             rss_data.add_item(context.current_item.clone());
         }
-    } else if name == b"image"
+    } else if name == "image"
         && matches!(context.parsing_state, ParsingState::Image)
     {
         context.parsing_state = ParsingState::None;
@@ -520,18 +541,11 @@ fn process_end_event(
 }
 
 fn process_text_event(
-    e: &BytesText<'_>,
+    text: &str,
     context: &mut ParserContext,
     rss_data: &mut RssData,
     config: Option<&ParserConfig>,
 ) -> Result<()> {
-    let decoded = e
-        .decode()
-        .map_err(|err| RssError::Custom(err.to_string()))?;
-    let text = quick_xml::escape::unescape(&decoded)
-        .map_err(|err| RssError::Custom(err.to_string()))?
-        .into_owned();
-
     let parse_context = ParsingContext {
         is_rss_1_0: matches!(
             context.rss_version,
@@ -539,7 +553,7 @@ fn process_text_event(
         ),
         state: context.parsing_state.clone(),
         current_element: &context.current_element,
-        text: &text,
+        text,
         current_attributes: &context.current_attributes,
     };
 
@@ -563,7 +577,7 @@ fn process_text_event(
     // Custom handlers can be applied if necessary
     apply_custom_handlers(
         &context.current_element,
-        &text,
+        text,
         &context.current_attributes,
         config,
     )?;
@@ -572,60 +586,14 @@ fn process_text_event(
 }
 
 /// Processes a CDATA event for the current XML element.
-///
-/// This function handles the processing of CDATA within RSS feeds, ensuring that
-/// CDATA is parsed into the appropriate elements (channels, items, or images).
-///
-/// # Arguments
-///
-/// * `e` - A reference to the `BytesCData` struct representing the CDATA content.
-/// * `context` - A mutable reference to the `ParserContext` struct, which maintains the current parsing state.
-/// * `rss_data` - A mutable reference to the `RssData` struct.
-/// * `config` - Optional configuration for custom parsing behavior.
+#[cfg(test)]
 fn process_cdata_event(
-    e: &BytesCData<'_>,
+    text: &str,
     context: &mut ParserContext,
     rss_data: &mut RssData,
     config: Option<&ParserConfig>,
 ) -> Result<()> {
-    let text = String::from_utf8_lossy(e.as_ref()).into_owned();
-    let state = context.parsing_state.clone();
-    let parse_context = ParsingContext {
-        is_rss_1_0: matches!(
-            context.rss_version,
-            RssVersionState::Rss1_0
-        ),
-        state,
-        current_element: &context.current_element,
-        text: &text,
-        current_attributes: &context.current_attributes,
-    };
-
-    let mut image_data = ImageData {
-        title: context.image_title.clone(),
-        url: context.image_url.clone(),
-        link: context.image_link.clone(),
-    };
-
-    handle_text_event(
-        rss_data,
-        &parse_context,
-        &mut context.current_item,
-        &mut image_data,
-    )?;
-
-    context.image_title = image_data.title;
-    context.image_url = image_data.url;
-    context.image_link = image_data.link;
-
-    apply_custom_handlers(
-        &context.current_element,
-        &text,
-        &context.current_attributes,
-        config,
-    )?;
-
-    Ok(())
+    process_text_event(text, context, rss_data, config)
 }
 
 /// Applies custom handlers for RSS elements.
@@ -701,9 +669,6 @@ impl std::fmt::Debug for ParserConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use quick_xml::events::BytesCData;
-    use quick_xml::events::BytesStart;
-    use quick_xml::events::BytesText;
     use std::sync::Arc;
 
     struct MockElementHandler;
@@ -744,46 +709,58 @@ mod tests {
 
     #[test]
     fn test_process_start_event_empty_name() {
-        let e = BytesStart::new("");
         let mut context = ParserContext::new();
         let mut rss_data = RssData::default();
 
-        let result =
-            process_start_event(&e, &mut context, &mut rss_data);
+        let result = process_start_event(
+            "",
+            Vec::new(),
+            &mut context,
+            &mut rss_data,
+        );
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_process_start_event_non_empty_name() {
-        let e = BytesStart::new("item");
         let mut context = ParserContext::new();
         let mut rss_data = RssData::default();
 
-        let result =
-            process_start_event(&e, &mut context, &mut rss_data);
+        let result = process_start_event(
+            "item",
+            Vec::new(),
+            &mut context,
+            &mut rss_data,
+        );
         assert!(result.is_ok());
         assert_eq!(context.current_element, "item");
     }
 
     #[test]
     fn test_process_text_event() {
-        let e = BytesText::from_escaped("Sample Text");
         let mut context = ParserContext::new();
         let mut rss_data = RssData::default();
 
-        let result =
-            process_text_event(&e, &mut context, &mut rss_data, None);
+        let result = process_text_event(
+            "Sample Text",
+            &mut context,
+            &mut rss_data,
+            None,
+        );
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_process_cdata_event() {
-        let e = BytesCData::new("Sample CDATA");
         let mut context = ParserContext::new();
         let mut rss_data = RssData::default();
 
-        let result =
-            process_cdata_event(&e, &mut context, &mut rss_data, None);
+        let result = process_cdata_event(
+            "Sample CDATA",
+            &mut context,
+            &mut rss_data,
+            None,
+        );
         assert!(result.is_ok());
     }
 
@@ -1156,56 +1133,68 @@ mod tests {
 
     #[test]
     fn test_process_text_event_in_channel() {
-        let e = BytesText::from_escaped("Channel Title");
         let mut context = ParserContext::new();
         context.parsing_state = ParsingState::Channel;
         context.current_element = "title".to_string();
         let mut rss_data = RssData::default();
 
-        let result =
-            process_text_event(&e, &mut context, &mut rss_data, None);
+        let result = process_text_event(
+            "Channel Title",
+            &mut context,
+            &mut rss_data,
+            None,
+        );
         assert!(result.is_ok());
         assert_eq!(rss_data.title, "Channel Title");
     }
 
     #[test]
     fn test_process_text_event_in_item() {
-        let e = BytesText::from_escaped("Item Title");
         let mut context = ParserContext::new();
         context.parsing_state = ParsingState::Item;
         context.current_element = "title".to_string();
         let mut rss_data = RssData::default();
 
-        let result =
-            process_text_event(&e, &mut context, &mut rss_data, None);
+        let result = process_text_event(
+            "Item Title",
+            &mut context,
+            &mut rss_data,
+            None,
+        );
         assert!(result.is_ok());
         assert_eq!(context.current_item.title, "Item Title");
     }
 
     #[test]
     fn test_process_cdata_event_in_channel() {
-        let e = BytesCData::new("CDATA Description");
         let mut context = ParserContext::new();
         context.parsing_state = ParsingState::Channel;
         context.current_element = "description".to_string();
         let mut rss_data = RssData::default();
 
-        let result =
-            process_cdata_event(&e, &mut context, &mut rss_data, None);
+        let result = process_cdata_event(
+            "CDATA Description",
+            &mut context,
+            &mut rss_data,
+            None,
+        );
         assert!(result.is_ok());
         assert_eq!(rss_data.description, "CDATA Description");
     }
 
     #[test]
     fn test_process_cdata_event_in_item() {
-        let e = BytesCData::new("CDATA Item Desc");
         let mut context = ParserContext::new();
         context.parsing_state = ParsingState::Item;
         context.current_element = "description".to_string();
         let mut rss_data = RssData::default();
 
-        let result =
-            process_cdata_event(&e, &mut context, &mut rss_data, None);
+        let result = process_cdata_event(
+            "CDATA Item Desc",
+            &mut context,
+            &mut rss_data,
+            None,
+        );
         assert!(result.is_ok());
         assert_eq!(context.current_item.description, "CDATA Item Desc");
     }
@@ -1217,7 +1206,6 @@ mod tests {
             custom_handlers: vec![handler],
         };
 
-        let e = BytesText::from_escaped("Custom content");
         let mut context = ParserContext::new();
         // Use None state so handle_text_event skips channel/item/image parsing
         // and apply_custom_handlers is invoked with the element and text
@@ -1225,7 +1213,7 @@ mod tests {
         let mut rss_data = RssData::default();
 
         let result = process_text_event(
-            &e,
+            "Custom content",
             &mut context,
             &mut rss_data,
             Some(&config),
@@ -1262,29 +1250,32 @@ mod tests {
 
     #[test]
     fn test_process_text_event_with_escaped_entities() {
-        let e = BytesText::from_escaped("&amp; &lt; &gt;");
-        let mut context = ParserContext::new();
-        context.parsing_state = ParsingState::Channel;
-        context.current_element = "title".to_string();
-        let mut rss_data = RssData::default();
+        let rss_xml = r#"<?xml version="1.0" encoding="UTF-8"?>
+        <rss version="2.0">
+          <channel>
+            <title>&amp; &lt; &gt;</title>
+            <link>https://example.com</link>
+            <description>Desc</description>
+          </channel>
+        </rss>"#;
 
-        let result =
-            process_text_event(&e, &mut context, &mut rss_data, None);
-        assert!(result.is_ok());
-        // BytesText::from_escaped + unescape should decode entities
-        assert_eq!(rss_data.title, "& < >");
+        let data = parse_rss(rss_xml, None).unwrap();
+        assert_eq!(data.title, "& < >");
     }
 
     #[test]
     fn test_process_start_event_unknown_element_outside_context() {
-        let e = BytesStart::new("unknownRoot");
         let mut context = ParserContext::new();
         // State is None, so unknown element triggers error
         context.parsing_state = ParsingState::None;
         let mut rss_data = RssData::default();
 
-        let result =
-            process_start_event(&e, &mut context, &mut rss_data);
+        let result = process_start_event(
+            "unknownRoot",
+            Vec::new(),
+            &mut context,
+            &mut rss_data,
+        );
         assert!(result.is_err());
     }
 

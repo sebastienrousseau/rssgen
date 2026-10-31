@@ -60,16 +60,16 @@ Or pin explicitly in `Cargo.toml`:
 
 ```toml
 [dependencies]
-rss-gen = "0.0.8"
+rss-gen = "0.0.13"
 ```
 
 ### MSRV
 
 | Surface | Minimum Supported Rust Version |
 | :--- | :--- |
-| Library | **1.88.0** (bumped from 1.79.0 in v0.0.6; `time 0.3.51` + `time-core 0.1.9` declare `rust-version = "1.88"`, the `icu_*` chain via `url`/`idna` pulls 1.86, and the effective floor through current crates.io is 1.88) |
+| Library | **1.89.0** (raised from 1.88.0 in v0.0.13 to share one floor with the maintainer's other Rust crates; the dependencies alone need 1.88: `time 0.3.51` + `time-core 0.1.9` declare `rust-version = "1.88"`, and the `icu_*` chain via `url`/`idna` pulls 1.86) |
 
-CI runs `stable` on every push, plus a dedicated MSRV lane that pins the 1.88.0 floor. Cross-platform matrix: Ubuntu + macOS + Windows.
+CI runs `stable` on every push, plus a dedicated MSRV lane that pins the 1.89.0 floor. Cross-platform matrix: Ubuntu + macOS + Windows.
 
 ### Build from source
 
@@ -103,7 +103,7 @@ fn main() -> Result<(), rss_gen::RssError> {
     );
 
     let xml = generate_rss(&feed)?;
-    assert!(xml.contains("<rss version=\"2.0\""));
+    assert!(xml.contains(r#"<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">"#));
     assert!(xml.contains("<title>My Rust Blog</title>"));
     Ok(())
 }

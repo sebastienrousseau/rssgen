@@ -16,7 +16,6 @@
     clippy::io_other_error
 )]
 
-use quick_xml::Writer;
 use rss_gen::generator::{sanitize_content, write_element};
 use rss_gen::{generate_rss, RssData, RssItem, RssVersion};
 use std::error::Error;
@@ -71,14 +70,14 @@ fn sanitize_content_example() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-/// Demonstrates writing an XML element using the `quick_xml` crate.
+/// Demonstrates writing an XML element using the `oxml` crate.
 ///
 /// This function writes an XML element and prints its representation.
 fn write_element_example() -> Result<(), Box<dyn Error>> {
     println!("\n🦀 Write Xml Element Example");
     println!("---------------------------------------------");
 
-    let mut writer = Writer::new(Cursor::new(Vec::new()));
+    let mut writer = Cursor::new(Vec::new());
     let element_name = "example";
     let content = "This is an example content";
 
@@ -89,7 +88,7 @@ fn write_element_example() -> Result<(), Box<dyn Error>> {
         }) as Box<dyn Error>
     })?;
 
-    let result = writer.into_inner().into_inner();
+    let result = writer.into_inner();
     let xml = String::from_utf8(result).map_err(|e| {
         Box::new(ExampleError {
             message: format!("Failed to convert XML to UTF-8: {}", e),

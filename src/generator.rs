@@ -4,15 +4,31 @@
 // src/generator.rs
 
 use crate::data::{RssData, RssItem, RssVersion};
-use crate::error::{Result, RssError};
-use quick_xml::events::{
-    BytesDecl, BytesEnd, BytesStart, BytesText, Event,
+use crate::error::Result;
+use oxml::{
+    tree::NodeId, Document, EmptyElement, Newline, SerialiseOptions,
 };
-use quick_xml::Writer;
-use std::io::Cursor;
 
-const XML_VERSION: &str = "1.0";
-const XML_ENCODING: &str = "utf-8";
+const XML_DECLARATION: &str =
+    r#"<?xml version="1.0" encoding="utf-8"?>"#;
+
+/// Strips invalid XML 1.0 control characters and unescapes pre-escaped HTML/XML entities
+/// so `oxml` can escape them once without double-encoding.
+pub(crate) fn clean_xml_text(content: &str) -> String {
+    let filtered: String = content
+        .chars()
+        .filter(|&c| {
+            !(c.is_control() && c != '\n' && c != '\r' && c != '\t')
+        })
+        .collect();
+
+    filtered
+        .replace("&#x27;", "'")
+        .replace("&quot;", "\"")
+        .replace("&gt;", ">")
+        .replace("&lt;", "<")
+        .replace("&amp;", "&")
+}
 
 /// Sanitizes the content by removing invalid XML characters and escaping special characters.
 ///
@@ -25,23 +41,7 @@ const XML_ENCODING: &str = "utf-8";
 /// A `String` with invalid XML characters removed and special characters escaped.
 #[must_use]
 pub fn sanitize_content(content: &str) -> String {
-    let filtered: String = content
-        .chars()
-        .filter(|&c| {
-            !(c.is_control() && c != '\n' && c != '\r' && c != '\t') // Keep valid control characters like newlines and tabs
-        })
-        .collect();
-
-    // First unescape any existing XML entities to avoid double-encoding,
-    // then re-escape everything. This makes the function idempotent.
-    let unescaped = filtered
-        .replace("&#x27;", "'")
-        .replace("&quot;", "\"")
-        .replace("&gt;", ">")
-        .replace("&lt;", "<")
-        .replace("&amp;", "&");
-
-    unescaped
+    clean_xml_text(content)
         .replace('&', "&amp;")
         .replace('<', "&lt;")
         .replace('>', "&gt;")
@@ -53,7 +53,7 @@ pub fn sanitize_content(content: &str) -> String {
 ///
 /// # Arguments
 ///
-/// * `writer` - A mutable reference to the XML writer.
+/// * `writer` - A mutable reference to the output writer.
 /// * `name` - The name of the XML element.
 /// * `content` - The content of the XML element.
 ///
@@ -65,14 +65,34 @@ pub fn sanitize_content(content: &str) -> String {
 ///
 /// This function returns an `Err` if there is an issue with writing XML content.
 pub fn write_element<W: std::io::Write>(
-    writer: &mut Writer<W>,
+    writer: &mut W,
     name: &str,
     content: &str,
 ) -> Result<()> {
-    writer.write_event(Event::Start(BytesStart::new(name)))?;
-    writer
-        .write_event(Event::Text(BytesText::from_escaped(content)))?;
-    writer.write_event(Event::End(BytesEnd::new(name)))?;
+    let mut doc = Document::empty();
+    let elem = doc.append_element(doc.root(), None, name)?;
+    doc.append_text(elem, &clean_xml_text(content))?;
+    let options = SerialiseOptions {
+        indent: None,
+        empty_elements: EmptyElement::Expanded,
+        newline: Newline::Lf,
+    };
+    doc.write_xml_to(writer, &options)?;
+    Ok(())
+}
+
+fn append_text_element(
+    doc: &mut Document,
+    parent: NodeId,
+    name: &str,
+    content: &str,
+) -> Result<()> {
+    let ns = doc
+        .element_name(parent)
+        .and_then(|n| n.namespace.as_deref())
+        .map(str::to_owned);
+    let elem = doc.append_element(parent, ns.as_deref(), name)?;
+    doc.append_text(elem, &clean_xml_text(content))?;
     Ok(())
 }
 
@@ -112,154 +132,89 @@ pub fn write_element<W: std::io::Write>(
 pub fn generate_rss(options: &RssData) -> Result<String> {
     options.validate()?;
 
-    let mut writer = Writer::new(Cursor::new(Vec::new()));
-
-    write_xml_declaration(&mut writer)?;
+    let mut doc = Document::empty();
 
     match options.version {
         RssVersion::RSS0_90 => {
-            write_rss_channel_0_90(&mut writer, options)?;
+            write_rss_channel_versioned(&mut doc, options, "0.90")?;
         }
         RssVersion::RSS0_91 => {
-            write_rss_channel_0_91(&mut writer, options)?;
+            write_rss_channel_versioned(&mut doc, options, "0.91")?;
         }
         RssVersion::RSS0_92 => {
-            write_rss_channel_0_92(&mut writer, options)?;
+            write_rss_channel_versioned(&mut doc, options, "0.92")?;
         }
         RssVersion::RSS1_0 => {
-            write_rss_channel_1_0(&mut writer, options)?;
+            write_rss_channel_1_0(&mut doc, options)?;
         }
         RssVersion::RSS2_0 => {
-            write_rss_channel_2_0(&mut writer, options)?;
+            write_rss_channel_2_0(&mut doc, options)?;
         }
     }
 
-    let xml = writer.into_inner().into_inner();
-    String::from_utf8(xml).map_err(RssError::from)
+    let serialise_opts = SerialiseOptions {
+        indent: None,
+        empty_elements: EmptyElement::SelfClosing,
+        newline: Newline::Lf,
+    };
+    let mut xml = String::from(XML_DECLARATION);
+    let _ = doc.write_xml_with(&mut xml, serialise_opts);
+    Ok(xml)
 }
 
-/// Writes the XML declaration to the writer.
-fn write_xml_declaration<W: std::io::Write>(
-    writer: &mut Writer<W>,
-) -> Result<()> {
-    Ok(writer.write_event(Event::Decl(BytesDecl::new(
-        XML_VERSION,
-        Some(XML_ENCODING),
-        None,
-    )))?)
-}
-
-/// Writes the RSS 0.90 channel element and its contents.
-fn write_rss_channel_0_90<W: std::io::Write>(
-    writer: &mut Writer<W>,
+/// Writes an RSS 0.9x channel element and its contents.
+fn write_rss_channel_versioned(
+    doc: &mut Document,
     options: &RssData,
+    version: &str,
 ) -> Result<()> {
-    let mut rss_start = BytesStart::new("rss");
-    rss_start.push_attribute(("version", "0.90"));
-    writer.write_event(Event::Start(rss_start))?;
-
-    writer.write_event(Event::Start(BytesStart::new("channel")))?;
-
-    write_channel_elements(writer, options)?;
-    write_items(writer, options)?;
-
-    writer.write_event(Event::End(BytesEnd::new("channel")))?;
-    writer.write_event(Event::End(BytesEnd::new("rss")))?;
-
-    Ok(())
-}
-
-/// Writes the RSS 0.91 channel element and its contents.
-fn write_rss_channel_0_91<W: std::io::Write>(
-    writer: &mut Writer<W>,
-    options: &RssData,
-) -> Result<()> {
-    let mut rss_start = BytesStart::new("rss");
-    rss_start.push_attribute(("version", "0.91"));
-    writer.write_event(Event::Start(rss_start))?;
-
-    writer.write_event(Event::Start(BytesStart::new("channel")))?;
-
-    write_channel_elements(writer, options)?;
-    write_items(writer, options)?;
-
-    writer.write_event(Event::End(BytesEnd::new("channel")))?;
-    writer.write_event(Event::End(BytesEnd::new("rss")))?;
-
-    Ok(())
-}
-
-/// Writes the RSS 0.92 channel element and its contents.
-fn write_rss_channel_0_92<W: std::io::Write>(
-    writer: &mut Writer<W>,
-    options: &RssData,
-) -> Result<()> {
-    let mut rss_start = BytesStart::new("rss");
-    rss_start.push_attribute(("version", "0.92"));
-    writer.write_event(Event::Start(rss_start))?;
-
-    writer.write_event(Event::Start(BytesStart::new("channel")))?;
-
-    write_channel_elements(writer, options)?;
-    write_items(writer, options)?;
-
-    writer.write_event(Event::End(BytesEnd::new("channel")))?;
-    writer.write_event(Event::End(BytesEnd::new("rss")))?;
-
+    let rss = doc.append_element(doc.root(), None, "rss")?;
+    doc.set_attribute(rss, None, "version", version)?;
+    let channel = doc.append_element(rss, None, "channel")?;
+    write_channel_elements(doc, channel, options)?;
+    write_items(doc, channel, options)?;
     Ok(())
 }
 
 /// Writes the RSS 1.0 channel element and its contents.
-fn write_rss_channel_1_0<W: std::io::Write>(
-    writer: &mut Writer<W>,
+fn write_rss_channel_1_0(
+    doc: &mut Document,
     options: &RssData,
 ) -> Result<()> {
-    let mut rdf_start = BytesStart::new("rdf:RDF");
-    rdf_start.push_attribute((
-        "xmlns:rdf",
-        "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
-    ));
-    rdf_start.push_attribute(("xmlns", "http://purl.org/rss/1.0/"));
-    writer.write_event(Event::Start(rdf_start))?;
+    let rdf_ns = "http://www.w3.org/1999/02/22-rdf-syntax-ns#";
+    let rss1_ns = "http://purl.org/rss/1.0/";
+    let rdf = doc.append_element(doc.root(), Some(rdf_ns), "RDF")?;
+    doc.declare_namespace(rdf, Some("rdf"), rdf_ns)?;
+    doc.declare_namespace(rdf, None, rss1_ns)?;
 
-    writer.write_event(Event::Start(BytesStart::new("channel")))?;
-
-    write_channel_elements(writer, options)?;
-    write_items(writer, options)?;
-
-    writer.write_event(Event::End(BytesEnd::new("channel")))?;
-    writer.write_event(Event::End(BytesEnd::new("rdf:RDF")))?;
-
+    let channel = doc.append_element(rdf, Some(rss1_ns), "channel")?;
+    write_channel_elements(doc, channel, options)?;
+    write_items(doc, channel, options)?;
     Ok(())
 }
 
 /// Writes the RSS 2.0 channel element and its contents.
-fn write_rss_channel_2_0<W: std::io::Write>(
-    writer: &mut Writer<W>,
+fn write_rss_channel_2_0(
+    doc: &mut Document,
     options: &RssData,
 ) -> Result<()> {
-    let mut rss_start = BytesStart::new("rss");
-    rss_start.push_attribute(("version", "2.0"));
-    rss_start
-        .push_attribute(("xmlns:atom", "http://www.w3.org/2005/Atom"));
-    writer.write_event(Event::Start(rss_start))?;
+    let atom_ns = "http://www.w3.org/2005/Atom";
+    let rss = doc.append_element(doc.root(), None, "rss")?;
+    doc.set_attribute(rss, None, "version", "2.0")?;
+    doc.declare_namespace(rss, Some("atom"), atom_ns)?;
 
-    writer.write_event(Event::Start(BytesStart::new("channel")))?;
-
-    write_channel_elements(writer, options)?;
-    write_image_element(writer, options)?;
-    write_atom_link_element(writer, options)?;
-    write_items(writer, options)?;
-
-    writer.write_event(Event::End(BytesEnd::new("channel")))?;
-    writer.write_event(Event::End(BytesEnd::new("rss")))?;
-
+    let channel = doc.append_element(rss, None, "channel")?;
+    write_channel_elements(doc, channel, options)?;
+    write_image_element(doc, channel, options)?;
+    write_atom_link_element(doc, channel, options)?;
+    write_items(doc, channel, options)?;
     Ok(())
 }
 
-/// Writes the channel elements to the writer.
-fn write_channel_elements<W: std::io::Write>(
-    writer: &mut Writer<W>,
+/// Writes the channel elements to the document.
+fn write_channel_elements(
+    doc: &mut Document,
+    channel: NodeId,
     options: &RssData,
 ) -> Result<()> {
     let elements = [
@@ -279,45 +234,52 @@ fn write_channel_elements<W: std::io::Write>(
 
     for (name, content) in &elements {
         if !content.is_empty() {
-            write_element(writer, name, content)?;
+            append_text_element(doc, channel, name, content)?;
         }
     }
 
     Ok(())
 }
 
-/// Writes the image element to the writer.
-fn write_image_element<W: std::io::Write>(
-    writer: &mut Writer<W>,
+/// Writes the image element to the channel.
+fn write_image_element(
+    doc: &mut Document,
+    channel: NodeId,
     options: &RssData,
 ) -> Result<()> {
     if !options.image_url.is_empty() {
-        writer.write_event(Event::Start(BytesStart::new("image")))?;
-        write_element(writer, "url", &options.image_url)?;
-        write_element(writer, "title", &options.title)?;
-        write_element(writer, "link", &options.link)?;
-        writer.write_event(Event::End(BytesEnd::new("image")))?;
+        let image = doc.append_element(channel, None, "image")?;
+        append_text_element(doc, image, "url", &options.image_url)?;
+        append_text_element(doc, image, "title", &options.title)?;
+        append_text_element(doc, image, "link", &options.link)?;
     }
     Ok(())
 }
 
 /// Writes the item elements to the RSS feed.
-fn write_items<W: std::io::Write>(
-    writer: &mut Writer<W>,
+fn write_items(
+    doc: &mut Document,
+    channel: NodeId,
     options: &RssData,
 ) -> Result<()> {
     for item in &options.items {
-        write_item(writer, item)?;
+        write_item(doc, channel, item)?;
     }
     Ok(())
 }
 
 /// Writes a single item element to the RSS feed.
-fn write_item<W: std::io::Write>(
-    writer: &mut Writer<W>,
+fn write_item(
+    doc: &mut Document,
+    channel: NodeId,
     item: &RssItem,
 ) -> Result<()> {
-    writer.write_event(Event::Start(BytesStart::new("item")))?;
+    let ns = doc
+        .element_name(channel)
+        .and_then(|n| n.namespace.as_deref())
+        .map(str::to_owned);
+    let item_node =
+        doc.append_element(channel, ns.as_deref(), "item")?;
 
     let item_elements = [
         ("title", &item.title),
@@ -330,26 +292,36 @@ fn write_item<W: std::io::Write>(
 
     for (name, content) in &item_elements {
         if !content.is_empty() {
-            write_element(writer, name, content)?;
+            append_text_element(doc, item_node, name, content)?;
         }
     }
 
-    writer.write_event(Event::End(BytesEnd::new("item")))?;
     Ok(())
 }
 
-/// Writes the Atom link element to the writer.
-fn write_atom_link_element<W: std::io::Write>(
-    writer: &mut Writer<W>,
+/// Writes the Atom link element to the channel.
+fn write_atom_link_element(
+    doc: &mut Document,
+    channel: NodeId,
     options: &RssData,
 ) -> Result<()> {
     if !options.atom_link.is_empty() {
-        let mut atom_link_start = BytesStart::new("atom:link");
-        atom_link_start
-            .push_attribute(("href", options.atom_link.as_str()));
-        atom_link_start.push_attribute(("rel", "self"));
-        atom_link_start.push_attribute(("type", "application/rss+xml"));
-        writer.write_event(Event::Empty(atom_link_start))?;
+        let atom_ns = "http://www.w3.org/2005/Atom";
+        let atom_link =
+            doc.append_element(channel, Some(atom_ns), "link")?;
+        doc.set_attribute(
+            atom_link,
+            None,
+            "href",
+            &clean_xml_text(&options.atom_link),
+        )?;
+        doc.set_attribute(atom_link, None, "rel", "self")?;
+        doc.set_attribute(
+            atom_link,
+            None,
+            "type",
+            "application/rss+xml",
+        )?;
     }
     Ok(())
 }
@@ -389,7 +361,7 @@ mod tests {
         assert!(result.is_ok());
 
         let rss_feed = result.unwrap();
-        assert!(rss_feed.contains(r#"<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">"#));
+        assert!(rss_feed.contains(r#"<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">"#));
         assert_xml_element(&rss_feed, "title", "Minimal Feed");
         assert_xml_element(&rss_feed, "link", "https://example.com");
         assert_xml_element(
@@ -437,7 +409,7 @@ mod tests {
         assert!(result.is_ok());
 
         let rss_feed = result.unwrap();
-        assert!(rss_feed.contains(r#"<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">"#));
+        assert!(rss_feed.contains(r#"<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">"#));
         assert_xml_element(&rss_feed, "title", "Full Feed");
         assert_xml_element(&rss_feed, "link", "https://example.com");
         assert_xml_element(&rss_feed, "description", "A full RSS feed");
@@ -506,7 +478,7 @@ mod tests {
         assert_xml_element(
             &rss_feed,
             "description",
-            "Feed with &lt;special&gt; &amp; &quot;characters&quot;",
+            "Feed with &lt;special&gt; &amp; \"characters\"",
         );
     }
 
@@ -669,7 +641,7 @@ mod tests {
                 RssVersion::RSS0_91 => assert!(rss_feed.contains(r#"<rss version="0.91">"#)),
                 RssVersion::RSS0_92 => assert!(rss_feed.contains(r#"<rss version="0.92">"#)),
                 RssVersion::RSS1_0 => assert!(rss_feed.contains(r#"<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns="http://purl.org/rss/1.0/">"#)),
-                RssVersion::RSS2_0 => assert!(rss_feed.contains(r#"<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">"#)),
+                RssVersion::RSS2_0 => assert!(rss_feed.contains(r#"<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">"#)),
             }
             assert_xml_element(
                 &rss_feed,

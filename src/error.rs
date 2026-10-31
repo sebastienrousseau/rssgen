@@ -4,7 +4,6 @@
 // src/error.rs
 
 use log;
-use quick_xml;
 use std::string::FromUtf8Error;
 use thiserror::Error;
 
@@ -14,11 +13,11 @@ use thiserror::Error;
 pub enum RssError {
     /// Error occurred while writing XML.
     #[error("XML error occurred: {0}")]
-    XmlWriteError(#[from] quick_xml::Error),
+    XmlWriteError(#[from] oxml::tree::NodeError),
 
     /// Error occurred during XML parsing.
     #[error("XML parse error occurred: {0}")]
-    XmlParseError(quick_xml::Error),
+    XmlParseError(#[from] oxml::Error),
 
     /// Error occurred during UTF-8 conversion.
     #[error("UTF-8 conversion error occurred: {0}")]
@@ -261,13 +260,11 @@ mod tests {
 
     #[test]
     fn test_xml_write_error() {
-        let xml_error = quick_xml::Error::Io(std::sync::Arc::new(
-            io::Error::other("XML error"),
-        ));
+        let xml_error = oxml::tree::NodeError::InvalidText;
         let error = RssError::XmlWriteError(xml_error);
         assert_eq!(
             error.to_string(),
-            "XML error occurred: I/O error: XML error"
+            "XML error occurred: the text cannot be written as XML"
         );
     }
 
@@ -298,9 +295,7 @@ mod tests {
 
     #[test]
     fn test_error_source() {
-        let xml_error = quick_xml::Error::Io(std::sync::Arc::new(
-            io::Error::new(io::ErrorKind::NotFound, "File not found"),
-        ));
+        let xml_error = oxml::tree::NodeError::InvalidText;
         let error = RssError::XmlWriteError(xml_error);
         assert!(error.source().is_some());
 
@@ -361,10 +356,8 @@ mod tests {
             400
         );
         assert_eq!(
-            RssError::XmlWriteError(quick_xml::Error::Io(
-                std::sync::Arc::new(io::Error::other("XML error"))
-            ))
-            .to_http_status(),
+            RssError::XmlWriteError(oxml::tree::NodeError::InvalidText)
+                .to_http_status(),
             500
         );
         assert_eq!(

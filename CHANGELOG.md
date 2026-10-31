@@ -16,8 +16,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Dependencies
 
 - Replaced `quick-xml` 0.41 with `oxml` 0.0.13 (`default-features = false, features = ["std"]`).
+- Updated `tokio` to 1.54.1 (addresses `RUSTSEC-2026-0386`).
 - The minor-and-patch dependency group and the GitHub Actions group
-  (Dependabot #74, #75).
+  (Dependabot #74, #75, #77, #79).
 
 ## [0.0.12] - 2026-10-11
 

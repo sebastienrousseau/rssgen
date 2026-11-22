@@ -374,56 +374,64 @@ pub fn parse_rss(
     xml_content: &str,
     config: Option<&ParserConfig>,
 ) -> Result<RssData> {
+    parse_rss_events(xml_content, config)
+}
+
+/// Runs the RSS event loop over `xml_content`.
+fn parse_rss_events(
+    xml_content: &str,
+    config: Option<&ParserConfig>,
+) -> Result<RssData> {
     let mut reader = Reader::new(xml_content.trim_start())?;
     let mut rss_data = RssData::new(None);
     let mut context = ParserContext::new();
 
     while let Some(event) = reader.next_event()? {
-        match event {
-            Event::StartElement {
-                name,
-                prefix,
-                attributes,
-                ..
-            } => {
-                let qname = match prefix.as_deref() {
-                    Some(p) if !p.is_empty() => {
-                        format!("{p}:{}", name.local)
-                    }
-                    _ => name.local,
-                };
-                let attrs: Vec<(String, String)> = attributes
-                    .into_iter()
-                    .map(|(n, v)| (n.local, v))
-                    .collect();
-                process_start_event(
-                    &qname,
-                    attrs,
-                    &mut context,
-                    &mut rss_data,
-                )?;
-            }
-            Event::EndElement { name, prefix, .. } => {
-                let qname = match prefix.as_deref() {
-                    Some(p) if !p.is_empty() => {
-                        format!("{p}:{}", name.local)
-                    }
-                    _ => name.local,
-                };
-                process_end_event(&qname, &mut context, &mut rss_data);
-            }
-            Event::Text(text) if !text.trim().is_empty() => {
-                process_text_event(
-                    &text,
-                    &mut context,
-                    &mut rss_data,
-                    config,
-                )?;
-            }
-            _ => (),
-        }
+        handle_rss_event(event, &mut context, &mut rss_data, config)?;
     }
     Ok(rss_data)
+}
+
+/// Joins an optional prefix and a local name into a qualified name
+/// (`prefix:local`), as the element handlers expect.
+fn qualified_name(prefix: Option<&str>, local: String) -> String {
+    match prefix {
+        Some(p) if !p.is_empty() => format!("{p}:{local}"),
+        _ => local,
+    }
+}
+
+/// Dispatches one stream event to the start, end or text handler.
+fn handle_rss_event(
+    event: Event,
+    context: &mut ParserContext,
+    rss_data: &mut RssData,
+    config: Option<&ParserConfig>,
+) -> Result<()> {
+    match event {
+        Event::StartElement {
+            name,
+            prefix,
+            attributes,
+            ..
+        } => {
+            let qname = qualified_name(prefix.as_deref(), name.local);
+            let attrs: Vec<(String, String)> = attributes
+                .into_iter()
+                .map(|(n, v)| (n.local, v))
+                .collect();
+            process_start_event(&qname, attrs, context, rss_data)
+        }
+        Event::EndElement { name, prefix, .. } => {
+            let qname = qualified_name(prefix.as_deref(), name.local);
+            process_end_event(&qname, context, rss_data);
+            Ok(())
+        }
+        Event::Text(text) if !text.trim().is_empty() => {
+            process_text_event(&text, context, rss_data, config)
+        }
+        _ => Ok(()),
+    }
 }
 
 /// Processes the start event of an XML element during RSS feed parsing.

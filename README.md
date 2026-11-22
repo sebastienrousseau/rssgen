@@ -225,7 +225,11 @@ fn main() -> Result<(), rss_gen::RssError> {
 ### Parsing existing feeds
 
 `parse_rss` reads any supported RSS version into the same `RssData`
-struct used by the generator — round-tripping is symmetric.
+struct used by the generator — round-tripping is symmetric. It also
+reads Atom 1.0 feeds (a `<feed>` root in the Atom namespace): each
+`<entry>` becomes an `RssItem`, `id` maps to `guid`, `published` (or
+`updated`) to `pub_date`, and `summary` (or `content`) to
+`description`. Elements from other namespaces are ignored.
 
 ```rust
 use rss_gen::parse_rss;

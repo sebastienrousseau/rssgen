@@ -4,13 +4,15 @@
 //! A robust and flexible RSS feed parser.
 //!
 //! This module provides functionality to parse RSS feeds of various versions
-//! (0.90, 0.91, 0.92, 1.0, and 2.0) into a structured format. It offers
+//! (0.90, 0.91, 0.92, 1.0, and 2.0) and Atom 1.0 feeds into a structured
+//! format. It offers
 //! comprehensive error handling, extensive customization options, and follows
 //! best practices in Rust development.
 //!
 //! # Features
 //!
 //! - Supports RSS versions 0.90, 0.91, 0.92, 1.0, and 2.0
+//! - Parses Atom 1.0 (RFC 4287) feeds into the same [`RssData`] model
 //! - Robust error handling with custom error types
 //! - Extensible parsing with custom element handlers
 //! - Comprehensive test suite
@@ -44,6 +46,8 @@
 
 use oxml::stream::{Event, Reader};
 use std::borrow::Cow;
+
+use crate::atom::{detect_feed_format, FeedFormat};
 use std::sync::Arc;
 
 pub use crate::data::{RssData, RssItem, RssVersion};
@@ -351,7 +355,12 @@ fn handle_text_event(
 /// Parses an RSS feed from XML content.
 ///
 /// This function takes XML content as input and parses it into an `RssData` struct.
-/// It supports parsing RSS versions 0.90, 0.91, 0.92, 1.0, and 2.0.
+/// It supports parsing RSS versions 0.90, 0.91, 0.92, 1.0, and 2.0, and
+/// Atom 1.0 feeds (a `<feed>` root in the Atom namespace). Atom elements
+/// are mapped onto the RSS fields: `subtitle` to `description`, `id` to
+/// `guid`, the feed's `updated` to `last_build_date`, an entry's
+/// `published` (or `updated`) to `pub_date`, its `summary` (or
+/// `content`) to `description`, and `author/name` to `author`.
 ///
 /// # Arguments
 ///
@@ -374,6 +383,9 @@ pub fn parse_rss(
     xml_content: &str,
     config: Option<&ParserConfig>,
 ) -> Result<RssData> {
+    if detect_feed_format(xml_content) == FeedFormat::Atom {
+        return crate::atom_parser::parse_atom(xml_content, config);
+    }
     parse_rss_events(xml_content, config)
 }
 

@@ -4,7 +4,42 @@ All notable changes to `rss-gen` are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.0.13] - Unreleased
+## [0.0.14] - Unreleased
+
+### Added
+
+- `parse_rss` parses Atom 1.0 (RFC 4287) feeds. It used to fail on any
+  Atom document with `Unknown element: feed`. Feed `title`, `subtitle`,
+  `id`, `updated`, `rights`, `generator`, `logo`, `category`,
+  `author/name` and the alternate and `self` links map onto `RssData`;
+  each `entry` becomes an `RssItem` with `title`, the alternate `link`,
+  `id` as `guid`, `published` (or `updated`) as `pub_date`, `summary`
+  (or `content`) as `description`, `author/name` and `category`.
+  Extension elements are ignored. Custom handlers in `ParserConfig`
+  see each Atom element as it closes. ([#85](https://github.com/sebastienrousseau/rssgen/issues/85))
+
+### Changed
+
+- `parse_rss` is split into smaller functions to bring it under the
+  complexity ceiling; behaviour is unchanged.
+
+### Dependencies
+
+- `log` 0.4.34 -> 0.4.35 in the minor-and-patch group (Dependabot #83).
+- The GitHub Actions group (Dependabot #84).
+- `url` 2.5.8 -> 2.5.9 for `RUSTSEC-2026-0592` (stack overflow in
+  `Url::origin()` on nested `blob:` URLs). `Cargo.toml` now requires
+  `url = "2.5.9"` so no affected version can resolve.
+- `rustix` 1.1.4 -> 1.1.6 (dev-only, through `tempfile`) for
+  `RUSTSEC-2026-0486`.
+
+### Tooling
+
+- CI pins the shared `sebastienrousseau/pipelines` workflows by commit
+  SHA instead of `@main`, and the CI workflow's token defaults to
+  `contents: read`, with `security-events: write` only for the
+  security job (OpenSSF Scorecard alerts 5, 12, 13, 14).
+
 
 ### Changed
 

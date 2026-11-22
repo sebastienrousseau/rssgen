@@ -22,6 +22,8 @@
 
 /// Atom 1.0 feed generation, validation, and feed-format detection.
 pub mod atom;
+/// Atom 1.0 parsing into the RSS data model, used by `parse_rss`.
+mod atom_parser;
 /// Contains the main types and data structures used to represent RSS feeds.
 pub mod data;
 /// Defines error types used throughout the library.

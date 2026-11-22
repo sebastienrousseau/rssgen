@@ -8,9 +8,13 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Read-only by default; a job that needs more asks for it.
+permissions:
+  contents: read
+
 jobs:
   ci:
-    uses: sebastienrousseau/pipelines/.github/workflows/rust-ci.yml@main
+    uses: sebastienrousseau/pipelines/.github/workflows/rust-ci.yml@3f9978aba68e59da1bd5a58d12fbaf142679fe5f # main 2026-11-07
     with:
       rust-version: 'stable'
       # Cross-OS matrix (macOS + Windows) runs in addition to the
@@ -26,7 +30,11 @@ jobs:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   security:
-    uses: sebastienrousseau/pipelines/.github/workflows/security.yml@main
+    # The shared security workflow uploads SARIF to code scanning.
+    permissions:
+      contents: read
+      security-events: write
+    uses: sebastienrousseau/pipelines/.github/workflows/security.yml@3f9978aba68e59da1bd5a58d12fbaf142679fe5f # main 2026-11-07
     with:
       language: rust
 
@@ -38,7 +46,7 @@ jobs:
     # so the custom domain stays bound across every deploy. The
     # repository Pages source has been switched to `build_type=workflow`;
     # the `gh-pages` branch is retired.
-    uses: sebastienrousseau/pipelines/.github/workflows/docs.yml@main
+    uses: sebastienrousseau/pipelines/.github/workflows/docs.yml@3f9978aba68e59da1bd5a58d12fbaf142679fe5f # main 2026-11-07
     permissions:
       contents: read
       pages: write
@@ -158,7 +166,7 @@ jobs:
         with:
           key: llvm-cov
           save-if: ${{ github.ref == 'refs/heads/main' }}
-      - uses: taiki-e/install-action@68a389c788b2cd04016ce8c80ee23b80d2ab3d68 # v2
+      - uses: taiki-e/install-action@3a3daafd3b7f23b8f65d9f5ba2db203fb59b79e2 # v2
         with:
           tool: cargo-llvm-cov
       - name: cargo llvm-cov

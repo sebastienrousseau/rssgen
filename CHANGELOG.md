@@ -27,6 +27,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - `log` 0.4.34 -> 0.4.35 in the minor-and-patch group (Dependabot #83).
 - The GitHub Actions group (Dependabot #84).
+- `taiki-e/install-action` 2.90.2 -> 2.90.6 and `ossf/scorecard-action`
+  2.5.0 -> 2.6.0 in the GitHub Actions group (Dependabot #88).
 - `url` 2.5.8 -> 2.5.9 for `RUSTSEC-2026-0592` (stack overflow in
   `Url::origin()` on nested `blob:` URLs). `Cargo.toml` now requires
   `url = "2.5.9"` so no affected version can resolve.
